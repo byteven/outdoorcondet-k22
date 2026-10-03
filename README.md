@@ -1,4 +1,5 @@
 # outdoorcondet
+
 03/10/2026
 
 Outdoor gear rental platform built with Laravel 13, Inertia.js v3, React 19, Tailwind CSS v4, and TypeScript.

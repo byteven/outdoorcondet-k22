@@ -1,14 +1,17 @@
 import type { LucideIcon } from 'lucide-react';
 
+import { cn } from '@/lib/utils';
+
 interface IconProps {
     iconNode?: LucideIcon | null;
     className?: string;
+    onClick?: () => void;
 }
 
-export function Icon({ iconNode: IconComponent, className }: IconProps) {
+export function Icon({ iconNode: IconComponent, className, onClick }: IconProps) {
     if (!IconComponent) {
         return null;
     }
 
-    return <IconComponent className={className} />;
+    return <IconComponent className={cn('cursor-pointer', className)} onClick={onClick} />;
 }

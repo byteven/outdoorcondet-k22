@@ -20,7 +20,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 
 /**
  * Static "Add Gear" dialog — scaffold only.
@@ -49,17 +48,17 @@ export function GearFormDialog() {
             </DialogTrigger>
 
             {/* Fleksibel: lebar/tinggi bisa disesuaikan via className */}
-            <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto bg-white">
+            <DialogContent className="max-h-[85vh] overflow-y-auto bg-white sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Add New Gear</DialogTitle>
-                    <DialogDescription>
-                        blablabla
-                    </DialogDescription>
+                    <DialogDescription>blablabla</DialogDescription>
                 </DialogHeader>
 
                 <form className="grid grid-cols-1 gap-4 py-2 md:grid-cols-2">
                     <div className="grid gap-2">
-                        <Label htmlFor="name" className="text-neutral-700">Name</Label>
+                        <Label htmlFor="name" className="text-neutral-700">
+                            Name
+                        </Label>
                         <Input
                             id="name"
                             placeholder="Trek 500"
@@ -69,7 +68,9 @@ export function GearFormDialog() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="brand" className="text-neutral-700">Brand</Label>
+                        <Label htmlFor="brand" className="text-neutral-700">
+                            Brand
+                        </Label>
                         <Input
                             id="brand"
                             placeholder="Decathlon"
@@ -79,7 +80,9 @@ export function GearFormDialog() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="condition" className="text-neutral-700">Condition</Label>
+                        <Label htmlFor="condition" className="text-neutral-700">
+                            Condition
+                        </Label>
                         <Select
                             value={form.condition}
                             onValueChange={(v) => set('condition', v)}
@@ -89,7 +92,9 @@ export function GearFormDialog() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="excellent">Excellent</SelectItem>
+                                <SelectItem value="excellent">
+                                    Excellent
+                                </SelectItem>
                                 <SelectItem value="good">Good</SelectItem>
                                 <SelectItem value="fair">Fair</SelectItem>
                             </SelectContent>
@@ -97,7 +102,9 @@ export function GearFormDialog() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="stock" className="text-neutral-700">Stock</Label>
+                        <Label htmlFor="stock" className="text-neutral-700">
+                            Stock
+                        </Label>
                         <Input
                             id="stock"
                             type="number"
@@ -109,7 +116,12 @@ export function GearFormDialog() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="daily_rate" className="text-neutral-700">Daily Rate</Label>
+                        <Label
+                            htmlFor="daily_rate"
+                            className="text-neutral-700"
+                        >
+                            Daily Rate
+                        </Label>
                         <Input
                             id="daily_rate"
                             type="number"
@@ -121,14 +133,21 @@ export function GearFormDialog() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="deposit_amount" className="text-neutral-700">Deposit Amount</Label>
+                        <Label
+                            htmlFor="deposit_amount"
+                            className="text-neutral-700"
+                        >
+                            Deposit Amount
+                        </Label>
                         <Input
                             id="deposit_amount"
                             type="number"
                             min={0}
                             placeholder="0.00"
                             value={form.deposit_amount}
-                            onChange={(e) => set('deposit_amount', e.target.value)}
+                            onChange={(e) =>
+                                set('deposit_amount', e.target.value)
+                            }
                         />
                     </div>
                 </form>
@@ -139,9 +158,7 @@ export function GearFormDialog() {
                             Cancel
                         </Button>
                     </DialogClose>
-                    <Button type="submit">
-                        Save Gear
-                    </Button>
+                    <Button type="submit">Save Gear</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

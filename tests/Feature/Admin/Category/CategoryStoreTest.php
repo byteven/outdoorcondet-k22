@@ -80,4 +80,3 @@ test('storing a category fails if slug is already taken', function () {
         ])
         ->assertSessionHasErrors(['slug']);
 });
-

@@ -53,4 +53,3 @@ test('deleted attribute is excluded from standard attribute index', function () 
 
     expect(Attribute::withTrashed()->count())->toBe(2);
 });
-

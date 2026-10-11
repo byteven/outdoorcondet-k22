@@ -40,4 +40,3 @@ class Attribute extends Model
         });
     }
 }
-

@@ -104,4 +104,3 @@ class AttributeController extends Controller
         return back();
     }
 }
-

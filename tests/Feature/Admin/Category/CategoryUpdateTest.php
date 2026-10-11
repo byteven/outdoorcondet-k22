@@ -79,4 +79,3 @@ test('updating a category rejects duplicate slug from another category', functio
         ])
         ->assertSessionHasErrors(['slug']);
 });
-

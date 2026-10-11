@@ -53,4 +53,3 @@ test('deleted category is excluded from standard category index', function () {
 
     expect(Category::withTrashed()->count())->toBe(2);
 });
-

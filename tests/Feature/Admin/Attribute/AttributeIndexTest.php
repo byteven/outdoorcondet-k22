@@ -84,4 +84,3 @@ test('admins can sort attributes by name or created_at', function () {
             ->where('attributes.data.0.name', 'Atribut B')
             ->where('attributes.data.1.name', 'Atribut A'));
 });
-

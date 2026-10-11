@@ -33,7 +33,7 @@ class AttributeFactory extends Factory
     public function definition(): array
     {
         $baseName = fake()->randomElement(self::ATTRIBUTE_NAMES);
-        $name = $baseName . ' ' . fake()->unique()->numberBetween(1, 99999);
+        $name = $baseName.' '.fake()->unique()->numberBetween(1, 99999);
 
         return [
             'name' => $name,
@@ -41,4 +41,3 @@ class AttributeFactory extends Factory
         ];
     }
 }
-

@@ -17,7 +17,7 @@ test('slug generator cleanses and formats category names properly', function () 
 });
 
 test('category model strictly guards mass assignment attributes in memory', function () {
-    $category = new Category();
+    $category = new Category;
 
     expect($category->isFillable('name'))->toBeTrue()
         ->and($category->isFillable('slug'))->toBeTrue()
@@ -32,7 +32,7 @@ test('category model implements soft deletes trait', function () {
 });
 
 test('store category request defines validation rules and custom indonesian messages', function () {
-    $request = new StoreCategoryRequest();
+    $request = new StoreCategoryRequest;
     $rules = $request->rules();
     $messages = $request->messages();
 
@@ -44,7 +44,7 @@ test('store category request defines validation rules and custom indonesian mess
 });
 
 test('update category request defines custom indonesian messages', function () {
-    $request = new UpdateCategoryRequest();
+    $request = new UpdateCategoryRequest;
     $messages = $request->messages();
 
     expect($messages)->toHaveKeys([
@@ -56,4 +56,3 @@ test('update category request defines custom indonesian messages', function () {
         'description.max',
     ])->and($messages['slug.unique'])->toBe('Slug sudah digunakan oleh kategori lain.');
 });
-

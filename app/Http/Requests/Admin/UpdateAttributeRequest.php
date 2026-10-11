@@ -53,4 +53,3 @@ class UpdateAttributeRequest extends FormRequest
         ];
     }
 }
-

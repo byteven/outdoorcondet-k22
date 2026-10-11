@@ -73,4 +73,3 @@ test('updating an attribute rejects duplicate name from another attribute', func
         ])
         ->assertSessionHasErrors(['name']);
 });
-

@@ -61,4 +61,3 @@ test('storing an attribute fails if name is already taken', function () {
         ])
         ->assertSessionHasErrors(['name']);
 });
-

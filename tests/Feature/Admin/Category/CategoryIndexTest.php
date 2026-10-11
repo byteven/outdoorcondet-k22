@@ -93,4 +93,3 @@ test('admins can sort categories by name or slug', function () {
             ->where('categories.data.0.name', 'Beta Gear')
             ->where('categories.data.1.name', 'Alpha Gear'));
 });
-

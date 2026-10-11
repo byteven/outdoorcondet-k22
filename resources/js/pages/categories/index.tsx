@@ -1,15 +1,18 @@
-import { Head, router } from "@inertiajs/react";
-import { ChevronRight, FolderTree } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { CategoryDetailDialog, type CategoryRow } from "@/components/category-detail-dialog";
-import { CategoryFormDialog } from "@/components/category-form-dialog";
-import { DataTablePagination } from "@/components/data-table-pagination";
-import { EmptyState } from "@/components/empty-state";
-import { SearchInput } from "@/components/search-input";
-import { SortButton } from "@/components/sort-button";
-import { SummaryCards, type SummaryCardItem } from "@/components/summary-cards";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Head, router } from '@inertiajs/react';
+import { ChevronRight, FolderTree } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+    CategoryDetailDialog,
+    type CategoryRow,
+} from '@/components/category-detail-dialog';
+import { CategoryFormDialog } from '@/components/category-form-dialog';
+import { DataTablePagination } from '@/components/data-table-pagination';
+import { EmptyState } from '@/components/empty-state';
+import { SearchInput } from '@/components/search-input';
+import { SortButton } from '@/components/sort-button';
+import { SummaryCards, type SummaryCardItem } from '@/components/summary-cards';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -17,8 +20,8 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table";
-import { index as categoriesIndex } from "@/routes/admin/categories";
+} from '@/components/ui/table';
+import { index as categoriesIndex } from '@/routes/admin/categories';
 
 type PaginatedCategories = {
     data: CategoryRow[];
@@ -34,8 +37,8 @@ type CategorySummary = {
     total: number;
 };
 
-type SortColumn = "name" | "slug" | "created_at";
-type SortDir = "asc" | "desc";
+type SortColumn = 'name' | 'slug' | 'created_at';
+type SortDir = 'asc' | 'desc';
 
 type CategoryFilters = {
     search: string;
@@ -53,21 +56,25 @@ type Props = {
 const PER_PAGE_OPTIONS = [10, 15, 25, 50];
 const COLUMN_COUNT = 5;
 
-const dateFormatter = new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+const dateFormatter = new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
 });
 
 function formatDate(value: string | null): string {
     if (!value) {
-        return "-";
+        return '-';
     }
 
     return dateFormatter.format(new Date(value));
 }
 
-export default function CategoriesIndex({ categories, summary, filters }: Props) {
+export default function CategoriesIndex({
+    categories,
+    summary,
+    filters,
+}: Props) {
     const [search, setSearch] = useState(filters.search);
     const [perPage, setPerPage] = useState(String(filters.per_page));
     const [sortBy, setSortBy] = useState<SortColumn>(filters.sort_by);
@@ -81,7 +88,9 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
             return;
         }
 
-        const fresh = categories.data.find((category) => category.id === preview.id);
+        const fresh = categories.data.find(
+            (category) => category.id === preview.id,
+        );
 
         if (!fresh) {
             setPreview(null);
@@ -106,7 +115,7 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
             {
                 preserveState: true,
                 replace: true,
-                only: ["categories", "filters", "summary"],
+                only: ['categories', 'filters', 'summary'],
                 onStart: () => setLoading(true),
                 onFinish: () => setLoading(false),
             },
@@ -128,26 +137,26 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
         return () => window.clearTimeout(timeout);
     }, [search, filters.search]);
 
-    const hasSearch = search !== "";
+    const hasSearch = search !== '';
 
     const handleSort = (column: SortColumn) => {
         if (sortBy !== column) {
-            const nextDir: SortDir = column === "created_at" ? "desc" : "asc";
+            const nextDir: SortDir = column === 'created_at' ? 'desc' : 'asc';
             setSortBy(column);
             setSortDir(nextDir);
             reload({ sort_by: column, sort_dir: nextDir });
             return;
         }
 
-        if (sortDir === "asc") {
-            setSortDir("desc");
-            reload({ sort_by: column, sort_dir: "desc" });
+        if (sortDir === 'asc') {
+            setSortDir('desc');
+            reload({ sort_by: column, sort_dir: 'desc' });
             return;
         }
 
-        setSortBy("created_at");
-        setSortDir("desc");
-        reload({ sort_by: "created_at", sort_dir: "desc" });
+        setSortBy('created_at');
+        setSortDir('desc');
+        reload({ sort_by: 'created_at', sort_dir: 'desc' });
     };
 
     const goToPage = (page: number) => {
@@ -156,12 +165,12 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
 
     const summaryItems: SummaryCardItem[] = [
         {
-            key: "total",
-            label: "Total kategori",
+            key: 'total',
+            label: 'Total kategori',
             value: summary.total,
             icon: FolderTree,
             iconClass:
-                "bg-info bg-[radial-gradient(circle_at_50%_0%,rgb(255_255_255/0.45),transparent_80%)] text-primary-foreground",
+                'bg-info bg-[radial-gradient(circle_at_50%_0%,rgb(255_255_255/0.45),transparent_80%)] text-primary-foreground',
         },
     ];
 
@@ -205,29 +214,31 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
                                 <TableHead>
                                     <SortButton
                                         label="Kategori"
-                                        active={sortBy === "name"}
+                                        active={sortBy === 'name'}
                                         direction={sortDir}
-                                        onClick={() => handleSort("name")}
+                                        onClick={() => handleSort('name')}
                                     />
                                 </TableHead>
                                 <TableHead>
                                     <SortButton
                                         label="Slug"
-                                        active={sortBy === "slug"}
+                                        active={sortBy === 'slug'}
                                         direction={sortDir}
-                                        onClick={() => handleSort("slug")}
+                                        onClick={() => handleSort('slug')}
                                     />
                                 </TableHead>
                                 <TableHead>Deskripsi</TableHead>
                                 <TableHead>
                                     <SortButton
                                         label="Dibuat Pada"
-                                        active={sortBy === "created_at"}
+                                        active={sortBy === 'created_at'}
                                         direction={sortDir}
-                                        onClick={() => handleSort("created_at")}
+                                        onClick={() => handleSort('created_at')}
                                     />
                                 </TableHead>
-                                <TableHead className="w-24 text-right">Aksi</TableHead>
+                                <TableHead className="w-24 text-right">
+                                    Aksi
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -253,26 +264,31 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
                                 ))
                             ) : categories.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={COLUMN_COUNT} className="h-64">
+                                    <TableCell
+                                        colSpan={COLUMN_COUNT}
+                                        className="h-64"
+                                    >
                                         <EmptyState
                                             icon={FolderTree}
                                             title={
                                                 hasSearch
-                                                    ? "Kategori tidak ditemukan"
-                                                    : "Belum ada kategori"
+                                                    ? 'Kategori tidak ditemukan'
+                                                    : 'Belum ada kategori'
                                             }
                                             description={
                                                 hasSearch
                                                     ? `Tidak ada kategori yang cocok dengan pencarian "${search}". Coba kata kunci lain.`
-                                                    : "Mulai dengan menambahkan kategori peralatan camping pertama."
+                                                    : 'Mulai dengan menambahkan kategori peralatan camping pertama.'
                                             }
                                             action={
                                                 hasSearch ? (
                                                     <Button
                                                         variant="outline"
                                                         onClick={() => {
-                                                            setSearch("");
-                                                            reload({ search: "" });
+                                                            setSearch('');
+                                                            reload({
+                                                                search: '',
+                                                            });
                                                         }}
                                                     >
                                                         Reset pencarian
@@ -293,19 +309,21 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
                                     >
                                         <TableCell className="font-medium">
                                             <div className="flex items-center gap-2">
-                                                <FolderTree className="size-4 text-muted-foreground shrink-0" />
-                                                <span className="truncate">{category.name}</span>
+                                                <FolderTree className="size-4 shrink-0 text-muted-foreground" />
+                                                <span className="truncate">
+                                                    {category.name}
+                                                </span>
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <span className="font-mono text-xs rounded bg-muted px-2 py-0.5 text-muted-foreground">
+                                            <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
                                                 /{category.slug}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="max-w-xs truncate text-muted-foreground text-sm">
-                                            {category.description || "-"}
+                                        <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                                            {category.description || '-'}
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
+                                        <TableCell className="text-sm text-muted-foreground">
                                             {formatDate(category.created_at)}
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -346,7 +364,10 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
                 />
             </div>
 
-            <CategoryDetailDialog category={preview} onClose={() => setPreview(null)} />
+            <CategoryDetailDialog
+                category={preview}
+                onClose={() => setPreview(null)}
+            />
         </>
     );
 }
@@ -354,7 +375,7 @@ export default function CategoriesIndex({ categories, summary, filters }: Props)
 CategoriesIndex.layout = {
     breadcrumbs: [
         {
-            title: "Kategori",
+            title: 'Kategori',
             href: categoriesIndex(),
         },
     ],

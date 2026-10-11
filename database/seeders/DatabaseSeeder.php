@@ -2,10 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\Attribute;
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Gear;
 use App\Models\User;
 use App\UserRole;
+use Database\Factories\AttributeFactory;
+use Database\Factories\CategoryFactory;
 use Database\Factories\GearFactory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -51,8 +55,8 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        foreach (\Database\Factories\CategoryFactory::CATEGORY_NAMES as $categoryName) {
-            \App\Models\Category::firstOrCreate(
+        foreach (CategoryFactory::CATEGORY_NAMES as $categoryName) {
+            Category::firstOrCreate(
                 ['slug' => Str::slug($categoryName)],
                 [
                     'name' => $categoryName,
@@ -61,8 +65,8 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        foreach (\Database\Factories\AttributeFactory::ATTRIBUTE_NAMES as $attributeName) {
-            \App\Models\Attribute::firstOrCreate(
+        foreach (AttributeFactory::ATTRIBUTE_NAMES as $attributeName) {
+            Attribute::firstOrCreate(
                 ['name' => $attributeName],
                 [
                     'description' => "Master atribut varian {$attributeName} untuk produk rental.",

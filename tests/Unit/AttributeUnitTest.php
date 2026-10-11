@@ -6,7 +6,7 @@ use App\Models\Attribute;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 test('attribute model strictly guards mass assignment attributes in memory', function () {
-    $attribute = new Attribute();
+    $attribute = new Attribute;
 
     expect($attribute->isFillable('name'))->toBeTrue()
         ->and($attribute->isFillable('description'))->toBeTrue()
@@ -20,7 +20,7 @@ test('attribute model implements soft deletes trait', function () {
 });
 
 test('store attribute request defines validation rules and custom indonesian messages', function () {
-    $request = new StoreAttributeRequest();
+    $request = new StoreAttributeRequest;
     $rules = $request->rules();
     $messages = $request->messages();
 
@@ -32,7 +32,7 @@ test('store attribute request defines validation rules and custom indonesian mes
 });
 
 test('update attribute request defines custom indonesian messages', function () {
-    $request = new UpdateAttributeRequest();
+    $request = new UpdateAttributeRequest;
     $messages = $request->messages();
 
     expect($messages)->toHaveKeys([
@@ -42,4 +42,3 @@ test('update attribute request defines custom indonesian messages', function () 
         'description.max',
     ])->and($messages['name.unique'])->toBe('Nama atribut sudah terdaftar.');
 });
-

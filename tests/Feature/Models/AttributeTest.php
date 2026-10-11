@@ -21,4 +21,3 @@ test('attribute search scope matches name or description', function () {
         ->and(Attribute::query()->search('Dimensi')->pluck('id')->all())->toBe([$a2->id])
         ->and(Attribute::query()->search('baterai')->pluck('id')->all())->toBe([$a3->id]);
 });
-

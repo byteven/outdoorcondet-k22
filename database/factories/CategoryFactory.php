@@ -35,7 +35,7 @@ class CategoryFactory extends Factory
     public function definition(): array
     {
         $baseName = fake()->randomElement(self::CATEGORY_NAMES);
-        $name = $baseName . ' ' . fake()->unique()->numberBetween(1, 99999);
+        $name = $baseName.' '.fake()->unique()->numberBetween(1, 99999);
 
         return [
             'name' => $name,
@@ -44,4 +44,3 @@ class CategoryFactory extends Factory
         ];
     }
 }
-

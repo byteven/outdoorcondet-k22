@@ -22,7 +22,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('pelanggan', [CustomerController::class, 'store'])->name('customers.store');
         Route::put('pelanggan/{customer}', [CustomerController::class, 'update'])->name('customers.update');
         Route::delete('pelanggan/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
-            
+
         Route::get('attributes', [AttributeController::class, 'index'])->name('attributes.index');
         Route::post('attributes', [AttributeController::class, 'store'])->name('attributes.store');
         Route::put('attributes/{attribute}', [AttributeController::class, 'update'])->name('attributes.update');

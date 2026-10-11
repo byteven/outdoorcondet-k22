@@ -61,7 +61,10 @@ export function DataTablePagination({
                         Baris per halaman
                     </span>
                     <Select value={perPage} onValueChange={onPerPageChange}>
-                        <SelectTrigger aria-label="Baris per halaman" className="w-20">
+                        <SelectTrigger
+                            aria-label="Baris per halaman"
+                            className="w-20"
+                        >
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent side="top">

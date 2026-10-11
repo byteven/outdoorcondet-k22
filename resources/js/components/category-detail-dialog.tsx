@@ -1,12 +1,12 @@
-import { router, usePage } from "@inertiajs/react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { FolderTree } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import InputError from "@/components/input-error";
-import { Button } from "@/components/ui/button";
+import { router, usePage } from '@inertiajs/react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { FolderTree } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -15,11 +15,11 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
-import { destroy, update } from "@/routes/admin/categories";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import { destroy, update } from '@/routes/admin/categories';
 
 export type CategoryRow = {
     id: number;
@@ -32,29 +32,29 @@ export type CategoryRow = {
 
 const updateCategorySchema = z.object({
     name: z
-        .string({ error: "Nama kategori wajib diisi." })
+        .string({ error: 'Nama kategori wajib diisi.' })
         .trim()
-        .min(1, "Nama kategori wajib diisi.")
-        .max(100, "Nama kategori maksimal 100 karakter."),
+        .min(1, 'Nama kategori wajib diisi.')
+        .max(100, 'Nama kategori maksimal 100 karakter.'),
     slug: z
-        .string({ error: "Slug kategori wajib diisi." })
+        .string({ error: 'Slug kategori wajib diisi.' })
         .trim()
-        .min(1, "Slug kategori wajib diisi.")
-        .max(120, "Slug maksimal 120 karakter."),
+        .min(1, 'Slug kategori wajib diisi.')
+        .max(120, 'Slug maksimal 120 karakter.'),
     description: z
         .string()
         .trim()
-        .max(1000, "Deskripsi maksimal 1000 karakter.")
+        .max(1000, 'Deskripsi maksimal 1000 karakter.')
         .optional()
-        .or(z.literal("")),
+        .or(z.literal('')),
 });
 
 type UpdateCategoryFormData = z.infer<typeof updateCategorySchema>;
 
-const dateFormatter = new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+const dateFormatter = new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
 });
 
 export function CategoryDetailDialog({
@@ -67,7 +67,10 @@ export function CategoryDetailDialog({
     const [processing, setProcessing] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const serverErrors = usePage().props.errors;
-    const updateErrors = (serverErrors.updateCategory ?? {}) as Record<string, string>;
+    const updateErrors = (serverErrors.updateCategory ?? {}) as Record<
+        string,
+        string
+    >;
 
     const {
         register,
@@ -77,9 +80,9 @@ export function CategoryDetailDialog({
     } = useForm<UpdateCategoryFormData>({
         resolver: zodResolver(updateCategorySchema),
         defaultValues: {
-            name: "",
-            slug: "",
-            description: "",
+            name: '',
+            slug: '',
+            description: '',
         },
     });
 
@@ -88,7 +91,7 @@ export function CategoryDetailDialog({
             reset({
                 name: category.name,
                 slug: category.slug,
-                description: category.description ?? "",
+                description: category.description ?? '',
             });
         }
     }, [category?.id, reset]);
@@ -110,7 +113,7 @@ export function CategoryDetailDialog({
                 description: data.description || undefined,
             },
             {
-                errorBag: "updateCategory",
+                errorBag: 'updateCategory',
                 preserveState: true,
                 onStart: () => setProcessing(true),
                 onFinish: () => setProcessing(false),
@@ -122,7 +125,10 @@ export function CategoryDetailDialog({
     };
 
     return (
-        <Dialog open={category !== null} onOpenChange={(open) => !open && onClose()}>
+        <Dialog
+            open={category !== null}
+            onOpenChange={(open) => !open && onClose()}
+        >
             <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-md">
                 <DialogHeader className="shrink-0">
                     <DialogTitle>Detail & Edit Kategori</DialogTitle>
@@ -136,8 +142,10 @@ export function CategoryDetailDialog({
                         <FolderTree className="size-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-semibold">{category.name}</p>
-                        <p className="truncate text-xs text-muted-foreground font-mono">
+                        <p className="truncate text-base font-semibold">
+                            {category.name}
+                        </p>
+                        <p className="truncate font-mono text-xs text-muted-foreground">
                             /{category.slug}
                         </p>
                     </div>
@@ -146,39 +154,49 @@ export function CategoryDetailDialog({
                 <form
                     id="update-category-form"
                     onSubmit={handleSubmit(onSubmit)}
-                    className="min-h-0 flex-1 overflow-y-auto px-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+                    className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
                 >
                     <div className="flex flex-col gap-4 py-2">
                         <div className="grid gap-2">
                             <Label htmlFor="edit-category-name">
-                                Nama kategori <span className="text-destructive">*</span>
+                                Nama kategori{' '}
+                                <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="edit-category-name"
                                 type="text"
                                 disabled={processing}
-                                {...register("name")}
+                                {...register('name')}
                             />
-                            <InputError message={errors.name?.message ?? updateErrors.name} />
+                            <InputError
+                                message={
+                                    errors.name?.message ?? updateErrors.name
+                                }
+                            />
                         </div>
 
                         <div className="grid gap-2">
                             <Label htmlFor="edit-category-slug">
-                                Slug URL <span className="text-destructive">*</span>
+                                Slug URL{' '}
+                                <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="edit-category-slug"
                                 type="text"
                                 disabled={processing}
-                                {...register("slug")}
+                                {...register('slug')}
                             />
-                            <InputError message={errors.slug?.message ?? updateErrors.slug} />
+                            <InputError
+                                message={
+                                    errors.slug?.message ?? updateErrors.slug
+                                }
+                            />
                         </div>
 
                         <div className="grid gap-2">
                             <Label htmlFor="edit-category-description">
-                                Deskripsi{" "}
-                                <span className="text-xs text-muted-foreground font-normal">
+                                Deskripsi{' '}
+                                <span className="text-xs font-normal text-muted-foreground">
                                     (opsional)
                                 </span>
                             </Label>
@@ -186,20 +204,25 @@ export function CategoryDetailDialog({
                                 id="edit-category-description"
                                 rows={3}
                                 disabled={processing}
-                                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                {...register("description")}
+                                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                {...register('description')}
                             />
                             <InputError
-                                message={errors.description?.message ?? updateErrors.description}
+                                message={
+                                    errors.description?.message ??
+                                    updateErrors.description
+                                }
                             />
                         </div>
 
                         <div className="grid gap-1 rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                             <span>
-                                Dibuat pada:{" "}
+                                Dibuat pada:{' '}
                                 {category.created_at
-                                    ? dateFormatter.format(new Date(category.created_at))
-                                    : "-"}
+                                    ? dateFormatter.format(
+                                          new Date(category.created_at),
+                                      )
+                                    : '-'}
                             </span>
                         </div>
                     </div>

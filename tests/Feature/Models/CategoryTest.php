@@ -23,4 +23,3 @@ test('category search scope matches name, slug, or description', function () {
         ->and(Category::query()->search('carrier-bag')->pluck('id')->all())->toBe([$c2->id])
         ->and(Category::query()->search('hangat')->pluck('id')->all())->toBe([$c3->id]);
 });
-

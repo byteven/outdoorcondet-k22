@@ -13,6 +13,7 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 ---
 
 ## 2. Tech Stack & Architecture (As-Is Repo)
+- **Primary Language:** Indonesian (Bahasa Indonesia) — All UI text, PRD updates, and instructions must use Indonesian. Exceptions for standard tech terms (e.g., "Sign in", "Log in", "Privacy", "Checkout").
 - **Backend Framework:** Laravel 11/12 (PHP)
 - **Frontend / UI:** React (Vite), TypeScript, Tailwind CSS, Shadcn UI (`components.json`)
 - **Database:** MySQL / PostgreSQL

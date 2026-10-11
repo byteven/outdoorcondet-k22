@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Customer;
 use App\Models\Gear;
 use App\Models\User;
+use App\UserRole;
 use Database\Factories\GearFactory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -24,6 +26,23 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        User::factory()->create([
+            'name' => 'Admin OutdoorCondet',
+            'email' => 'admin@outdoorcondet.test',
+            'role' => UserRole::Admin,
+        ]);
+
+        User::factory()->create([
+            'name' => 'Admin',
+            'email' => 'admin@gmail.com',
+            'password' => 'Admin123321@',
+            'role' => UserRole::Admin,
+        ]);
+
+        Customer::factory()->count(18)->create();
+        Customer::factory()->count(5)->verified()->create();
+        Customer::factory()->count(2)->inactive()->create();
 
         foreach (GearFactory::NAMES as $name) {
             Gear::factory()->create([

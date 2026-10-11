@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
@@ -19,7 +20,7 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('admin.dashboard', absolute: false));
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function () {
@@ -74,4 +75,34 @@ test('users are rate limited', function () {
     ]);
 
     $response->assertTooManyRequests();
+});
+
+test('users without verified email can access the dashboard', function () {
+    $user = User::factory()->unverified()->create();
+
+    $this->actingAs($user)->get(route('admin.dashboard'))->assertOk();
+});
+
+test('inactive customers cannot authenticate', function () {
+    $customer = Customer::factory()->inactive()->create();
+
+    $response = $this->post(route('login.store'), [
+        'email' => $customer->user->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors('email');
+    $this->assertGuest();
+});
+
+test('active customers can authenticate', function () {
+    $customer = Customer::factory()->create();
+
+    $response = $this->post(route('login.store'), [
+        'email' => $customer->user->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('admin.dashboard', absolute: false));
 });

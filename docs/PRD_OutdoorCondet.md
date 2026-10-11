@@ -154,6 +154,7 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 ### 4.1. Verification / KTP Strategy
 - **Registrasi Awal:** Cukup `name`, `email`, `password`, `phone_number`. Minimalkan drop-off calon pelanggan.
 - **First Checkout:** Wajib unggah KTP (`identity_number` & `identity_card_path`) sebelum submit order pertama. Admin verifikasi manual sebelum menyetujui jadwal sewa.
+- **Admin Manual Create:** Admin boleh melampirkan foto KTP (`identity_card`, JPG/PNG/WebP maksimal 2 MB, opsional) saat membuat pelanggan manual dari panel admin.
 
 ### 4.2. Availability & Real-Time Stock Calculation
 Untuk rentang tanggal $[T_{start}, T_{end}]$:

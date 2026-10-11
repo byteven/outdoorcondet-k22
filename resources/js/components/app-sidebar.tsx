@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -13,14 +13,23 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard } from '@/routes/admin';
+import { index as customersIndex } from '@/routes/admin/customers';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const dashboardNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+];
+
+const manageNavItems: NavItem[] = [
+    {
+        title: 'Pelanggan',
+        href: customersIndex(),
+        icon: Users,
     },
 ];
 
@@ -42,7 +51,8 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={dashboardNavItems} />
+                <NavMain items={manageNavItems} label="Kelola Data" />
             </SidebarContent>
 
             <SidebarFooter>

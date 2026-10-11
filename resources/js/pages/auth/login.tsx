@@ -146,7 +146,7 @@ export default function Login({ status, canResetPassword }: Props) {
                 <div className="text-center text-sm text-muted-foreground">
                     Belum punya akun?{' '}
                     <TextLink href={register()} tabIndex={5}>
-                        Sign up
+                        Daftar
                     </TextLink>
                 </div>
             </form>
@@ -162,5 +162,5 @@ export default function Login({ status, canResetPassword }: Props) {
 
 Login.layout = {
     title: 'Selamat Datang, Outdoorian!',
-    description: 'Sign in untuk mulai menyewa alat yang kamu butuh.',
+    description: 'Masuk untuk mulai menyewa alat yang kamu butuh.',
 };

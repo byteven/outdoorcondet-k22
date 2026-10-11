@@ -8,15 +8,13 @@ Route::inertia('/', 'welcome')->name('home');
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/admin/dashboard');
 
-    Route::prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('can:access-admin')->group(function () {
         Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
-        Route::middleware('can:access-admin')->group(function () {
-            Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
-            Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
-            Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
-            Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
-        });
+        Route::get('pelanggan', [CustomerController::class, 'index'])->name('customers.index');
+        Route::post('pelanggan', [CustomerController::class, 'store'])->name('customers.store');
+        Route::put('pelanggan/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+        Route::delete('pelanggan/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
     });
 });
 

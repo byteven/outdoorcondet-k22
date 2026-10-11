@@ -29,7 +29,7 @@ test('guests cannot store customers', function () {
 test('customers cannot store new customers', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);
 
-    $this->actingAs($user)->post(route('admin.customers.store'), validPayload())->assertForbidden();
+    $this->actingAs($user)->post(route('admin.customers.store'), validPayload())->assertRedirect(route('home'));
 });
 
 test('admins can store a customer with its user account', function () {

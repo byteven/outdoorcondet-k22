@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { destroy, update } from '@/routes/admin/customers';
 
@@ -59,7 +60,12 @@ const updateCustomerSchema = z.object({
 });
 
 type Drafts = z.infer<typeof updateCustomerSchema>;
-type EditableField = 'name' | 'email' | 'phone_number' | 'identity_number' | 'address';
+type EditableField =
+    | 'name'
+    | 'email'
+    | 'phone_number'
+    | 'identity_number'
+    | 'address';
 
 const EDITABLE_FIELDS: EditableField[] = [
     'name',
@@ -84,10 +90,7 @@ const dateFormatter = new Intl.DateTimeFormat('id-ID', {
 });
 
 function stripPhonePrefix(value: string): string {
-    return value
-        .replace(/\D/g, '')
-        .replace(/^0+/, '')
-        .replace(/^62/, '');
+    return value.replace(/\D/g, '').replace(/^0+/, '').replace(/^62/, '');
 }
 
 function normalizePhoneRest(value: string): string {
@@ -149,11 +152,16 @@ export function CustomerProfileDialog({
     const [drafts, setDrafts] = useState<Drafts | null>(null);
     const [editing, setEditing] = useState<EditableField | null>(null);
     const [ktpOpen, setKtpOpen] = useState(false);
-    const [clientErrors, setClientErrors] = useState<Partial<Record<EditableField, string>>>({});
+    const [clientErrors, setClientErrors] = useState<
+        Partial<Record<EditableField, string>>
+    >({});
     const [processing, setProcessing] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const serverErrors = usePage().props.errors;
-    const updateErrors = (serverErrors.updateCustomer ?? {}) as Record<string, string>;
+    const updateErrors = (serverErrors.updateCustomer ?? {}) as Record<
+        string,
+        string
+    >;
 
     useEffect(() => {
         if (customer) {
@@ -165,19 +173,25 @@ export function CustomerProfileDialog({
 
     if (!customer || !drafts) {
         return (
-            <Dialog open={customer !== null} onOpenChange={(open) => !open && onClose()}>
+            <Dialog
+                open={customer !== null}
+                onOpenChange={(open) => !open && onClose()}
+            >
                 <DialogContent className="max-h-[90dvh] overflow-y-auto" />
             </Dialog>
         );
     }
 
     const original = toDrafts(customer);
-    const dirty = EDITABLE_FIELDS.some((field) => drafts[field] !== original[field]) ||
+    const dirty =
+        EDITABLE_FIELDS.some((field) => drafts[field] !== original[field]) ||
         drafts.is_active !== original.is_active;
 
     const toggleEdit = (field: EditableField) => {
         if (editing === field) {
-            setDrafts((prev) => (prev ? { ...prev, [field]: original[field] } : prev));
+            setDrafts((prev) =>
+                prev ? { ...prev, [field]: original[field] } : prev,
+            );
             setEditing(null);
 
             return;
@@ -205,7 +219,9 @@ export function CustomerProfileDialog({
 
             setClientErrors(fieldErrors);
 
-            const firstInvalid = EDITABLE_FIELDS.find((field) => fieldErrors[field]);
+            const firstInvalid = EDITABLE_FIELDS.find(
+                (field) => fieldErrors[field],
+            );
             setEditing(firstInvalid ?? editing);
 
             return;
@@ -235,7 +251,10 @@ export function CustomerProfileDialog({
 
     return (
         <>
-            <Dialog open={customer !== null} onOpenChange={(open) => !open && onClose()}>
+            <Dialog
+                open={customer !== null}
+                onOpenChange={(open) => !open && onClose()}
+            >
                 <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden">
                     <DialogHeader className="shrink-0">
                         <DialogTitle>Profil pelanggan</DialogTitle>
@@ -244,7 +263,10 @@ export function CustomerProfileDialog({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex shrink-0 items-center gap-4">
-                        <UserAvatar name={customer.user.name} className="size-12" />
+                        <UserAvatar
+                            name={customer.user.name}
+                            className="size-12"
+                        />
                         <div>
                             <p className="flex items-center gap-2 text-lg font-semibold">
                                 {customer.user.name}
@@ -260,10 +282,12 @@ export function CustomerProfileDialog({
                                     {customer.is_active ? 'Aktif' : 'Nonaktif'}
                                 </span>
                             </p>
-                            <p className="text-sm text-muted-foreground">{customer.user.email}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {customer.user.email}
+                            </p>
                         </div>
                     </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto px-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
                         <div className="flex flex-col gap-1">
                             {EDITABLE_FIELDS.map((field) => (
                                 <EditableField
@@ -271,12 +295,19 @@ export function CustomerProfileDialog({
                                     label={FIELD_LABELS[field]}
                                     id={`profile-${field}`}
                                     display={
-                                        <span className="block truncate text-sm">
-                                            {field === 'phone_number' && drafts[field] !== ''
+                                        <span
+                                            className={
+                                                field === 'address'
+                                                    ? 'block text-sm break-words whitespace-pre-wrap'
+                                                    : 'block truncate text-sm'
+                                            }
+                                        >
+                                            {field === 'phone_number' &&
+                                            drafts[field] !== ''
                                                 ? `+62${drafts[field]}`
                                                 : drafts[field] === ''
-                                                    ? '-'
-                                                    : drafts[field]}
+                                                  ? '-'
+                                                  : drafts[field]}
                                         </span>
                                     }
                                     editing={editing === field}
@@ -285,12 +316,26 @@ export function CustomerProfileDialog({
                                         drafts[field] === ''
                                             ? undefined
                                             : field === 'phone_number'
-                                                ? `+62${drafts[field]}`
-                                                : drafts[field]
+                                              ? `+62${drafts[field]}`
+                                              : drafts[field]
                                     }
                                     error={errorFor(field)}
                                 >
-                                    {field === 'phone_number' ? (
+                                    {field === 'address' ? (
+                                        <Textarea
+                                            id={`profile-${field}`}
+                                            rows={3}
+                                            autoFocus
+                                            aria-invalid={!!errorFor(field)}
+                                            value={drafts[field] ?? ''}
+                                            onChange={(event) =>
+                                                setDrafts({
+                                                    ...drafts,
+                                                    [field]: event.target.value,
+                                                })
+                                            }
+                                        />
+                                    ) : field === 'phone_number' ? (
                                         <div className="relative">
                                             <span
                                                 aria-hidden="true"
@@ -308,9 +353,13 @@ export function CustomerProfileDialog({
                                                 onChange={(event) =>
                                                     setDrafts({
                                                         ...drafts,
-                                                        [field]: event.target.value
-                                                            .replace(/\D/g, '')
-                                                            .slice(0, 13),
+                                                        [field]:
+                                                            event.target.value
+                                                                .replace(
+                                                                    /\D/g,
+                                                                    '',
+                                                                )
+                                                                .slice(0, 13),
                                                     })
                                                 }
                                             />
@@ -322,14 +371,19 @@ export function CustomerProfileDialog({
                                             aria-invalid={!!errorFor(field)}
                                             value={drafts[field] ?? ''}
                                             onChange={(event) =>
-                                                setDrafts({ ...drafts, [field]: event.target.value })
+                                                setDrafts({
+                                                    ...drafts,
+                                                    [field]: event.target.value,
+                                                })
                                             }
                                         />
                                     )}
                                 </EditableField>
                             ))}
                             <div className="grid gap-1 rounded-md px-4 py-2">
-                                <span className="text-sm font-medium">Foto KTP</span>
+                                <span className="text-sm font-medium">
+                                    Foto KTP
+                                </span>
                                 {customer.identity_card_url ? (
                                     <div>
                                         <Button
@@ -349,29 +403,44 @@ export function CustomerProfileDialog({
                                 )}
                             </div>
                             <div className="grid gap-1 rounded-md px-4 py-2">
-                                <span className="text-sm font-medium">Terdaftar</span>
+                                <span className="text-sm font-medium">
+                                    Terdaftar
+                                </span>
                                 <span className="text-sm">
                                     {customer.created_at
-                                        ? dateFormatter.format(new Date(customer.created_at))
+                                        ? dateFormatter.format(
+                                              new Date(customer.created_at),
+                                          )
                                         : '-'}
                                 </span>
                             </div>
                             <div className="grid gap-2 rounded-md bg-muted p-4">
-                                <span className="text-sm font-medium">Status akun</span>
+                                <span className="text-sm font-medium">
+                                    Status akun
+                                </span>
                                 <div className="flex items-center gap-3">
                                     <ActiveSwitch
                                         checked={drafts.is_active}
                                         disabled={processing}
-                                        onChange={(next) => setDrafts({ ...drafts, is_active: next })}
+                                        onChange={(next) =>
+                                            setDrafts({
+                                                ...drafts,
+                                                is_active: next,
+                                            })
+                                        }
                                     />
                                     <span className="text-sm">
-                                        {drafts.is_active ? 'Aktif' : 'Nonaktif'}
+                                        {drafts.is_active
+                                            ? 'Aktif'
+                                            : 'Nonaktif'}
                                     </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Pelanggan yang dinonaktifkan tidak bisa login{' '}
-                                    <strong className="font-semibold">(blacklist).</strong>{' '}
-
+                                    Pelanggan yang dinonaktifkan tidak bisa
+                                    login{' '}
+                                    <strong className="font-semibold">
+                                        (blacklist).
+                                    </strong>{' '}
                                 </p>
                             </div>
                         </div>
@@ -390,11 +459,19 @@ export function CustomerProfileDialog({
                             }}
                         />
                         <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                            <Button type="button" variant="outline" onClick={onClose}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onClose}
+                            >
                                 Tutup
                             </Button>
                             {(editing !== null || dirty) && (
-                                <Button type="button" onClick={handleSave} disabled={processing}>
+                                <Button
+                                    type="button"
+                                    onClick={handleSave}
+                                    disabled={processing}
+                                >
                                     {processing && <Spinner />}
                                     Simpan
                                 </Button>
@@ -407,9 +484,11 @@ export function CustomerProfileDialog({
                 <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl">
                     <DialogHeader className="shrink-0">
                         <DialogTitle>Foto KTP</DialogTitle>
-                        <DialogDescription>{customer.user.name}</DialogDescription>
+                        <DialogDescription>
+                            {customer.user.name}
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
                         {customer.identity_card_url && (
                             <img
                                 src={customer.identity_card_url}
@@ -419,7 +498,11 @@ export function CustomerProfileDialog({
                         )}
                     </div>
                     <DialogFooter className="shrink-0">
-                        <Button type="button" variant="outline" onClick={() => setKtpOpen(false)}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setKtpOpen(false)}
+                        >
                             Tutup
                         </Button>
                     </DialogFooter>

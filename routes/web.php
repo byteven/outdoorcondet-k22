@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,11 @@ Route::middleware(['auth'])->group(function () {
             Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
             Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
             Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+
+            Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
+            Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
+            Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+            Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
         });
     });
 });

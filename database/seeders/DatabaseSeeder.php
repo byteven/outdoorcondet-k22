@@ -50,5 +50,15 @@ class DatabaseSeeder extends Seeder
                 'slug' => Str::slug($name),
             ]);
         }
+
+        foreach (\Database\Factories\CategoryFactory::CATEGORY_NAMES as $categoryName) {
+            \App\Models\Category::firstOrCreate(
+                ['slug' => Str::slug($categoryName)],
+                [
+                    'name' => $categoryName,
+                    'description' => "Koleksi {$categoryName} berkualitas untuk kegiatan camping & outdoor.",
+                ],
+            );
+        }
     }
 }

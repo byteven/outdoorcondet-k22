@@ -2,10 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\Attribute;
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Gear;
 use App\Models\User;
 use App\UserRole;
+use Database\Factories\AttributeFactory;
+use Database\Factories\CategoryFactory;
 use Database\Factories\GearFactory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -49,6 +53,25 @@ class DatabaseSeeder extends Seeder
                 'name' => $name,
                 'slug' => Str::slug($name),
             ]);
+        }
+
+        foreach (CategoryFactory::CATEGORY_NAMES as $categoryName) {
+            Category::firstOrCreate(
+                ['slug' => Str::slug($categoryName)],
+                [
+                    'name' => $categoryName,
+                    'description' => "Koleksi {$categoryName} berkualitas untuk kegiatan camping & outdoor.",
+                ],
+            );
+        }
+
+        foreach (AttributeFactory::ATTRIBUTE_NAMES as $attributeName) {
+            Attribute::firstOrCreate(
+                ['name' => $attributeName],
+                [
+                    'description' => "Master atribut varian {$attributeName} untuk produk rental.",
+                ],
+            );
         }
     }
 }

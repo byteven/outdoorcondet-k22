@@ -109,7 +109,9 @@ function formatDate(value: string | null): string {
 
 export default function CustomersIndex({ customers, summary, filters }: Props) {
     const [search, setSearch] = useState(filters.search);
-    const [status, setStatus] = useState<CustomerFilters['status']>(filters.status);
+    const [status, setStatus] = useState<CustomerFilters['status']>(
+        filters.status,
+    );
     const [perPage, setPerPage] = useState(String(filters.per_page));
     const [sortBy, setSortBy] = useState<SortColumn>(filters.sort_by);
     const [sortDir, setSortDir] = useState<SortDir>(filters.sort_dir);
@@ -122,7 +124,9 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
             return;
         }
 
-        const fresh = customers.data.find((customer) => customer.id === preview.id);
+        const fresh = customers.data.find(
+            (customer) => customer.id === preview.id,
+        );
 
         if (!fresh) {
             setPreview(null);
@@ -260,7 +264,10 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                             reload({ status: next });
                         }}
                     >
-                        <SelectTrigger aria-label="Filter status" className="w-full">
+                        <SelectTrigger
+                            aria-label="Filter status"
+                            className="w-full"
+                        >
                             <Power className="size-4 text-muted-foreground" />
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
@@ -316,15 +323,22 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                Array.from({ length: Number(perPage) }).map((_, row) => (
-                                    <TableRow key={row} className="[&>td]:py-3">
-                                        {Array.from({ length: COLUMN_COUNT }).map((__, cell) => (
-                                            <TableCell key={cell}>
-                                                <Skeleton className="h-4 w-full bg-muted" />
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))
+                                Array.from({ length: Number(perPage) }).map(
+                                    (_, row) => (
+                                        <TableRow
+                                            key={row}
+                                            className="[&>td]:py-3"
+                                        >
+                                            {Array.from({
+                                                length: COLUMN_COUNT,
+                                            }).map((__, cell) => (
+                                                <TableCell key={cell}>
+                                                    <Skeleton className="h-4 w-full bg-muted" />
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ),
+                                )
                             ) : customers.data.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={COLUMN_COUNT}>
@@ -341,22 +355,33 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                                 </TableRow>
                             ) : (
                                 customers.data.map((customer) => (
-                                    <TableRow key={customer.id} className="[&>td]:py-3">
+                                    <TableRow
+                                        key={customer.id}
+                                        className="[&>td]:py-3"
+                                    >
                                         <TableCell>
                                             <button
                                                 type="button"
-                                                onClick={() => setPreview(customer)}
+                                                onClick={() =>
+                                                    setPreview(customer)
+                                                }
                                                 aria-label={`Lihat profil ${customer.user.name}`}
                                                 className="flex cursor-pointer items-center gap-2 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                             >
-                                                <UserAvatar name={customer.user.name} />
+                                                <UserAvatar
+                                                    name={customer.user.name}
+                                                />
                                                 <span className="font-medium hover:text-primary hover:underline hover:underline-offset-4">
                                                     {customer.user.name}
                                                 </span>
                                             </button>
                                         </TableCell>
-                                        <TableCell>{customer.user.email}</TableCell>
-                                        <TableCell>{customer.phone_number}</TableCell>
+                                        <TableCell>
+                                            {customer.user.email}
+                                        </TableCell>
+                                        <TableCell>
+                                            {customer.phone_number}
+                                        </TableCell>
                                         <TableCell>
                                             <span className="inline-flex items-center gap-1.5 text-sm">
                                                 <span
@@ -367,7 +392,9 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                                                             : 'size-2 rounded-full bg-destructive'
                                                     }
                                                 />
-                                                {customer.is_active ? 'Aktif' : 'Nonaktif'}
+                                                {customer.is_active
+                                                    ? 'Aktif'
+                                                    : 'Nonaktif'}
                                             </span>
                                         </TableCell>
                                         <TableCell>
@@ -379,7 +406,9 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => setPreview(customer)}
+                                                        onClick={() =>
+                                                            setPreview(customer)
+                                                        }
                                                     >
                                                         <ChevronRight />
                                                         <span className="sr-only">
@@ -417,7 +446,10 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                 />
             </div>
 
-            <CustomerProfileDialog customer={preview} onClose={() => setPreview(null)} />
+            <CustomerProfileDialog
+                customer={preview}
+                onClose={() => setPreview(null)}
+            />
         </>
     );
 }

@@ -50,7 +50,10 @@ export function EditableField({
             await navigator.clipboard.writeText(copyValue);
             setCopied(true);
             window.clearTimeout(copyTimeout.current);
-            copyTimeout.current = window.setTimeout(() => setCopied(false), 1500);
+            copyTimeout.current = window.setTimeout(
+                () => setCopied(false),
+                1500,
+            );
         } catch {
             toast.error('Gagal menyalin nilai.');
         }
@@ -66,7 +69,9 @@ export function EditableField({
         >
             <Label htmlFor={id}>{label}</Label>
             <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">{editing ? children : display}</div>
+                <div className="min-w-0 flex-1">
+                    {editing ? children : display}
+                </div>
                 <div
                     className={
                         visible

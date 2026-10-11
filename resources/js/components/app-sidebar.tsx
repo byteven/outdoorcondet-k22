@@ -1,5 +1,11 @@
 import { Link } from '@inertiajs/react';
-import { House, LayoutGrid, Users } from 'lucide-react';
+import {
+    House,
+    FolderTree,
+    LayoutGrid,
+    SlidersHorizontal,
+    Users,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -14,6 +20,8 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes/admin';
+import { index as attributesIndex } from '@/routes/admin/attributes';
+import { index as categoriesIndex } from '@/routes/admin/categories';
 import { index as customersIndex } from '@/routes/admin/customers';
 import { home } from '@/routes';
 import type { NavItem } from '@/types';
@@ -31,6 +39,16 @@ const manageNavItems: NavItem[] = [
         title: 'Pelanggan',
         href: customersIndex(),
         icon: Users,
+    },
+    {
+        title: 'Kategori',
+        href: categoriesIndex(),
+        icon: FolderTree,
+    },
+    {
+        title: 'Atribut',
+        href: attributesIndex(),
+        icon: SlidersHorizontal,
     },
 ];
 

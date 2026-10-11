@@ -29,7 +29,9 @@ export function SummaryCards({ items }: { items: SummaryCardItem[] }) {
                         <span className="block text-sm text-muted-foreground">
                             {card.label}
                         </span>
-                        <span className="block text-2xl font-bold">{card.value}</span>
+                        <span className="block text-2xl font-bold">
+                            {card.value}
+                        </span>
                     </span>
                 </div>
             ))}

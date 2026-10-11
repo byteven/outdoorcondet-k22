@@ -9,6 +9,9 @@ Semua komponen base ada di `resources/js/components/ui/`.
   `text-primary-foreground`, `bg-muted`, `text-muted-foreground`, `border-border`,
   `bg-card`, `bg-popover`, `bg-sidebar`, `bg-destructive`, `bg-accent`.
 - Primary merah `#C21C24`. Netral abu terang `#F9FAFB`/`#F3F4F6`. Border `#D1D5DB`.
+- Token status: `bg-success-muted`/`text-success` (hijau), `bg-info-muted`/`text-info`
+  (biru), `bg-warning-muted`/`text-warning` (kuning), `bg-destructive/10`/`text-destructive`
+  (merah tipis). Untuk badge status yang subtle dan tanpa border, pakai variant `secondary` + token ini.
 - Netral legacy yang masih dipakai halaman (`neutral-100`, `neutral-200`,
   `neutral-500`, `neutral-700`, `neutral-900`) boleh, tapi utamakan token.
 - Radius: `rounded-lg` (0.5rem), `rounded-md`, `rounded-sm`. Jangan bulat penuh.
@@ -43,6 +46,10 @@ Semua komponen base ada di `resources/js/components/ui/`.
 - Selalu cek `resources/js/components/ui/` sebelum membuat komponen baru.
   Ada: button, input, label, card, dialog, select, checkbox, calendar, badge,
   dropdown-menu, table, tabs, tooltip, sidebar, sheet, breadcrumb, alert, dll.
+- Halaman manajemen data (tabel): tanpa card dan tanpa border luar. Judul,
+  ringkasan, filter, dan tabel diletakkan langsung di atas background halaman.
+  Kartu ringkasan kecil tetap boleh memakai `border border-border`.
+- Dialog scrollable memakai scrollbar tipis agar terlihat masih bisa di-scroll.
 - Variants dipakai lewat `class-variance-authority` (`buttonVariants`), bukan
   class manual per pemakaian.
 - Referensi: shadcn/ui. Base style di `resources/js/components/ui/` adalah
@@ -64,6 +71,7 @@ Semua komponen base ada di `resources/js/components/ui/`.
 - Jangan `shadow`, `shadow-lg`, `drop-shadow` di button dan card.
 - Jangan gradient (terutama ungu/indigo) dan jangan `backdrop-blur`.
 - Jangan `border-2` atau `border-4`.
+- Jangan memakai card/border luar pada halaman tabel manajemen data.
 - Jangan bikin ikon sendiri sebagai SVG inline, atau pakai emoji.
 - Jangan duplikasi komponen yang sudah ada di `components/ui/`.
 - Jangan tambah dependency baru untuk sesuatu yang bisa pakai komponen ada.

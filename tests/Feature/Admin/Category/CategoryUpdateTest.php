@@ -25,7 +25,7 @@ test('customers cannot update categories', function () {
         ->put(route('admin.categories.update', $category), [
             'name' => 'Lampu Tenda Update',
             'slug' => 'lampu-tenda-update',
-        ])->assertForbidden();
+        ])->assertRedirect(route('home'));
 });
 
 test('admins can update a category', function () {

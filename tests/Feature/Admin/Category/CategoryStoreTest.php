@@ -27,7 +27,7 @@ test('customers cannot store categories', function () {
 
     $this->actingAs($user)
         ->post(route('admin.categories.store'), validCategoryPayload())
-        ->assertForbidden();
+        ->assertRedirect(route('home'));
 });
 
 test('admins can store a category with full payload', function () {

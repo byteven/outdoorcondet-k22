@@ -60,5 +60,14 @@ class DatabaseSeeder extends Seeder
                 ],
             );
         }
+
+        foreach (\Database\Factories\AttributeFactory::ATTRIBUTE_NAMES as $attributeName) {
+            \App\Models\Attribute::firstOrCreate(
+                ['name' => $attributeName],
+                [
+                    'description' => "Master atribut varian {$attributeName} untuk produk rental.",
+                ],
+            );
+        }
     }
 }

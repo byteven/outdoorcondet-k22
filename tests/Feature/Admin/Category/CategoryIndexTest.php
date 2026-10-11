@@ -17,7 +17,7 @@ test('guests are redirected to login when accessing category index', function ()
 test('customers cannot access the category list', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);
 
-    $this->actingAs($user)->get(route('admin.categories.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('admin.categories.index'))->assertRedirect(route('home'));
 });
 
 test('admins can view the paginated category list', function () {

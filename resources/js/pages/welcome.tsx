@@ -1,7 +1,20 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { dashboard } from '@/routes/admin';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { LayoutGrid, LogOut, UserRound } from 'lucide-react';
 import { login } from '@/routes';
+import { logout } from '@/routes';
 import { register } from '@/routes';
+import { dashboard } from '@/routes/admin';
+import { UserAvatar } from '@/components/user-avatar';
+import { UserInfo } from '@/components/user-info';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Welcome() {
     const { auth } = usePage().props;
@@ -13,12 +26,60 @@ export default function Welcome() {
                 <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
                     <nav className="flex items-center justify-end gap-4">
                         {auth.user ? (
-                            <Link
-                                href={dashboard()}
-                                className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a]"
-                            >
-                                Dashboard
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                {auth.user.role === 'admin' && (
+                                    <Link
+                                        href={dashboard()}
+                                        aria-label="Buka dashboard admin"
+                                        className="inline-flex size-10 items-center justify-center rounded-full text-[#1b1b18] hover:bg-black/5"
+                                    >
+                                        <LayoutGrid className="size-5" />
+                                    </Link>
+                                )}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            className="size-10 rounded-full p-1"
+                                            aria-label="Menu profil"
+                                        >
+                                            <UserAvatar name={auth.user.name} />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        className="w-56"
+                                        align="end"
+                                    >
+                                        <DropdownMenuLabel className="p-0 font-normal">
+                                            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                                                <UserInfo
+                                                    user={auth.user}
+                                                    showEmail={true}
+                                                />
+                                            </div>
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem disabled>
+                                            <UserRound className="mr-2" />
+                                            Profil
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem asChild>
+                                            <Link
+                                                className="block w-full cursor-pointer"
+                                                href={logout()}
+                                                as="button"
+                                                onClick={() =>
+                                                    router.flushAll()
+                                                }
+                                                data-test="logout-button"
+                                            >
+                                                <LogOut className="mr-2" />
+                                                Keluar
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         ) : (
                             <>
                                 <Link

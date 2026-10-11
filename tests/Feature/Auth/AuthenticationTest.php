@@ -2,6 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\User;
+use App\UserRole;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 
@@ -13,6 +14,18 @@ test('login screen can be rendered', function () {
 
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('home'));
+});
+
+test('admins are redirected to the admin dashboard after login', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,
@@ -77,10 +90,16 @@ test('users are rate limited', function () {
     $response->assertTooManyRequests();
 });
 
-test('users without verified email can access the dashboard', function () {
-    $user = User::factory()->unverified()->create();
+test('admins can access the dashboard', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
 
     $this->actingAs($user)->get(route('admin.dashboard'))->assertOk();
+});
+
+test('customers are redirected away from the dashboard', function () {
+    $user = User::factory()->create(['role' => UserRole::Customer]);
+
+    $this->actingAs($user)->get(route('admin.dashboard'))->assertRedirect(route('home'));
 });
 
 test('inactive customers cannot authenticate', function () {
@@ -104,5 +123,5 @@ test('active customers can authenticate', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('admin.dashboard', absolute: false));
+    $response->assertRedirect(route('home'));
 });

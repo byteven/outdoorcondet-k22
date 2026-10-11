@@ -22,7 +22,7 @@ test('customers cannot delete categories', function () {
 
     $this->actingAs($user)
         ->delete(route('admin.categories.destroy', $category))
-        ->assertForbidden();
+        ->assertRedirect(route('home'));
 });
 
 test('admins can delete a category via soft delete', function () {

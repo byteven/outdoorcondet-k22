@@ -33,7 +33,7 @@ test('customers cannot update other customers', function () {
     $customer = Customer::factory()->create();
 
     $this->actingAs($user)->put(route('admin.customers.update', $customer), updatePayload())
-        ->assertForbidden();
+        ->assertRedirect(route('home'));
 });
 
 test('admins can update a customer and its user account', function () {

@@ -19,7 +19,7 @@ test('customers cannot delete other customers', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);
     $customer = Customer::factory()->create();
 
-    $this->actingAs($user)->delete(route('admin.customers.destroy', $customer))->assertForbidden();
+    $this->actingAs($user)->delete(route('admin.customers.destroy', $customer))->assertRedirect(route('home'));
 });
 
 test('admins soft delete a customer and deactivate its account', function () {

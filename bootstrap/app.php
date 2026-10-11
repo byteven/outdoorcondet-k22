@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,4 +27,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Jangan tampilkan halaman 403 untuk penolakan otorisasi web:
+        // kembalikan pengguna ke halaman asal agar path admin tidak terungkap.
+        // (Handler mengubah AuthorizationException menjadi HttpException 403
+        // sebelum callback render, jadi kecocokannya lewat previous exception.)
+        $exceptions->render(function (HttpException $exception, Request $request) {
+            if ($exception->getStatusCode() !== 403
+                || ! $exception->getPrevious() instanceof AuthorizationException
+                || $request->expectsJson()
+            ) {
+                return null;
+            }
+
+            return redirect()->back(fallback: route('home'));
+        });
     })->create();

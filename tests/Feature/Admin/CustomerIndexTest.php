@@ -17,7 +17,7 @@ test('guests are redirected to login', function () {
 test('customers cannot access the customer list', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);
 
-    $this->actingAs($user)->get(route('admin.customers.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('admin.customers.index'))->assertRedirect(route('home'));
 });
 
 test('admins can view the paginated customer list', function () {

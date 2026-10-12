@@ -3,6 +3,7 @@ import {
     House,
     FolderTree,
     LayoutGrid,
+    Package,
     SlidersHorizontal,
     Users,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { dashboard } from '@/routes/admin';
 import { index as attributesIndex } from '@/routes/admin/attributes';
 import { index as categoriesIndex } from '@/routes/admin/categories';
 import { index as customersIndex } from '@/routes/admin/customers';
+import { index as productsIndex } from '@/routes/admin/products';
 import { home } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -49,6 +51,11 @@ const manageNavItems: NavItem[] = [
         title: 'Atribut',
         href: attributesIndex(),
         icon: SlidersHorizontal,
+    },
+    {
+        title: 'Produk',
+        href: productsIndex(),
+        icon: Package,
     },
 ];
 

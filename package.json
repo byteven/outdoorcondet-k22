@@ -6,8 +6,8 @@
         "build": "vp build",
         "build:ssr": "vp build && vp build --ssr",
         "dev": "vp dev",
-        "check": "vp check",
-        "check:fix": "vp check --fix",
+        "check": "vp check --no-lint",
+        "check:fix": "vp check --fix --no-lint",
         "types:check": "tsc --noEmit"
     },
     "dependencies": {

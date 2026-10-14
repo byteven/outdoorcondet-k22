@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -7,36 +7,46 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
-import type { NavItem } from '@/types';
-
-const sidebarNavItems: NavItem[] = [
-    {
-        title: 'Profile',
-        href: edit(),
-        icon: null,
-    },
-    {
-        title: 'Security',
-        href: editSecurity(),
-        icon: null,
-    },
-];
+import type { Auth, NavItem } from '@/types';
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const { auth } = usePage<{ auth: Auth }>().props;
+    const isCustomer = (auth.user.role ?? 'customer') === 'customer';
+
+    const sidebarNavItems: NavItem[] = [
+        ...(isCustomer
+            ? [
+                  {
+                      title: 'Profil',
+                      href: edit(),
+                      icon: null,
+                  },
+              ]
+            : []),
+        {
+            title: 'Keamanan',
+            href: editSecurity(),
+            icon: null,
+        },
+    ];
 
     return (
         <div className="px-4 py-6">
-            <Heading
-                title="Settings"
-                description="Manage your profile and account settings"
-            />
+            <div className="flex flex-col gap-6 lg:flex-row lg:gap-12">
+                <aside className="w-full shrink-0 lg:w-56">
+                    <Heading
+                        title="Pengaturan"
+                        description={
+                            isCustomer
+                                ? 'Kelola profil dan keamanan akunmu'
+                                : 'Kelola keamanan akunmu'
+                        }
+                    />
 
-            <div className="flex flex-col lg:flex-row lg:space-x-12">
-                <aside className="w-full max-w-xl lg:w-48">
                     <nav
-                        className="flex flex-col space-y-1 space-x-0"
-                        aria-label="Settings"
+                        className="mt-4 flex flex-col space-y-1"
+                        aria-label="Pengaturan"
                     >
                         {sidebarNavItems.map((item, index) => (
                             <Button
@@ -59,9 +69,9 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                     </nav>
                 </aside>
 
-                <Separator className="my-6 lg:hidden" />
+                <Separator className="lg:hidden" />
 
-                <div className="flex-1 md:max-w-2xl">
+                <div className="min-w-0 flex-1 md:max-w-2xl">
                     <section className="max-w-xl space-y-12">
                         {children}
                     </section>

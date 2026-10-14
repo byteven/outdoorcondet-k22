@@ -17,15 +17,15 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     const sidebarNavItems: NavItem[] = [
         ...(isCustomer
             ? [
-                  {
-                      title: 'Profil',
-                      href: edit(),
-                      icon: null,
-                  },
-              ]
+                {
+                    title: 'Profil',
+                    href: edit(),
+                    icon: null,
+                },
+            ]
             : []),
         {
-            title: 'Keamanan',
+            title: 'Ganti password',
             href: editSecurity(),
             icon: null,
         },
@@ -39,7 +39,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         title="Pengaturan"
                         description={
                             isCustomer
-                                ? 'Kelola profil dan keamanan akunmu'
+                                ? 'Kelola profil akunmu'
                                 : 'Kelola keamanan akunmu'
                         }
                     />

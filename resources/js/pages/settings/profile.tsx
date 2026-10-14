@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ImagePlus, Trash2, TriangleAlert, X } from 'lucide-react';
+import { ChevronDown, ImagePlus, RefreshCw, Trash2, TriangleAlert, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -16,6 +16,11 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
     Dialog,
     DialogContent,
@@ -106,6 +111,8 @@ export default function Profile() {
     const [identityCardError, setIdentityCardError] = useState<string>();
     const [removeIdentityCard, setRemoveIdentityCard] = useState(false);
     const [ktpPreviewOpen, setKtpPreviewOpen] = useState(false);
+    const [dataDiriOpen, setDataDiriOpen] = useState(true);
+    const [verifikasiOpen, setVerifikasiOpen] = useState(true);
     const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -211,9 +218,10 @@ export default function Profile() {
 
     const hasUnsavedChanges =
         isDirty || identityCard !== null || removeIdentityCard;
-    const isNikEmpty = !customer?.identity_number?.trim();
-    const isKtpEmpty = !customer?.identity_card_url && identityCard === null;
-    const showKtpWarning = isNikEmpty || isKtpEmpty;
+    const isKtpEmpty =
+        (!customer?.identity_card_url || removeIdentityCard) &&
+        identityCard === null;
+    const showKtpWarning = isKtpEmpty;
 
     return (
         <>
@@ -233,25 +241,43 @@ export default function Profile() {
                         <TriangleAlert />
                         <AlertTitle>Verifikasi KTP belum lengkap</AlertTitle>
                         <AlertDescription className="text-muted-foreground">
-                            {isNikEmpty && isKtpEmpty
-                                ? 'NIK dan foto KTP masih kosong. Data ini wajib dilengkapi agar admin bisa memverifikasi akunmu sebelum mulai menyewa.'
-                                : isNikEmpty
-                                  ? 'NIK masih kosong. Data ini wajib dilengkapi agar admin bisa memverifikasi akunmu sebelum mulai menyewa.'
-                                  : 'Foto KTP masih kosong. Data ini wajib dilengkapi agar admin bisa memverifikasi akunmu sebelum mulai menyewa.'}
+                            Foto KTP masih kosong. Unggah foto KTP agar admin
+                            bisa memverifikasi akunmu sebelum mulai menyewa.
                         </AlertDescription>
                     </Alert>
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)} noValidate>
                     <div className="grid gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Data diri</CardTitle>
-                                <CardDescription>
-                                    Nama, email, telepon, dan alamat domisili
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid gap-4">
+                        <Collapsible
+                            open={dataDiriOpen}
+                            onOpenChange={setDataDiriOpen}
+                        >
+                            <Card className="gap-0 overflow-hidden py-0">
+                                <CollapsibleTrigger asChild>
+                                    <CardHeader className="cursor-pointer py-6">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="grid gap-1">
+                                                <CardTitle>
+                                                    Data diri
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    Nama, email, telepon, dan
+                                                    alamat domisili
+                                                </CardDescription>
+                                            </div>
+                                            <ChevronDown
+                                                className={cn(
+                                                    'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                                                    dataDiriOpen &&
+                                                        'rotate-180',
+                                                )}
+                                            />
+                                        </div>
+                                    </CardHeader>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                                    <CardContent className="grid gap-4 pb-6">
                                 <div className="grid gap-2">
                                     <Label htmlFor="name">Nama</Label>
                                     <Input
@@ -325,18 +351,41 @@ export default function Profile() {
                                     />
                                     <InputError message={errorFor('address')} />
                                 </div>
-                            </CardContent>
-                        </Card>
+                                    </CardContent>
+                                </CollapsibleContent>
+                            </Card>
+                        </Collapsible>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Verifikasi KTP</CardTitle>
-                                <CardDescription>
-                                    NIK dan foto KTP dipakai admin untuk
-                                    verifikasi sebelum penyewaan
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid gap-4">
+                        <Collapsible
+                            open={verifikasiOpen}
+                            onOpenChange={setVerifikasiOpen}
+                        >
+                            <Card className="gap-0 overflow-hidden py-0">
+                                <CollapsibleTrigger asChild>
+                                    <CardHeader className="cursor-pointer py-6">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="grid gap-1">
+                                                <CardTitle>
+                                                    Verifikasi KTP
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    NIK dan foto KTP dipakai
+                                                    admin untuk verifikasi
+                                                    sebelum penyewaan
+                                                </CardDescription>
+                                            </div>
+                                            <ChevronDown
+                                                className={cn(
+                                                    'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                                                    verifikasiOpen &&
+                                                        'rotate-180',
+                                                )}
+                                            />
+                                        </div>
+                                    </CardHeader>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                                    <CardContent className="grid gap-4 pb-6">
                                 <div className="grid gap-2">
                                     <Label htmlFor="identity_number">NIK</Label>
                                     <Input
@@ -360,7 +409,7 @@ export default function Profile() {
                                     {customer?.identity_card_url &&
                                         !identityCardPreview &&
                                         !removeIdentityCard && (
-                                            <div className="flex items-center gap-3 rounded-md bg-muted p-3">
+                                            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -380,26 +429,41 @@ export default function Profile() {
                                                 <p className="flex-1 text-sm font-medium">
                                                     KTP tersimpan
                                                 </p>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon"
-                                                    aria-label="Hapus foto KTP"
-                                                    className="shrink-0"
-                                                    onClick={() =>
-                                                        setRemoveIdentityCard(
-                                                            true,
-                                                        )
-                                                    }
-                                                >
-                                                    <Trash2 />
-                                                </Button>
+                                                <div className="flex shrink-0 items-center gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        aria-label="Ganti foto KTP"
+                                                        onClick={() =>
+                                                            fileInputRef.current?.click()
+                                                        }
+                                                    >
+                                                        <RefreshCw />
+                                                        <span className="hidden sm:inline">
+                                                            Ganti
+                                                        </span>
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        aria-label="Hapus foto KTP"
+                                                        onClick={() =>
+                                                            setRemoveIdentityCard(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2 />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         )}
                                     {customer?.identity_card_url &&
                                         !identityCardPreview &&
                                         removeIdentityCard && (
-                                            <div className="flex items-center gap-3 rounded-md bg-muted p-3">
+                                            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
                                                 <p className="flex-1 text-xs text-muted-foreground">
                                                     Foto KTP akan dihapus saat
                                                     kamu menyimpan perubahan.
@@ -408,6 +472,7 @@ export default function Profile() {
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
+                                                    aria-label="Batalkan hapus foto KTP"
                                                     className="shrink-0"
                                                     onClick={() =>
                                                         setRemoveIdentityCard(
@@ -416,78 +481,82 @@ export default function Profile() {
                                                     }
                                                 >
                                                     <X />
-                                                    Batalkan
+                                                    <span className="hidden sm:inline">
+                                                        Batalkan
+                                                    </span>
                                                 </Button>
                                             </div>
                                         )}
-                                    <div
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-label="Unggah foto KTP"
-                                        onClick={() =>
-                                            fileInputRef.current?.click()
-                                        }
-                                        onKeyDown={(event) => {
-                                            if (
-                                                event.key === 'Enter' ||
-                                                event.key === ' '
-                                            ) {
-                                                event.preventDefault();
-                                                fileInputRef.current?.click();
-                                            }
-                                        }}
-                                        onDragOver={(event) => {
-                                            event.preventDefault();
-                                            setDragActive(true);
-                                        }}
-                                        onDragLeave={() => setDragActive(false)}
-                                        onDrop={(event) => {
-                                            event.preventDefault();
-                                            setDragActive(false);
-                                            selectIdentityCard(
-                                                event.dataTransfer.files?.[0],
-                                            );
-                                        }}
-                                        className={cn(
-                                            'flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed border-input p-6 text-center outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                            dragActive && 'border-ring bg-muted/50',
-                                        )}
-                                    >
-                                        {identityCard && identityCardPreview ? (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        setKtpPreviewOpen(true);
-                                                    }}
-                                                    aria-label="Pratinjau foto KTP"
-                                                    className="cursor-pointer rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                                >
-                                                    <img
-                                                        src={identityCardPreview}
-                                                        alt="Pratinjau foto KTP"
-                                                        className="h-28 w-auto rounded-md object-cover"
-                                                    />
-                                                </button>
-                                                <p className="text-sm font-medium">
-                                                    {identityCard.name}
-                                                </p>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon"
-                                                    aria-label="Hapus foto KTP"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        clearIdentityCard();
-                                                    }}
-                                                >
-                                                    <X />
-                                                </Button>
-                                            </>
-                                        ) : (
-                                            <>
+                                    {identityCard && identityCardPreview ? (
+                                        <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setKtpPreviewOpen(true)
+                                                }
+                                                aria-label="Pratinjau foto KTP"
+                                                className="shrink-0 cursor-pointer rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                            >
+                                                <img
+                                                    src={identityCardPreview}
+                                                    alt="Pratinjau foto KTP"
+                                                    className="h-14 w-auto rounded-md object-cover"
+                                                />
+                                            </button>
+                                            <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                                                {identityCard.name}
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                aria-label="Hapus foto KTP"
+                                                className="shrink-0"
+                                                onClick={clearIdentityCard}
+                                            >
+                                                <X />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        (!customer?.identity_card_url ||
+                                            removeIdentityCard) && (
+                                            <div
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label="Unggah foto KTP"
+                                                onClick={() =>
+                                                    fileInputRef.current?.click()
+                                                }
+                                                onKeyDown={(event) => {
+                                                    if (
+                                                        event.key === 'Enter' ||
+                                                        event.key === ' '
+                                                    ) {
+                                                        event.preventDefault();
+                                                        fileInputRef.current?.click();
+                                                    }
+                                                }}
+                                                onDragOver={(event) => {
+                                                    event.preventDefault();
+                                                    setDragActive(true);
+                                                }}
+                                                onDragLeave={() =>
+                                                    setDragActive(false)
+                                                }
+                                                onDrop={(event) => {
+                                                    event.preventDefault();
+                                                    setDragActive(false);
+                                                    selectIdentityCard(
+                                                        event.dataTransfer
+                                                            .files?.[0],
+                                                    );
+                                                }}
+                                                className={cn(
+                                                    'flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed border-input p-6 text-center outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                                                    dragActive &&
+                                                        'border-ring bg-muted/50',
+                                                )}
+                                            >
                                                 <ImagePlus className="size-8 text-muted-foreground" />
                                                 <p className="text-sm font-medium">
                                                     Seret foto KTP ke sini atau
@@ -497,9 +566,9 @@ export default function Profile() {
                                                     JPG, PNG, atau WebP
                                                     maksimal 2 MB.
                                                 </p>
-                                            </>
-                                        )}
-                                    </div>
+                                            </div>
+                                        )
+                                    )}
                                     <input
                                         ref={fileInputRef}
                                         id="identity_card"
@@ -517,30 +586,31 @@ export default function Profile() {
                                     />
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    {hasUnsavedChanges && (
-                                        <>
-                                            <Button
-                                                disabled={processing}
-                                                data-test="update-profile-button"
-                                            >
-                                                {processing && <Spinner />}
-                                                Simpan perubahan
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                disabled={processing}
-                                                onClick={handleCancel}
-                                            >
-                                                Batal
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    </CardContent>
+                                </CollapsibleContent>
+                            </Card>
+                        </Collapsible>
                     </div>
+
+                    {hasUnsavedChanges && (
+                        <div className="mt-6 flex items-center gap-2">
+                            <Button
+                                disabled={processing}
+                                data-test="update-profile-button"
+                            >
+                                {processing && <Spinner />}
+                                Simpan perubahan
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={processing}
+                                onClick={handleCancel}
+                            >
+                                Batal
+                            </Button>
+                        </div>
+                    )}
                 </form>
             </div>
 

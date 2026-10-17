@@ -55,8 +55,8 @@ class CustomerFactory extends Factory
             'user_id' => User::factory()->state([
                 'name' => fake()->randomElement(self::INDONESIAN_NAMES),
             ]),
-            'identity_number' => fake()->optional()->numerify('################'),
-            'identity_card_path' => null,
+            'emergency_contact' => fake()->optional()->passthrough('628'.fake()->numerify('########').' (Orang Tua)'),
+            'social_media' => null,
             'phone_number' => '62'.fake()->numerify('8##########'),
             'address' => fake()->optional()->address(),
             'is_verified' => true,
@@ -70,7 +70,7 @@ class CustomerFactory extends Factory
     public function verified(): static
     {
         return $this->state(fn (array $attributes) => [
-            'identity_number' => $attributes['identity_number'] ?? fake()->numerify('################'),
+            'emergency_contact' => $attributes['emergency_contact'] ?? ('628'.fake()->numerify('########').' (Orang Tua)'),
             'is_verified' => true,
         ]);
     }

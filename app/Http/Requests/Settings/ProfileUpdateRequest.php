@@ -2,13 +2,31 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Concerns\NormalizesPhoneNumber;
 use App\Concerns\ProfileValidationRules;
+use App\UserRole;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ProfileUpdateRequest extends FormRequest
 {
-    use ProfileValidationRules;
+    use NormalizesPhoneNumber, ProfileValidationRules;
+
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return $this->user()?->role === UserRole::Customer;
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->normalizePhoneNumber();
+    }
 
     /**
      * Get the validation rules that apply to the request.
@@ -17,6 +35,30 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->profileRules($this->user()->id);
+        return [
+            ...$this->profileRules($this->user()->id),
+            'phone_number' => ['required', 'string', 'regex:/^[0-9]+$/', 'min:9', 'max:20'],
+            'emergency_contact' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:2000'],
+            'social_media' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * Get custom validation messages in Indonesian.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama wajib diisi.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email sudah terdaftar.',
+            'phone_number.required' => 'Nomor telepon wajib diisi.',
+            'phone_number.regex' => 'Nomor telepon hanya boleh berisi angka.',
+            'phone_number.min' => 'Nomor telepon minimal 9 digit.',
+        ];
     }
 }

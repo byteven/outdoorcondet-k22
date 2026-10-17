@@ -42,9 +42,8 @@ import { index as customersIndex } from '@/routes/admin/customers';
 
 type CustomerRow = {
     id: number;
-    identity_number: string | null;
-    identity_card_path: string | null;
-    identity_card_url: string | null;
+    emergency_contact: string | null;
+    social_media: string | null;
     phone_number: string;
     address: string | null;
     is_verified: boolean;
@@ -357,24 +356,18 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                                 customers.data.map((customer) => (
                                     <TableRow
                                         key={customer.id}
-                                        className="[&>td]:py-3"
+                                        className="cursor-pointer hover:bg-muted/50 [&>td]:py-3"
+                                        onClick={() => setPreview(customer)}
                                     >
                                         <TableCell>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setPreview(customer)
-                                                }
-                                                aria-label={`Lihat profil ${customer.user.name}`}
-                                                className="flex cursor-pointer items-center gap-2 rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                            >
+                                            <div className="flex items-center gap-2">
                                                 <UserAvatar
                                                     name={customer.user.name}
                                                 />
-                                                <span className="font-medium hover:text-primary hover:underline hover:underline-offset-4">
+                                                <span className="font-medium">
                                                     {customer.user.name}
                                                 </span>
-                                            </button>
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             {customer.user.email}
@@ -404,11 +397,12 @@ export default function CustomersIndex({ customers, summary, filters }: Props) {
                                             <Tooltip delayDuration={500}>
                                                 <TooltipTrigger asChild>
                                                     <Button
-                                                        variant="outline"
+                                                        variant="ghost"
                                                         size="sm"
-                                                        onClick={() =>
-                                                            setPreview(customer)
-                                                        }
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPreview(customer);
+                                                        }}
                                                     >
                                                         <ChevronRight />
                                                         <span className="sr-only">

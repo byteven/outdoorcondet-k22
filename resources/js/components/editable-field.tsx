@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 /**
  * Baris nilai yang bisa disalin dan diedit inline.
@@ -65,18 +66,24 @@ export function EditableField({
             onMouseLeave={() => setHovered(false)}
             onFocus={() => setHovered(true)}
             onBlur={() => setHovered(false)}
-            className="group grid gap-1 rounded-md px-4 py-2 hover:bg-muted/50"
+            className="group grid w-full min-w-0 gap-1.5 rounded-md px-4 py-2 hover:bg-muted/50"
         >
-            <Label htmlFor={id}>{label}</Label>
-            <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
+            <Label htmlFor={id} className="leading-normal">{label}</Label>
+            <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                <div
+                    className={cn(
+                        'min-w-0 flex-1',
+                        !editing && 'overflow-hidden',
+                        editing && 'py-1',
+                    )}
+                >
                     {editing ? children : display}
                 </div>
                 <div
                     className={
                         visible
-                            ? 'flex shrink-0 items-center gap-1 opacity-100 transition-opacity'
-                            : 'pointer-events-none flex shrink-0 items-center gap-1 opacity-0 transition-opacity'
+                            ? 'ml-auto flex shrink-0 items-center gap-1 opacity-100 transition-opacity'
+                            : 'pointer-events-none ml-auto flex shrink-0 items-center gap-1 opacity-0 transition-opacity'
                     }
                 >
                     {copyValue !== undefined && (

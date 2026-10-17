@@ -14,7 +14,8 @@ function updatePayload(array $overrides = []): array
         'name' => 'Udin Baru',
         'email' => 'udin.baru@example.com',
         'phone_number' => '+6289876543210',
-        'identity_number' => '3201010101010002',
+        'emergency_contact' => '6281234567890 (Kerabat)',
+        'social_media' => 'https://tiktok.com/@udinbaru',
         'address' => 'Jl. Baru No. 2',
         'is_active' => true,
         ...$overrides,
@@ -49,7 +50,8 @@ test('admins can update a customer and its user account', function () {
     expect($customer->user->name)->toBe('Udin Baru')
         ->and($customer->user->email)->toBe('udin.baru@example.com')
         ->and($customer->phone_number)->toBe('6289876543210')
-        ->and($customer->identity_number)->toBe('3201010101010002')
+        ->and($customer->emergency_contact)->toBe('6281234567890 (Kerabat)')
+        ->and($customer->social_media)->toBe('https://tiktok.com/@udinbaru')
         ->and($customer->address)->toBe('Jl. Baru No. 2');
 });
 

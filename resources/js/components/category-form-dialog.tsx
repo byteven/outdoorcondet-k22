@@ -123,9 +123,9 @@ export function CategoryFormDialog() {
                 <form
                     id="create-category-form"
                     onSubmit={handleSubmit(onSubmit)}
-                    className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+                    className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1.5 py-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
                 >
-                    <div className="flex flex-col gap-4 py-2">
+                    <div className="flex flex-col gap-4 py-2 pb-6">
                         <div className="grid gap-2">
                             <Label htmlFor="category-name">
                                 Nama kategori{' '}

@@ -1,11 +1,13 @@
 import { router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ImagePlus, Plus, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
+import { EmergencyContactInput } from '@/components/emergency-contact-input';
+import { PasswordInput } from '@/components/password-input';
+import { SocialMediaInput } from '@/components/social-media-input';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -21,15 +23,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import { store } from '@/routes/admin/customers';
 
 const createCustomerSchema = z.object({
     name: z
-        .string({ error: 'Nama wajib diisi.' })
+        .string({ error: 'Nama lengkap wajib diisi.' })
         .trim()
-        .min(1, 'Nama wajib diisi.')
-        .max(255, 'Nama maksimal 255 karakter.'),
+        .min(1, 'Nama lengkap wajib diisi.')
+        .max(255, 'Nama lengkap maksimal 255 karakter.'),
     email: z
         .string({ error: 'Email wajib diisi.' })
         .trim()
@@ -45,25 +46,19 @@ const createCustomerSchema = z.object({
         .trim()
         .min(9, 'Nomor telepon minimal 9 digit.')
         .max(13, 'Nomor telepon maksimal 13 digit.'),
-    identity_number: z.string().max(32, 'NIK maksimal 32 karakter.').optional(),
+    emergency_contact: z
+        .string()
+        .max(255, 'Kontak darurat maksimal 255 karakter.')
+        .optional(),
+    social_media: z.string().max(255, 'Sosial media maksimal 255 karakter.').optional(),
     address: z.string().max(2000, 'Alamat maksimal 2000 karakter.').optional(),
 });
 
 type CreateCustomerFormData = z.infer<typeof createCustomerSchema>;
 
-const MAX_IDENTITY_CARD_SIZE = 2 * 1024 * 1024;
-const IDENTITY_CARD_ACCEPT = 'image/jpeg,image/png,image/webp';
-
 export function CustomerFormDialog() {
     const [open, setOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
-    const [identityCard, setIdentityCard] = useState<File | null>(null);
-    const [identityCardPreview, setIdentityCardPreview] = useState<
-        string | null
-    >(null);
-    const [identityCardError, setIdentityCardError] = useState<string>();
-    const [dragActive, setDragActive] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const serverErrors = usePage().props.errors;
     const formErrors = Object.fromEntries(
         Object.entries(serverErrors).filter(
@@ -75,6 +70,8 @@ export function CustomerFormDialog() {
         register,
         handleSubmit,
         reset,
+        setValue,
+        watch,
         formState: { errors },
     } = useForm<CreateCustomerFormData>({
         resolver: zodResolver(createCustomerSchema),
@@ -83,10 +80,14 @@ export function CustomerFormDialog() {
             email: '',
             password: '',
             phone_number: '',
-            identity_number: '',
+            emergency_contact: '',
+            social_media: '',
             address: '',
         },
     });
+
+    const emergencyContactValue = watch('emergency_contact');
+    const socialMediaValue = watch('social_media');
 
     useEffect(() => {
         if (Object.keys(formErrors).length > 0) {
@@ -94,52 +95,11 @@ export function CustomerFormDialog() {
         }
     }, [serverErrors]);
 
-    const clearIdentityCard = () => {
-        if (identityCardPreview) {
-            URL.revokeObjectURL(identityCardPreview);
-        }
-
-        setIdentityCard(null);
-        setIdentityCardPreview(null);
-        setIdentityCardError(undefined);
-
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-
-    const selectIdentityCard = (file: File | undefined) => {
-        if (!file) {
-            return;
-        }
-
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-            setIdentityCardError('Format file harus JPG, PNG, atau WebP.');
-
-            return;
-        }
-
-        if (file.size > MAX_IDENTITY_CARD_SIZE) {
-            setIdentityCardError('Ukuran file maksimal 2 MB.');
-
-            return;
-        }
-
-        if (identityCardPreview) {
-            URL.revokeObjectURL(identityCardPreview);
-        }
-
-        setIdentityCardError(undefined);
-        setIdentityCard(file);
-        setIdentityCardPreview(URL.createObjectURL(file));
-    };
-
     const closeDialog = (next: boolean) => {
         setOpen(next);
 
         if (!next) {
             reset();
-            clearIdentityCard();
         }
     };
 
@@ -159,9 +119,9 @@ export function CustomerFormDialog() {
             {
                 ...data,
                 phone_number: `62${normalizePhoneRest(data.phone_number)}`,
-                identity_number: data.identity_number || undefined,
+                emergency_contact: data.emergency_contact || undefined,
+                social_media: data.social_media || undefined,
                 address: data.address || undefined,
-                identity_card: identityCard ?? undefined,
             },
             {
                 onStart: () => setProcessing(true),
@@ -169,7 +129,6 @@ export function CustomerFormDialog() {
                 onSuccess: () => {
                     setOpen(false);
                     reset();
-                    clearIdentityCard();
                 },
             },
         );
@@ -200,10 +159,10 @@ export function CustomerFormDialog() {
                     noValidate
                     className="flex min-h-0 flex-1 flex-col gap-4"
                 >
-                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
-                        <div className="grid gap-4">
+                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1.5 py-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+                        <div className="grid gap-4 pb-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="customer-name">Nama</Label>
+                                <Label htmlFor="customer-name">Nama Lengkap</Label>
                                 <Input
                                     id="customer-name"
                                     autoComplete="name"
@@ -276,28 +235,23 @@ export function CustomerFormDialog() {
                                 />
                                 <InputError message={errorFor('password')} />
                                 <p className="text-xs text-muted-foreground">
-                                    User masih bisa mengubah password ini nanti.
+                                    Password sementara untuk login pertama kali
+                                    pelanggan.
                                 </p>
                             </div>
+                            <EmergencyContactInput
+                                id="customer-emergency-contact"
+                                label="Kontak darurat"
+                                value={emergencyContactValue}
+                                onChange={(val) =>
+                                    setValue('emergency_contact', val, {
+                                        shouldValidate: true,
+                                    })
+                                }
+                                error={errorFor('emergency_contact')}
+                            />
                             <div className="grid gap-2">
-                                <Label htmlFor="customer-nik">
-                                    NIK (opsional)
-                                </Label>
-                                <Input
-                                    id="customer-nik"
-                                    inputMode="numeric"
-                                    placeholder="Nomor induk kependudukan"
-                                    aria-invalid={!!errorFor('identity_number')}
-                                    {...register('identity_number')}
-                                />
-                                <InputError
-                                    message={errorFor('identity_number')}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="customer-address">
-                                    Alamat (opsional)
-                                </Label>
+                                <Label htmlFor="customer-address">Alamat</Label>
                                 <Textarea
                                     id="customer-address"
                                     rows={3}
@@ -308,99 +262,14 @@ export function CustomerFormDialog() {
                                 />
                                 <InputError message={errorFor('address')} />
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="customer-identity-card">
-                                    Foto KTP (opsional)
-                                </Label>
-                                <div
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-label="Unggah foto KTP"
-                                    onClick={() =>
-                                        fileInputRef.current?.click()
-                                    }
-                                    onKeyDown={(event) => {
-                                        if (
-                                            event.key === 'Enter' ||
-                                            event.key === ' '
-                                        ) {
-                                            event.preventDefault();
-                                            fileInputRef.current?.click();
-                                        }
-                                    }}
-                                    onDragOver={(event) => {
-                                        event.preventDefault();
-                                        setDragActive(true);
-                                    }}
-                                    onDragLeave={() => setDragActive(false)}
-                                    onDrop={(event) => {
-                                        event.preventDefault();
-                                        setDragActive(false);
-                                        selectIdentityCard(
-                                            event.dataTransfer.files?.[0],
-                                        );
-                                    }}
-                                    className={cn(
-                                        'flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed border-input p-6 text-center outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                        dragActive && 'border-ring bg-muted/50',
-                                    )}
-                                >
-                                    {identityCard && identityCardPreview ? (
-                                        <>
-                                            <img
-                                                src={identityCardPreview}
-                                                alt="Pratinjau foto KTP"
-                                                className="h-28 w-auto rounded-md object-cover"
-                                            />
-                                            <p className="text-sm font-medium">
-                                                {identityCard.name}
-                                            </p>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    clearIdentityCard();
-                                                }}
-                                            >
-                                                <X />
-                                                Hapus
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ImagePlus className="size-8 text-muted-foreground" />
-                                            <p className="text-sm font-medium">
-                                                Seret foto KTP ke sini atau klik
-                                                untuk memilih
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                JPG, PNG, atau WebP maksimal 2
-                                                MB.
-                                            </p>
-                                        </>
-                                    )}
-                                </div>
-                                <input
-                                    ref={fileInputRef}
-                                    id="customer-identity-card"
-                                    type="file"
-                                    accept={IDENTITY_CARD_ACCEPT}
-                                    className="hidden"
-                                    onChange={(event) =>
-                                        selectIdentityCard(
-                                            event.target.files?.[0],
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={
-                                        identityCardError ??
-                                        formErrors.identity_card
-                                    }
-                                />
-                            </div>
+
+                            <SocialMediaInput
+                                id="customer-social-media"
+                                label="Sosial media"
+                                value={socialMediaValue}
+                                onChange={(val) => setValue('social_media', val)}
+                                error={errorFor('social_media')}
+                            />
                         </div>
                     </div>
                     <DialogFooter className="shrink-0">

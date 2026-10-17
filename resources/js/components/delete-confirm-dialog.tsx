@@ -44,10 +44,14 @@ export function DeleteConfirmDialog({
                     {triggerLabel}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader className="shrink-0">
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
+            <DialogContent className="overflow-hidden sm:max-w-md">
+                <DialogHeader className="shrink-0 min-w-0">
+                    <DialogTitle className="truncate pr-6" title={title}>
+                        {title}
+                    </DialogTitle>
+                    <DialogDescription className="break-words">
+                        {description}
+                    </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                     <DialogClose asChild>

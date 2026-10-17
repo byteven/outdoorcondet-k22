@@ -9,36 +9,66 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
     /**
-     * Show the user's profile settings page.
+     * Show the customer's profile settings page (CU-02).
+     * Khusus role customer, admin ditolak via middleware can:access-customer.
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        $customer = $user->customer;
+
         return Inertia::render('settings/profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'customer' => $customer ? [
+                'phone_number' => $customer->phone_number,
+                'emergency_contact' => $customer->emergency_contact,
+                'address' => $customer->address,
+                'social_media' => $customer->social_media,
+                'is_verified' => $customer->is_verified,
+            ] : null,
         ]);
     }
 
     /**
-     * Update the user's profile information.
+     * Update the customer's profile information (data diri + KYC).
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $validated = $request->validated();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
+        DB::transaction(function () use ($user, $validated): void {
+            $user->fill([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+            ]);
 
-        $request->user()->save();
+            if ($user->isDirty('email')) {
+                $user->email_verified_at = null;
+            }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
+            $user->save();
+
+            $customer = $user->customer()->firstOrNew([]);
+
+            $customer->phone_number = $validated['phone_number'];
+            $customer->emergency_contact = $validated['emergency_contact'] ?? null;
+            $customer->social_media = $validated['social_media'] ?? null;
+            $customer->address = $validated['address'] ?? null;
+
+            $customer->user()->associate($user);
+            $customer->save();
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Profil berhasil diperbarui.']);
 
         return to_route('profile.edit');
     }

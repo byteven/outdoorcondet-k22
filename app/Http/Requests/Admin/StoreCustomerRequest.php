@@ -57,8 +57,8 @@ class StoreCustomerRequest extends FormRequest
             ],
             'password' => ['required', 'string', 'min:8', 'max:100'],
             'phone_number' => ['required', 'string', 'regex:/^[0-9]+$/', 'min:9', 'max:20'],
-            'identity_number' => ['nullable', 'string', 'max:32'],
-            'identity_card' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'emergency_contact' => ['nullable', 'string', 'max:255'],
+            'social_media' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -80,9 +80,6 @@ class StoreCustomerRequest extends FormRequest
             'phone_number.required' => 'Nomor telepon wajib diisi.',
             'phone_number.regex' => 'Nomor telepon hanya boleh berisi angka.',
             'phone_number.min' => 'Nomor telepon minimal 9 digit.',
-            'identity_card.image' => 'Foto KTP harus berupa gambar.',
-            'identity_card.mimes' => 'Format foto KTP harus JPG, PNG, atau WebP.',
-            'identity_card.max' => 'Ukuran foto KTP maksimal 2 MB.',
         ];
     }
 }

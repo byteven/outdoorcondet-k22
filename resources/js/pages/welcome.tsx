@@ -4,6 +4,7 @@ import { login } from '@/routes';
 import { logout } from '@/routes';
 import { register } from '@/routes';
 import { dashboard } from '@/routes/admin';
+import { edit as editProfile } from '@/routes/profile';
 import { UserAvatar } from '@/components/user-avatar';
 import { UserInfo } from '@/components/user-info';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
 
 export default function Welcome() {
     const { auth } = usePage().props;
+    const isCustomer = (auth.user?.role ?? 'customer') === 'customer';
 
     return (
         <>
@@ -59,10 +61,18 @@ export default function Welcome() {
                                             </div>
                                         </DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem disabled>
-                                            <UserRound className="mr-2" />
-                                            Profil
-                                        </DropdownMenuItem>
+                                        {isCustomer && (
+                                            <DropdownMenuItem asChild>
+                                                <Link
+                                                    className="w-full cursor-pointer"
+                                                    href={editProfile()}
+                                                    prefetch
+                                                >
+                                                    <UserRound className="mr-2" />
+                                                    Profil
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )}
                                         <DropdownMenuItem asChild>
                                             <Link
                                                 className="block w-full cursor-pointer"

@@ -92,13 +92,13 @@ test('invalid filter values are rejected', function () {
         ->assertSessionHasErrors('sort_by');
 });
 
-test('customer list exposes the identity card url', function () {
-    Customer::factory()->create(['identity_card_path' => 'identity-cards/ktp.jpg']);
+test('customer list exposes social media', function () {
+    Customer::factory()->create(['social_media' => 'https://instagram.com/udin']);
 
     $this->actingAs(createAdmin())
         ->get(route('admin.customers.index'))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('customers.data.0.identity_card_url', '/storage/identity-cards/ktp.jpg'));
+            ->where('customers.data.0.social_media', 'https://instagram.com/udin'));
 });
 
 test('summary counts active and inactive customers', function () {

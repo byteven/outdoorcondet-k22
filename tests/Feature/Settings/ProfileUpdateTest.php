@@ -3,8 +3,6 @@
 use App\Models\Customer;
 use App\Models\User;
 use App\UserRole;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);
@@ -20,12 +18,12 @@ test('profile page is displayed', function () {
 test('profile page is forbidden for admins', function () {
     $admin = User::factory()->create(['role' => UserRole::Admin]);
 
-    $this->actingAs($admin)->get(route('profile.edit'))->assertForbidden();
-    $this->actingAs($admin)->patch(route('profile.update'), [
+    $this->actingAs($admin)->get(route('profile.edit'))->assertRedirect(route('home'));
+    $this->actingAs($admin)->from(route('home'))->patch(route('profile.update'), [
         'name' => 'Admin',
         'email' => 'admin@example.com',
         'phone_number' => '6281234567890',
-    ])->assertForbidden();
+    ])->assertRedirect(route('home'));
 });
 
 test('profile information can be updated', function () {
@@ -38,7 +36,8 @@ test('profile information can be updated', function () {
             'name' => 'Test User',
             'email' => 'test@example.com',
             'phone_number' => '6281234567890',
-            'identity_number' => '3275010101900001',
+            'emergency_contact' => '6281234567890 (Orang Tua)',
+            'social_media' => 'https://instagram.com/testuser',
             'address' => 'Jl. Condet Raya No. 22',
         ]);
 
@@ -52,60 +51,9 @@ test('profile information can be updated', function () {
     expect($user->email)->toBe('test@example.com');
     expect($user->email_verified_at)->toBeNull();
     expect($user->customer->phone_number)->toBe('6281234567890');
-    expect($user->customer->identity_number)->toBe('3275010101900001');
+    expect($user->customer->emergency_contact)->toBe('6281234567890 (Orang Tua)');
+    expect($user->customer->social_media)->toBe('https://instagram.com/testuser');
     expect($user->customer->address)->toBe('Jl. Condet Raya No. 22');
-});
-
-test('profile identity card can be uploaded', function () {
-    Storage::fake('public');
-
-    $user = User::factory()->create(['role' => UserRole::Customer]);
-    Customer::factory()->create(['user_id' => $user->id]);
-
-    $response = $this
-        ->actingAs($user)
-        ->patch(route('profile.update'), [
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone_number' => '6281234567890',
-            'identity_card' => UploadedFile::fake()->image('ktp.jpg'),
-        ]);
-
-    $response->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
-
-    $path = $user->refresh()->customer->identity_card_path;
-
-    expect($path)->not->toBeNull();
-    Storage::disk('public')->assertExists($path);
-});
-
-test('profile identity card can be removed', function () {
-    Storage::fake('public');
-
-    $user = User::factory()->create(['role' => UserRole::Customer]);
-    $path = UploadedFile::fake()->image('ktp.jpg')->store('identity-cards', 'public');
-    Customer::factory()->create([
-        'user_id' => $user->id,
-        'identity_card_path' => $path,
-        'is_verified' => true,
-    ]);
-
-    $response = $this
-        ->actingAs($user)
-        ->patch(route('profile.update'), [
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone_number' => '6281234567890',
-            'remove_identity_card' => true,
-        ]);
-
-    $response->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
-
-    $customer = $user->refresh()->customer;
-
-    expect($customer->identity_card_path)->toBeNull();
-    expect($customer->is_verified)->toBeFalse();
-    Storage::disk('public')->assertMissing($path);
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {

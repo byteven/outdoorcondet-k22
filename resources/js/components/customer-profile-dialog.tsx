@@ -1,9 +1,14 @@
 import { router, usePage } from '@inertiajs/react';
-import { Eye } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
-import { EditableField } from '@/components/editable-field';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { EditableField } from '@/components/editable-field';
+import { EmergencyContactInput } from '@/components/emergency-contact-input';
+import {
+    getSocialMediaMeta,
+    SocialMediaInput,
+} from '@/components/social-media-input';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,9 +27,8 @@ import { destroy, update } from '@/routes/admin/customers';
 
 export type ProfileCustomer = {
     id: number;
-    identity_number: string | null;
-    identity_card_path: string | null;
-    identity_card_url: string | null;
+    emergency_contact: string | null;
+    social_media: string | null;
     phone_number: string;
     address: string | null;
     is_verified: boolean;
@@ -39,10 +43,10 @@ export type ProfileCustomer = {
 
 const updateCustomerSchema = z.object({
     name: z
-        .string({ error: 'Nama wajib diisi.' })
+        .string({ error: 'Nama lengkap wajib diisi.' })
         .trim()
-        .min(1, 'Nama wajib diisi.')
-        .max(255, 'Nama maksimal 255 karakter.'),
+        .min(1, 'Nama lengkap wajib diisi.')
+        .max(255, 'Nama lengkap maksimal 255 karakter.'),
     email: z
         .string({ error: 'Email wajib diisi.' })
         .trim()
@@ -54,7 +58,11 @@ const updateCustomerSchema = z.object({
         .trim()
         .min(9, 'Nomor telepon minimal 9 digit.')
         .max(13, 'Nomor telepon maksimal 13 digit.'),
-    identity_number: z.string().max(32, 'NIK maksimal 32 karakter.').optional(),
+    emergency_contact: z
+        .string()
+        .max(255, 'Kontak darurat maksimal 255 karakter.')
+        .optional(),
+    social_media: z.string().max(255, 'Sosial media maksimal 255 karakter.').optional(),
     address: z.string().max(2000, 'Alamat maksimal 2000 karakter.').optional(),
     is_active: z.boolean(),
 });
@@ -64,22 +72,25 @@ type EditableField =
     | 'name'
     | 'email'
     | 'phone_number'
-    | 'identity_number'
+    | 'emergency_contact'
+    | 'social_media'
     | 'address';
 
 const EDITABLE_FIELDS: EditableField[] = [
     'name',
     'email',
     'phone_number',
-    'identity_number',
+    'emergency_contact',
+    'social_media',
     'address',
 ];
 
 const FIELD_LABELS: Record<EditableField, string> = {
-    name: 'Nama',
+    name: 'Nama Lengkap',
     email: 'Email',
     phone_number: 'Telepon',
-    identity_number: 'NIK',
+    emergency_contact: 'Kontak Darurat',
+    social_media: 'Sosial Media',
     address: 'Alamat',
 };
 
@@ -88,6 +99,46 @@ const dateFormatter = new Intl.DateTimeFormat('id-ID', {
     month: 'short',
     year: 'numeric',
 });
+
+const PLUS_PREFIX = '+';
+
+function formatFieldValue(
+    field: EditableField,
+    raw: string | undefined | null,
+): string {
+    if (!raw || raw === '') {
+        return '-';
+    }
+
+    if (field === 'phone_number') {
+        return `${PLUS_PREFIX}62${raw}`;
+    }
+
+    if (field === 'emergency_contact') {
+        return raw.startsWith(PLUS_PREFIX) ? raw : `${PLUS_PREFIX}${raw}`;
+    }
+
+    return raw;
+}
+
+function getCopyValue(
+    field: EditableField,
+    raw: string | undefined | null,
+): string | undefined {
+    if (!raw || raw === '') {
+        return undefined;
+    }
+
+    if (field === 'phone_number') {
+        return `${PLUS_PREFIX}62${raw}`;
+    }
+
+    if (field === 'emergency_contact') {
+        return raw.startsWith(PLUS_PREFIX) ? raw : `${PLUS_PREFIX}${raw}`;
+    }
+
+    return raw;
+}
 
 function stripPhonePrefix(value: string): string {
     return value.replace(/\D/g, '').replace(/^0+/, '').replace(/^62/, '');
@@ -104,7 +155,8 @@ function toDrafts(customer: ProfileCustomer): Drafts {
         name: customer.user.name,
         email: customer.user.email,
         phone_number: stripPhonePrefix(customer.phone_number),
-        identity_number: customer.identity_number ?? '',
+        emergency_contact: customer.emergency_contact ?? '',
+        social_media: customer.social_media ?? '',
         address: customer.address ?? '',
         is_active: customer.is_active,
     };
@@ -124,18 +176,18 @@ function ActiveSwitch({
             type="button"
             role="switch"
             aria-checked={checked}
-            aria-label="Status aktif pelanggan"
             disabled={disabled}
             onClick={() => onChange(!checked)}
             className={cn(
-                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
-                checked ? 'bg-success' : 'bg-input',
+                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+                checked ? 'bg-primary' : 'bg-muted-foreground/30',
             )}
         >
             <span
+                aria-hidden="true"
                 className={cn(
-                    'pointer-events-none block size-5 rounded-full bg-white transition-transform',
-                    checked ? 'translate-x-[22px]' : 'translate-x-0.5',
+                    'pointer-events-none inline-block size-5 rounded-full bg-background shadow-xs ring-0 transition duration-200 ease-in-out',
+                    checked ? 'translate-x-5' : 'translate-x-0',
                 )}
             />
         </button>
@@ -149,49 +201,51 @@ export function CustomerProfileDialog({
     customer: ProfileCustomer | null;
     onClose: () => void;
 }) {
-    const [drafts, setDrafts] = useState<Drafts | null>(null);
+    if (!customer) {
+        return null;
+    }
+
+    const [drafts, setDrafts] = useState<Drafts>(() => toDrafts(customer));
     const [editing, setEditing] = useState<EditableField | null>(null);
-    const [ktpOpen, setKtpOpen] = useState(false);
     const [clientErrors, setClientErrors] = useState<
         Partial<Record<EditableField, string>>
     >({});
     const [processing, setProcessing] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
     const serverErrors = usePage().props.errors;
-    const updateErrors = (serverErrors.updateCustomer ?? {}) as Record<
+    const updateErrors = ((serverErrors.updateCustomer ?? {}) as Record<
         string,
         string
-    >;
+    >) as Record<string, string>;
 
     useEffect(() => {
-        if (customer) {
-            setDrafts(toDrafts(customer));
-            setEditing(null);
-            setClientErrors({});
-        }
-    }, [customer?.id]);
+        setDrafts(toDrafts(customer));
+        setEditing(null);
+        setClientErrors({});
+    }, [customer]);
 
-    if (!customer || !drafts) {
-        return (
-            <Dialog
-                open={customer !== null}
-                onOpenChange={(open) => !open && onClose()}
-            >
-                <DialogContent className="max-h-[90dvh] overflow-y-auto" />
-            </Dialog>
+    useEffect(() => {
+        const firstErrorField = EDITABLE_FIELDS.find(
+            (field) => updateErrors[field] !== undefined,
         );
-    }
 
-    const original = toDrafts(customer);
+        if (firstErrorField) {
+            setEditing(firstErrorField);
+        }
+    }, [serverErrors]);
+
     const dirty =
-        EDITABLE_FIELDS.some((field) => drafts[field] !== original[field]) ||
-        drafts.is_active !== original.is_active;
+        drafts.name !== customer.user.name ||
+        drafts.email !== customer.user.email ||
+        normalizePhoneRest(drafts.phone_number) !== customer.phone_number ||
+        (drafts.emergency_contact || '') !== (customer.emergency_contact || '') ||
+        (drafts.social_media || '') !== (customer.social_media || '') ||
+        (drafts.address || '') !== (customer.address || '') ||
+        drafts.is_active !== customer.is_active;
 
     const toggleEdit = (field: EditableField) => {
         if (editing === field) {
-            setDrafts((prev) =>
-                prev ? { ...prev, [field]: original[field] } : prev,
-            );
             setEditing(null);
 
             return;
@@ -235,7 +289,8 @@ export function CustomerProfileDialog({
                 name: result.data.name,
                 email: result.data.email,
                 phone_number: normalizePhoneRest(result.data.phone_number),
-                identity_number: result.data.identity_number || undefined,
+                emergency_contact: result.data.emergency_contact || undefined,
+                social_media: result.data.social_media || undefined,
                 address: result.data.address || undefined,
                 is_active: result.data.is_active,
             },
@@ -250,264 +305,266 @@ export function CustomerProfileDialog({
     };
 
     return (
-        <>
-            <Dialog
-                open={customer !== null}
-                onOpenChange={(open) => !open && onClose()}
-            >
-                <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden">
-                    <DialogHeader className="shrink-0">
-                        <DialogTitle>Profil pelanggan</DialogTitle>
-                        <DialogDescription>
-                            Pratinjau dan edit profil pelanggan
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex shrink-0 items-center gap-4">
-                        <UserAvatar
-                            name={customer.user.name}
-                            className="size-12"
-                        />
-                        <div>
-                            <p className="flex items-center gap-2 text-lg font-semibold">
+        <Dialog
+            open={customer !== null}
+            onOpenChange={(open) => !open && onClose()}
+        >
+            <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-lg">
+                <DialogHeader className="shrink-0">
+                    <DialogTitle>Profil pelanggan</DialogTitle>
+                    <DialogDescription>
+                        Pratinjau dan edit profil pelanggan
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex shrink-0 items-center gap-4 min-w-0 px-4">
+                    <UserAvatar
+                        name={customer.user.name}
+                        className="size-12 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span
+                                className="truncate text-lg font-semibold"
+                                title={customer.user.name}
+                            >
                                 {customer.user.name}
-                                <span className="inline-flex items-center gap-1.5 text-sm font-normal">
-                                    <span
-                                        aria-hidden="true"
-                                        className={
-                                            customer.is_active
-                                                ? 'size-2 rounded-full bg-success'
-                                                : 'size-2 rounded-full bg-destructive'
-                                        }
-                                    />
-                                    {customer.is_active ? 'Aktif' : 'Nonaktif'}
-                                </span>
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {customer.user.email}
-                            </p>
+                            </span>
+                            <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-normal">
+                                <span
+                                    aria-hidden="true"
+                                    className={
+                                        customer.is_active
+                                            ? 'size-2 rounded-full bg-success'
+                                            : 'size-2 rounded-full bg-destructive'
+                                    }
+                                />
+                                {customer.is_active ? 'Aktif' : 'Nonaktif'}
+                            </span>
                         </div>
+                        <p
+                            className="truncate text-sm text-muted-foreground"
+                            title={customer.user.email}
+                        >
+                            {customer.user.email}
+                        </p>
                     </div>
-                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto px-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
-                        <div className="flex flex-col gap-1">
-                            {EDITABLE_FIELDS.map((field) => (
-                                <EditableField
-                                    key={field}
-                                    label={FIELD_LABELS[field]}
-                                    id={`profile-${field}`}
-                                    display={
+                </div>
+                <div className="min-h-0 flex-1 min-w-0 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto py-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+                    <div className="flex flex-col gap-1 pb-6 min-w-0 w-full">
+                        {EDITABLE_FIELDS.map((field) => (
+                            <EditableField
+                                key={field}
+                                label={FIELD_LABELS[field]}
+                                id={`profile-${field}`}
+                                display={
+                                    field === 'social_media' ? (
+                                        drafts[field] ? (
+                                            (() => {
+                                                const meta = getSocialMediaMeta(drafts[field]);
+                                                return meta ? (
+                                                    <a
+                                                        href={meta.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline hover:underline-offset-4"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <img
+                                                            src={meta.icon}
+                                                            alt=""
+                                                            className="size-3.5 shrink-0"
+                                                        />
+                                                        <span className="truncate">{meta.url}</span>
+                                                        <ExternalLink className="size-3 shrink-0" />
+                                                    </a>
+                                                ) : (
+                                                    <span className="block truncate text-sm" title={drafts[field] ?? ''}>{drafts[field]}</span>
+                                                );
+                                            })()
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">-</span>
+                                        )
+                                    ) : (
                                         <span
+                                            title={formatFieldValue(field, drafts[field])}
                                             className={
                                                 field === 'address'
                                                     ? 'block text-sm break-words whitespace-pre-wrap'
                                                     : 'block truncate text-sm'
                                             }
                                         >
-                                            {field === 'phone_number' &&
-                                            drafts[field] !== ''
-                                                ? `+62${drafts[field]}`
-                                                : drafts[field] === ''
-                                                  ? '-'
-                                                  : drafts[field]}
+                                            {formatFieldValue(field, drafts[field])}
                                         </span>
-                                    }
-                                    editing={editing === field}
-                                    onToggleEdit={() => toggleEdit(field)}
-                                    copyValue={
-                                        drafts[field] === ''
-                                            ? undefined
-                                            : field === 'phone_number'
-                                              ? `+62${drafts[field]}`
-                                              : drafts[field]
-                                    }
-                                    error={errorFor(field)}
-                                >
-                                    {field === 'address' ? (
-                                        <Textarea
-                                            id={`profile-${field}`}
-                                            rows={3}
-                                            autoFocus
-                                            aria-invalid={!!errorFor(field)}
-                                            value={drafts[field] ?? ''}
-                                            onChange={(event) =>
-                                                setDrafts({
-                                                    ...drafts,
-                                                    [field]: event.target.value,
-                                                })
-                                            }
-                                        />
-                                    ) : field === 'phone_number' ? (
-                                        <div className="relative">
-                                            <span
-                                                aria-hidden="true"
-                                                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
-                                            >
-                                                +62
-                                            </span>
-                                            <Input
-                                                id={`profile-${field}`}
-                                                inputMode="numeric"
-                                                autoFocus
-                                                aria-invalid={!!errorFor(field)}
-                                                className="pl-12"
-                                                value={drafts[field] ?? ''}
-                                                onChange={(event) =>
-                                                    setDrafts({
-                                                        ...drafts,
-                                                        [field]:
-                                                            event.target.value
-                                                                .replace(
-                                                                    /\D/g,
-                                                                    '',
-                                                                )
-                                                                .slice(0, 13),
-                                                    })
-                                                }
-                                            />
-                                        </div>
-                                    ) : (
-                                        <Input
-                                            id={`profile-${field}`}
-                                            autoFocus
-                                            aria-invalid={!!errorFor(field)}
-                                            value={drafts[field] ?? ''}
-                                            onChange={(event) =>
-                                                setDrafts({
-                                                    ...drafts,
-                                                    [field]: event.target.value,
-                                                })
-                                            }
-                                        />
-                                    )}
-                                </EditableField>
-                            ))}
-                            <div className="grid gap-1 rounded-md px-4 py-2">
-                                <span className="text-sm font-medium">
-                                    Foto KTP
-                                </span>
-                                {customer.identity_card_url ? (
-                                    <div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setKtpOpen(true)}
-                                        >
-                                            <Eye />
-                                            Pratinjau
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">
-                                        Belum ada foto KTP
-                                    </span>
-                                )}
-                            </div>
-                            <div className="grid gap-1 rounded-md px-4 py-2">
-                                <span className="text-sm font-medium">
-                                    Terdaftar
-                                </span>
-                                <span className="text-sm">
-                                    {customer.created_at
-                                        ? dateFormatter.format(
-                                              new Date(customer.created_at),
-                                          )
-                                        : '-'}
-                                </span>
-                            </div>
-                            <div className="grid gap-2 rounded-md bg-muted p-4">
-                                <span className="text-sm font-medium">
-                                    Status akun
-                                </span>
-                                <div className="flex items-center gap-3">
-                                    <ActiveSwitch
-                                        checked={drafts.is_active}
-                                        disabled={processing}
-                                        onChange={(next) =>
+                                    )
+                                }
+                                editing={editing === field}
+                                onToggleEdit={() => toggleEdit(field)}
+                                copyValue={getCopyValue(field, drafts[field])}
+                                error={errorFor(field)}
+                            >
+                                {field === 'address' ? (
+                                    <Textarea
+                                        id={`profile-${field}`}
+                                        rows={3}
+                                        autoFocus
+                                        aria-invalid={!!errorFor(field)}
+                                        value={drafts[field] ?? ''}
+                                        onChange={(event) =>
                                             setDrafts({
                                                 ...drafts,
-                                                is_active: next,
+                                                [field]: event.target.value,
                                             })
                                         }
                                     />
-                                    <span className="text-sm">
-                                        {drafts.is_active
-                                            ? 'Aktif'
-                                            : 'Nonaktif'}
-                                    </span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Pelanggan yang dinonaktifkan tidak bisa
-                                    login{' '}
-                                    <strong className="font-semibold">
-                                        (blacklist).
-                                    </strong>{' '}
-                                </p>
-                            </div>
+                                ) : field === 'phone_number' ? (
+                                    <div className="relative">
+                                        <span
+                                            aria-hidden="true"
+                                            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
+                                        >
+                                            +62
+                                        </span>
+                                        <Input
+                                            id={`profile-${field}`}
+                                            inputMode="numeric"
+                                            autoFocus
+                                            aria-invalid={!!errorFor(field)}
+                                            className="pl-12"
+                                            value={drafts[field] ?? ''}
+                                            onChange={(event) =>
+                                                setDrafts({
+                                                    ...drafts,
+                                                    [field]:
+                                                        event.target.value
+                                                            .replace(
+                                                                /\D/g,
+                                                                '',
+                                                            )
+                                                            .slice(0, 13),
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                ) : field === 'emergency_contact' ? (
+                                    <EmergencyContactInput
+                                        id={`profile-${field}`}
+                                        hideLabel
+                                        value={drafts[field]}
+                                        onChange={(val) =>
+                                            setDrafts({
+                                                ...drafts,
+                                                [field]: val,
+                                            })
+                                        }
+                                        error={errorFor(field)}
+
+                                    />
+                                ) : field === 'social_media' ? (
+                                    <SocialMediaInput
+                                        id={`profile-${field}`}
+                                        hideLabel
+                                        value={drafts[field]}
+                                        onChange={(val) =>
+                                            setDrafts({
+                                                ...drafts,
+                                                [field]: val,
+                                            })
+                                        }
+                                        error={errorFor(field)}
+                                    />
+                                ) : (
+                                    <Input
+                                        id={`profile-${field}`}
+                                        autoFocus
+                                        aria-invalid={!!errorFor(field)}
+                                        value={drafts[field] ?? ''}
+                                        onChange={(event) =>
+                                            setDrafts({
+                                                ...drafts,
+                                                [field]: event.target.value,
+                                            })
+                                        }
+                                    />
+                                )}
+                            </EditableField>
+                        ))}
+                        <div className="grid gap-1.5 rounded-md px-4 py-2">
+                            <span className="text-sm font-medium leading-normal">
+                                Terdaftar
+                            </span>
+                            <span className="text-sm">
+                                {customer.created_at
+                                    ? dateFormatter.format(
+                                        new Date(customer.created_at),
+                                    )
+                                    : '-'}
+                            </span>
                         </div>
-                    </div>
-                    <DialogFooter className="shrink-0 sm:justify-between">
-                        <DeleteConfirmDialog
-                            title={`Hapus ${customer.user.name}?`}
-                            description="Akun pelanggan akan dinonaktifkan dan dihapus dari daftar."
-                            processing={deleting}
-                            onConfirm={() => {
-                                router.delete(destroy(customer.id).url, {
-                                    preserveState: true,
-                                    onStart: () => setDeleting(true),
-                                    onFinish: () => setDeleting(false),
-                                });
-                            }}
-                        />
-                        <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={onClose}
-                            >
-                                Tutup
-                            </Button>
-                            {(editing !== null || dirty) && (
-                                <Button
-                                    type="button"
-                                    onClick={handleSave}
+                        <div className="grid gap-2 rounded-md bg-muted p-4">
+                            <span className="text-sm font-medium">
+                                Status akun
+                            </span>
+                            <div className="flex items-center gap-3">
+                                <ActiveSwitch
+                                    checked={drafts.is_active}
                                     disabled={processing}
-                                >
-                                    {processing && <Spinner />}
-                                    Simpan
-                                </Button>
-                            )}
+                                    onChange={(next) =>
+                                        setDrafts({
+                                            ...drafts,
+                                            is_active: next,
+                                        })
+                                    }
+                                />
+                                <span className="text-sm">
+                                    {drafts.is_active
+                                        ? 'Aktif'
+                                        : 'Nonaktif'}
+                                </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Pelanggan yang dinonaktifkan tidak bisa
+                                login{' '}
+                                <strong className="font-semibold">
+                                    (blacklist)
+                                </strong>{' '}
+                            </p>
                         </div>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            <Dialog open={ktpOpen} onOpenChange={setKtpOpen}>
-                <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl">
-                    <DialogHeader className="shrink-0">
-                        <DialogTitle>Foto KTP</DialogTitle>
-                        <DialogDescription>
-                            {customer.user.name}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
-                        {customer.identity_card_url && (
-                            <img
-                                src={customer.identity_card_url}
-                                alt={`Foto KTP ${customer.user.name}`}
-                                className="w-full rounded-md object-contain"
-                            />
-                        )}
                     </div>
-                    <DialogFooter className="shrink-0">
+                </div>
+                <DialogFooter className="shrink-0 sm:justify-between text-truncate">
+                    <DeleteConfirmDialog
+                        title={`Hapus ${customer.user.name}?`}
+                        description="Akun pelanggan akan dinonaktifkan dan dihapus dari daftar."
+                        processing={deleting}
+                        onConfirm={() => {
+                            router.delete(destroy(customer.id).url, {
+                                preserveState: true,
+                                onStart: () => setDeleting(true),
+                                onFinish: () => setDeleting(false),
+                            });
+                        }}
+                    />
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row">
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setKtpOpen(false)}
+                            onClick={onClose}
                         >
                             Tutup
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+                        {(editing !== null || dirty) && (
+                            <Button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={processing}
+                            >
+                                {processing && <Spinner />}
+                                Simpan
+                            </Button>
+                        )}
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

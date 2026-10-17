@@ -3,8 +3,6 @@
 use App\Models\Customer;
 use App\Models\User;
 use App\UserRole;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => UserRole::Admin]);
@@ -17,7 +15,7 @@ function validPayload(): array
         'email' => 'udin@example.com',
         'password' => 'Rahasia123',
         'phone_number' => '+6281234567890',
-        'identity_number' => '3201010101010001',
+        'emergency_contact' => '6281234567890 (Orang Tua)',
         'address' => 'Jl. Condet Raya No. 1',
     ];
 }
@@ -46,7 +44,7 @@ test('admins can store a customer with its user account', function () {
 
     expect($customer)->not->toBeNull()
         ->and($customer->phone_number)->toBe('6281234567890')
-        ->and($customer->identity_number)->toBe('3201010101010001')
+        ->and($customer->emergency_contact)->toBe('6281234567890 (Orang Tua)')
         ->and($customer->is_verified)->toBeTrue()
         ->and($customer->is_active)->toBeTrue();
 });
@@ -85,33 +83,17 @@ test('storing a customer validates the input', function () {
     expect(Customer::count())->toBe(0);
 });
 
-test('admins can attach an identity card photo', function () {
-    Storage::fake('public');
-
+test('admins can attach social media to customer', function () {
     $this->actingAs($this->admin)
         ->post(route('admin.customers.store'), [
             ...validPayload(),
-            'email' => 'ktp@example.com',
-            'identity_card' => UploadedFile::fake()->image('ktp.jpg'),
+            'email' => 'social@example.com',
+            'social_media' => 'https://instagram.com/udinsaputra',
         ])
         ->assertRedirect();
 
-    $path = Customer::whereHas('user', fn ($query) => $query->where('email', 'ktp@example.com'))
-        ->firstOrFail()
-        ->identity_card_path;
+    $customer = Customer::whereHas('user', fn ($query) => $query->where('email', 'social@example.com'))
+        ->firstOrFail();
 
-    expect($path)->not->toBeNull();
-    Storage::disk('public')->assertExists($path);
-});
-
-test('identity card must be a small image', function () {
-    $this->actingAs($this->admin)
-        ->post(route('admin.customers.store'), [
-            ...validPayload(),
-            'email' => 'dokumen@example.com',
-            'identity_card' => UploadedFile::fake()->create('dokumen.pdf', 100),
-        ])
-        ->assertSessionHasErrors('identity_card');
-
-    expect(User::where('email', 'dokumen@example.com')->exists())->toBeFalse();
+    expect($customer->social_media)->toBe('https://instagram.com/udinsaputra');
 });

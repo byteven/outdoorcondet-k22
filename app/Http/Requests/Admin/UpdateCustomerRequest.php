@@ -48,7 +48,8 @@ class UpdateCustomerRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($this->route('customer')->user_id),
             ],
             'phone_number' => ['required', 'string', 'regex:/^[0-9]+$/', 'min:9', 'max:20'],
-            'identity_number' => ['nullable', 'string', 'max:32'],
+            'emergency_contact' => ['nullable', 'string', 'max:255'],
+            'social_media' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['required', 'boolean'],
         ];

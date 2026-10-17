@@ -40,9 +40,9 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 - **`customers`**
     - `id` (PK, BigInt)
     - `user_id` (FK -> `users.id`, Unique)
-    - `identity_number` (String/NIK, Nullable — diisi saat verifikasi/sewa pertama)
-    - `identity_card_path` (String/Foto KTP, Nullable)
+    - `emergency_contact` (String, Nullable — kontak darurat nomor telepon dan relasi, e.g. 628822533 (Orang Tua))
     - `phone_number` (String)
+    - `social_media` (JSON/Text, Nullable — pilihan platform & URL, opsional)
     - `address` (Text, Nullable)
     - `is_verified` (Boolean, Default: `false`)
     - `is_active` (Boolean, Default: `true`)
@@ -159,11 +159,13 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 
 ## 4. Business Flows & Logistics
 
-### 4.1. Verification / KTP Strategy
+### 4.1. Verification & Identity Strategy
 
-- **Registrasi Awal:** Cukup `name`, `email`, `password`, `phone_number`. Minimalkan drop-off calon pelanggan.
-- **First Checkout:** Wajib unggah KTP (`identity_number` & `identity_card_path`) sebelum submit order pertama. Admin verifikasi manual sebelum menyetujui jadwal sewa.
-- **Admin Manual Create:** Admin boleh melampirkan foto KTP (`identity_card`, JPG/PNG/WebP maksimal 2 MB, opsional) saat membuat pelanggan manual dari panel admin.
+- **Registrasi Pelanggan:** Menggunakan 2 step pendaftaran. Step 1: Data Akun (`name` / Nama Lengkap, `email`, `phone_number`, `password`, `password_confirmation`). Step 2: Data Tambahan opsional (`emergency_contact` / Kontak Darurat dengan pilihan relasi, `address`, dan `social_media` berbentuk tautan dengan pilihan platform TikTok/Instagram/Facebook). Tidak ada modul NIK atau KTP. Label "(opsional)" hanya ditampilkan pada formulir registrasi step 2.
+- **Profil & Awareness:** Pada halaman profil pengaturan (`settings/profile`), terdapat banner pengingat berwarna kuning tanpa border di atas card data diri jika kontak darurat atau sosial media masih kosong. Field kontak darurat dan sosial media tetap diperbolehkan kosong saat update profil.
+- **First Checkout:** Pengecekan kelengkapan data (alamat, kontak darurat, dan sosial media) dilakukan saat alur checkout untuk verifikasi pemesanan dan keselamatan sebelum submit order sewa pertama.
+- **Admin Manual Create:** Admin dapat mengisi Nama Lengkap, kontak darurat, alamat, dan sosial media saat membuat pelanggan manual dari panel admin.
+- **Pratinjau & Edit Profil Admin:** Tabel pelanggan dapat diklik pada seluruh baris untuk membuka dialog detail/edit profil pelanggan. Kontak darurat ditampilkan dengan awalan `+` (misal: `+628822533 (Orang Tua)`), field teks panjang diproteksi dengan truncate agar tidak mendorong tombol aksi ke luar area, dan visual alignment margin dibuat sejajar.
 
 ### 4.2. Availability & Real-Time Stock Calculation
 
@@ -199,7 +201,7 @@ $$\text{Available Stock} = \text{Total Stock} - (\text{Rented in Date Range} + \
 | ID    | Modul                  | Fitur                        | Detail Teknis                                                               |
 | ----- | ---------------------- | ---------------------------- | --------------------------------------------------------------------------- |
 | AD-01 | Auth                   | Login / Logout               | Laravel Sanctum / Session guard                                             |
-| AD-02 | Customer Management    | CRUD & Toggle Status         | List, search, activate/deactivate customer                                  |
+| AD-02 | Customer Management    | CRUD & Toggle Status         | List, search, activate/deactivate customer, serta klik baris untuk edit profil |
 | AD-03 | Master Catalog         | CRUD Category                | Slug generator, nested hierarchy (opsional)                                 |
 | AD-04 | Master Attributes      | Dynamic Attribute Management | Kelola opsi: Warna, Ukuran, Kapasitas                                       |
 | AD-05 | Product Management     | CRUD Product + Variants      | Form multi-step, upload multi-gambar, mapping varian & stok fisik           |
@@ -214,8 +216,8 @@ $$\text{Available Stock} = \text{Total Stock} - (\text{Rented in Date Range} + \
 
 | ID    | Modul              | Fitur                    | Detail Teknis                                                               |
 | ----- | ------------------ | ------------------------ | --------------------------------------------------------------------------- |
-| CU-01 | Auth               | Registrasi & Login       | Input data standar (tanpa wajib KTP diawal)                                 |
-| CU-02 | Profile & KYC      | Edit Profil & Unggah KTP | Update no WA, upload foto KTP untuk verifikasi sewa                         |
+| CU-01 | Auth               | Registrasi & Login       | Multi-step registrasi (Step 1: Akun dengan Nama Lengkap, Step 2: Kontak Darurat, Alamat, Sosial Media opsional dengan icon TikTok/IG/FB) |
+| CU-02 | Profile & Data     | Edit Profil & Data Diri  | Update data profil (Nama Lengkap, no WA, Kontak Darurat, Alamat, dan link sosial media), dilengkapi banner kuning awareness jika data belum lengkap |
 | CU-03 | Search & Discovery | Hero Date Picker Search  | Date range picker (Start Date - End Date), keyword, filter kategori         |
 | CU-04 | Catalog & Detail   | Filter & Varian Selector | Grid produk, gallery gambar, dynamic price per duration, availability check |
 | CU-05 | Cart               | Multi-Item Cart          | Hitung estimasi harga sewa berbasis durasi hari otomatis                    |

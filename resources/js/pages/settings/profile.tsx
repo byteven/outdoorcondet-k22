@@ -1,12 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, ImagePlus, RefreshCw, Trash2, TriangleAlert, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ChevronDown, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import DeleteUser from '@/components/delete-user';
+import { EmergencyContactInput } from '@/components/emergency-contact-input';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { SocialMediaInput } from '@/components/social-media-input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,14 +23,6 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -39,9 +33,9 @@ import type { Auth } from '@/types';
 
 type CustomerProp = {
     phone_number: string;
-    identity_number: string | null;
+    emergency_contact: string | null;
     address: string | null;
-    identity_card_url: string | null;
+    social_media: string | null;
     is_verified: boolean;
 } | null;
 
@@ -52,10 +46,10 @@ type PageProps = {
 
 const profileSchema = z.object({
     name: z
-        .string({ error: 'Nama wajib diisi.' })
+        .string({ error: 'Nama lengkap wajib diisi.' })
         .trim()
-        .min(1, 'Nama wajib diisi.')
-        .max(255, 'Nama maksimal 255 karakter.'),
+        .min(1, 'Nama lengkap wajib diisi.')
+        .max(255, 'Nama lengkap maksimal 255 karakter.'),
     email: z
         .string({ error: 'Email wajib diisi.' })
         .trim()
@@ -68,14 +62,12 @@ const profileSchema = z.object({
         .min(9, 'Nomor telepon minimal 9 digit.')
         .max(13, 'Nomor telepon maksimal 13 digit.')
         .regex(/^[0-9]+$/, 'Nomor telepon hanya boleh berisi angka.'),
-    identity_number: z.string().max(32, 'NIK maksimal 32 karakter.').optional(),
+    emergency_contact: z.string().max(255, 'Kontak darurat maksimal 255 karakter.').optional(),
+    social_media: z.string().max(255, 'Sosial media maksimal 255 karakter.').optional(),
     address: z.string().max(2000, 'Alamat maksimal 2000 karakter.').optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
-
-const MAX_IDENTITY_CARD_SIZE = 2 * 1024 * 1024;
-const IDENTITY_CARD_ACCEPT = 'image/jpeg,image/png,image/webp';
 
 function stripPhonePrefix(value: string | null | undefined): string {
     if (!value) {
@@ -104,22 +96,15 @@ export default function Profile() {
     const serverErrors = usePage().props.errors as Record<string, string>;
 
     const [processing, setProcessing] = useState(false);
-    const [identityCard, setIdentityCard] = useState<File | null>(null);
-    const [identityCardPreview, setIdentityCardPreview] = useState<string | null>(
-        null,
-    );
-    const [identityCardError, setIdentityCardError] = useState<string>();
-    const [removeIdentityCard, setRemoveIdentityCard] = useState(false);
-    const [ktpPreviewOpen, setKtpPreviewOpen] = useState(false);
     const [dataDiriOpen, setDataDiriOpen] = useState(true);
     const [verifikasiOpen, setVerifikasiOpen] = useState(true);
-    const [dragActive, setDragActive] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const {
         register,
         handleSubmit,
         reset,
+        setValue,
+        watch,
         formState: { errors, isDirty },
     } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
@@ -127,61 +112,53 @@ export default function Profile() {
             name: auth.user.name,
             email: auth.user.email,
             phone_number: stripPhonePrefix(customer?.phone_number),
-            identity_number: customer?.identity_number ?? '',
+            emergency_contact: customer?.emergency_contact ?? '',
+            social_media: customer?.social_media ?? '',
             address: customer?.address ?? '',
         },
     });
 
+    const emergencyContactValue = watch('emergency_contact');
+    const socialMediaValue = watch('social_media');
+
+    const isEmergencyContactEmpty =
+        !emergencyContactValue || emergencyContactValue.trim() === '';
+    const isSocialMediaEmpty =
+        !socialMediaValue || socialMediaValue.trim() === '';
+    const showIncompleteWarning =
+        isEmergencyContactEmpty || isSocialMediaEmpty;
+
+    const warningMessage = (() => {
+        if (isEmergencyContactEmpty && isSocialMediaEmpty) {
+            return {
+                title: 'Kontak darurat dan sosial media belum diisi',
+                description:
+                    'Lengkapi kontak darurat dan akun sosial media untuk mempermudah proses reservasi alat camping.',
+            };
+        }
+
+        if (isEmergencyContactEmpty) {
+            return {
+                title: 'Kontak darurat belum diisi',
+                description:
+                    'Lengkapi nomor kontak darurat untuk kebutuhan verifikasi dan keselamatan saat sewa.',
+            };
+        }
+
+        if (isSocialMediaEmpty) {
+            return {
+                title: 'Akun sosial media belum diisi',
+                description:
+                    'Lengkapi tautan akun sosial media untuk mempermudah proses reservasi alat camping.',
+            };
+        }
+
+        return null;
+    })();
+
     const errorFor = (
-        field: keyof ProfileFormData | 'identity_card',
-    ): string | undefined => {
-        if (field === 'identity_card') {
-            return identityCardError ?? serverErrors.identity_card;
-        }
-
-        return errors[field]?.message ?? serverErrors[field];
-    };
-
-    const clearIdentityCard = () => {
-        if (identityCardPreview) {
-            URL.revokeObjectURL(identityCardPreview);
-        }
-
-        setIdentityCard(null);
-        setIdentityCardPreview(null);
-        setIdentityCardError(undefined);
-
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-
-    const selectIdentityCard = (file: File | undefined) => {
-        if (!file) {
-            return;
-        }
-
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-            setIdentityCardError('Format file harus JPG, PNG, atau WebP.');
-
-            return;
-        }
-
-        if (file.size > MAX_IDENTITY_CARD_SIZE) {
-            setIdentityCardError('Ukuran file maksimal 2 MB.');
-
-            return;
-        }
-
-        if (identityCardPreview) {
-            URL.revokeObjectURL(identityCardPreview);
-        }
-
-        setIdentityCardError(undefined);
-        setIdentityCard(file);
-        setIdentityCardPreview(URL.createObjectURL(file));
-        setRemoveIdentityCard(false);
-    };
+        field: keyof ProfileFormData,
+    ): string | undefined => errors[field]?.message ?? serverErrors[field];
 
     const onSubmit = (data: ProfileFormData) => {
         router.post(
@@ -191,19 +168,14 @@ export default function Profile() {
                 name: data.name,
                 email: data.email,
                 phone_number: `62${normalizePhoneRest(data.phone_number)}`,
-                identity_number: data.identity_number || null,
+                emergency_contact: data.emergency_contact || null,
+                social_media: data.social_media || null,
                 address: data.address || null,
-                identity_card: identityCard ?? undefined,
-                remove_identity_card:
-                    removeIdentityCard && !identityCard ? true : undefined,
             },
             {
-                forceFormData: true,
                 onStart: () => setProcessing(true),
                 onFinish: () => setProcessing(false),
                 onSuccess: () => {
-                    clearIdentityCard();
-                    setRemoveIdentityCard(false);
                     reset(data);
                 },
             },
@@ -212,16 +184,9 @@ export default function Profile() {
 
     const handleCancel = () => {
         reset();
-        clearIdentityCard();
-        setRemoveIdentityCard(false);
     };
 
-    const hasUnsavedChanges =
-        isDirty || identityCard !== null || removeIdentityCard;
-    const isKtpEmpty =
-        (!customer?.identity_card_url || removeIdentityCard) &&
-        identityCard === null;
-    const showKtpWarning = isKtpEmpty;
+    const hasUnsavedChanges = isDirty;
 
     return (
         <>
@@ -233,22 +198,23 @@ export default function Profile() {
                 <Heading
                     variant="small"
                     title="Profil"
-                    description="Perbarui data diri dan verifikasi KTP untuk mulai menyewa"
+                    description="Perbarui data diri dan kontak untuk mulai menyewa"
                 />
-
-                {showKtpWarning && (
-                    <Alert className="border-0 bg-muted text-foreground">
-                        <TriangleAlert />
-                        <AlertTitle>Verifikasi KTP belum lengkap</AlertTitle>
-                        <AlertDescription className="text-muted-foreground">
-                            Foto KTP masih kosong. Unggah foto KTP agar admin
-                            bisa memverifikasi akunmu sebelum mulai menyewa.
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 <form onSubmit={handleSubmit(onSubmit)} noValidate>
                     <div className="grid gap-6">
+                        {showIncompleteWarning && warningMessage && (
+                            <Alert className="border-0 bg-warning-muted text-warning">
+                                <TriangleAlert className="size-4" />
+                                <AlertTitle className="font-semibold text-warning">
+                                    {warningMessage.title}
+                                </AlertTitle>
+                                <AlertDescription className="text-warning/90">
+                                    {warningMessage.description}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         <Collapsible
                             open={dataDiriOpen}
                             onOpenChange={setDataDiriOpen}
@@ -262,7 +228,7 @@ export default function Profile() {
                                                     Data diri
                                                 </CardTitle>
                                                 <CardDescription>
-                                                    Nama, email, telepon, dan
+                                                    Nama lengkap, email, telepon, dan
                                                     alamat domisili
                                                 </CardDescription>
                                             </div>
@@ -278,79 +244,79 @@ export default function Profile() {
                                 </CollapsibleTrigger>
                                 <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                                     <CardContent className="grid gap-4 pb-6">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Nama</Label>
-                                    <Input
-                                        id="name"
-                                        autoComplete="name"
-                                        placeholder="Nama lengkap"
-                                        aria-invalid={!!errorFor('name')}
-                                        {...register('name')}
-                                    />
-                                    <InputError message={errorFor('name')} />
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="email">Email</Label>
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            autoComplete="email"
-                                            placeholder="nama@email.com"
-                                            aria-invalid={!!errorFor('email')}
-                                            {...register('email')}
-                                        />
-                                        <InputError message={errorFor('email')} />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="phone_number">
-                                            Nomor telepon
-                                        </Label>
-                                        <div className="relative">
-                                            <span
-                                                aria-hidden="true"
-                                                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
-                                            >
-                                                +62
-                                            </span>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="name">Nama Lengkap</Label>
                                             <Input
-                                                id="phone_number"
-                                                autoComplete="tel"
-                                                inputMode="numeric"
-                                                placeholder="81234567890"
-                                                aria-invalid={
-                                                    !!errorFor('phone_number')
-                                                }
-                                                className="pl-12"
-                                                {...register('phone_number', {
-                                                    onChange: (event) => {
-                                                        event.target.value =
-                                                            event.target.value
-                                                                .replace(/\D/g, '')
-                                                                .slice(0, 13);
-                                                    },
-                                                })}
+                                                id="name"
+                                                autoComplete="name"
+                                                placeholder="Nama lengkap"
+                                                aria-invalid={!!errorFor('name')}
+                                                {...register('name')}
                                             />
+                                            <InputError message={errorFor('name')} />
                                         </div>
-                                        <InputError
-                                            message={errorFor('phone_number')}
-                                        />
-                                    </div>
-                                </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="address">Alamat</Label>
-                                    <Textarea
-                                        id="address"
-                                        rows={3}
-                                        autoComplete="street-address"
-                                        placeholder="Alamat domisili"
-                                        aria-invalid={!!errorFor('address')}
-                                        {...register('address')}
-                                    />
-                                    <InputError message={errorFor('address')} />
-                                </div>
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="email">Email</Label>
+                                                <Input
+                                                    id="email"
+                                                    type="email"
+                                                    autoComplete="email"
+                                                    placeholder="nama@email.com"
+                                                    aria-invalid={!!errorFor('email')}
+                                                    {...register('email')}
+                                                />
+                                                <InputError message={errorFor('email')} />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="phone_number">
+                                                    Nomor telepon
+                                                </Label>
+                                                <div className="relative">
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
+                                                    >
+                                                        +62
+                                                    </span>
+                                                    <Input
+                                                        id="phone_number"
+                                                        autoComplete="tel"
+                                                        inputMode="numeric"
+                                                        placeholder="81234567890"
+                                                        aria-invalid={
+                                                            !!errorFor('phone_number')
+                                                        }
+                                                        className="pl-12"
+                                                        {...register('phone_number', {
+                                                            onChange: (event) => {
+                                                                event.target.value =
+                                                                    event.target.value
+                                                                        .replace(/\D/g, '')
+                                                                        .slice(0, 13);
+                                                            },
+                                                        })}
+                                                    />
+                                                </div>
+                                                <InputError
+                                                    message={errorFor('phone_number')}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="address">Alamat</Label>
+                                            <Textarea
+                                                id="address"
+                                                rows={3}
+                                                autoComplete="street-address"
+                                                placeholder="Alamat domisili"
+                                                aria-invalid={!!errorFor('address')}
+                                                {...register('address')}
+                                            />
+                                            <InputError message={errorFor('address')} />
+                                        </div>
                                     </CardContent>
                                 </CollapsibleContent>
                             </Card>
@@ -366,12 +332,10 @@ export default function Profile() {
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="grid gap-1">
                                                 <CardTitle>
-                                                    Verifikasi KTP
+                                                    Kontak Darurat & Sosial Media
                                                 </CardTitle>
                                                 <CardDescription>
-                                                    NIK dan foto KTP dipakai
-                                                    admin untuk verifikasi
-                                                    sebelum penyewaan
+                                                    Kontak darurat dan akun sosial media untuk kebutuhan reservasi
                                                 </CardDescription>
                                             </div>
                                             <ChevronDown
@@ -386,206 +350,28 @@ export default function Profile() {
                                 </CollapsibleTrigger>
                                 <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                                     <CardContent className="grid gap-4 pb-6">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="identity_number">NIK</Label>
-                                    <Input
-                                        id="identity_number"
-                                        inputMode="numeric"
-                                        placeholder="Nomor induk kependudukan"
-                                        aria-invalid={
-                                            !!errorFor('identity_number')
-                                        }
-                                        {...register('identity_number')}
-                                    />
-                                    <InputError
-                                        message={errorFor('identity_number')}
-                                    />
-                                </div>
+                                        <EmergencyContactInput
+                                            id="emergency_contact"
+                                            value={emergencyContactValue}
+                                            onChange={(val) =>
+                                                setValue('emergency_contact', val, {
+                                                    shouldDirty: true,
+                                                })
+                                            }
+                                            error={errorFor('emergency_contact')}
+                                        />
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="identity_card">
-                                        Foto KTP
-                                    </Label>
-                                    {customer?.identity_card_url &&
-                                        !identityCardPreview &&
-                                        !removeIdentityCard && (
-                                            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setKtpPreviewOpen(true)
-                                                    }
-                                                    aria-label="Pratinjau foto KTP tersimpan"
-                                                    className="shrink-0 cursor-pointer rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                                >
-                                                    <img
-                                                        src={
-                                                            customer.identity_card_url
-                                                        }
-                                                        alt="Foto KTP tersimpan"
-                                                        className="h-14 w-auto rounded-md object-cover"
-                                                    />
-                                                </button>
-                                                <p className="flex-1 text-sm font-medium">
-                                                    KTP tersimpan
-                                                </p>
-                                                <div className="flex shrink-0 items-center gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        aria-label="Ganti foto KTP"
-                                                        onClick={() =>
-                                                            fileInputRef.current?.click()
-                                                        }
-                                                    >
-                                                        <RefreshCw />
-                                                        <span className="hidden sm:inline">
-                                                            Ganti
-                                                        </span>
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        aria-label="Hapus foto KTP"
-                                                        onClick={() =>
-                                                            setRemoveIdentityCard(
-                                                                true,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Trash2 />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    {customer?.identity_card_url &&
-                                        !identityCardPreview &&
-                                        removeIdentityCard && (
-                                            <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
-                                                <p className="flex-1 text-xs text-muted-foreground">
-                                                    Foto KTP akan dihapus saat
-                                                    kamu menyimpan perubahan.
-                                                </p>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    aria-label="Batalkan hapus foto KTP"
-                                                    className="shrink-0"
-                                                    onClick={() =>
-                                                        setRemoveIdentityCard(
-                                                            false,
-                                                        )
-                                                    }
-                                                >
-                                                    <X />
-                                                    <span className="hidden sm:inline">
-                                                        Batalkan
-                                                    </span>
-                                                </Button>
-                                            </div>
-                                        )}
-                                    {identityCard && identityCardPreview ? (
-                                        <div className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setKtpPreviewOpen(true)
-                                                }
-                                                aria-label="Pratinjau foto KTP"
-                                                className="shrink-0 cursor-pointer rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                            >
-                                                <img
-                                                    src={identityCardPreview}
-                                                    alt="Pratinjau foto KTP"
-                                                    className="h-14 w-auto rounded-md object-cover"
-                                                />
-                                            </button>
-                                            <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                                                {identityCard.name}
-                                            </p>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon"
-                                                aria-label="Hapus foto KTP"
-                                                className="shrink-0"
-                                                onClick={clearIdentityCard}
-                                            >
-                                                <X />
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        (!customer?.identity_card_url ||
-                                            removeIdentityCard) && (
-                                            <div
-                                                role="button"
-                                                tabIndex={0}
-                                                aria-label="Unggah foto KTP"
-                                                onClick={() =>
-                                                    fileInputRef.current?.click()
-                                                }
-                                                onKeyDown={(event) => {
-                                                    if (
-                                                        event.key === 'Enter' ||
-                                                        event.key === ' '
-                                                    ) {
-                                                        event.preventDefault();
-                                                        fileInputRef.current?.click();
-                                                    }
-                                                }}
-                                                onDragOver={(event) => {
-                                                    event.preventDefault();
-                                                    setDragActive(true);
-                                                }}
-                                                onDragLeave={() =>
-                                                    setDragActive(false)
-                                                }
-                                                onDrop={(event) => {
-                                                    event.preventDefault();
-                                                    setDragActive(false);
-                                                    selectIdentityCard(
-                                                        event.dataTransfer
-                                                            .files?.[0],
-                                                    );
-                                                }}
-                                                className={cn(
-                                                    'flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed border-input p-6 text-center outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                                    dragActive &&
-                                                        'border-ring bg-muted/50',
-                                                )}
-                                            >
-                                                <ImagePlus className="size-8 text-muted-foreground" />
-                                                <p className="text-sm font-medium">
-                                                    Seret foto KTP ke sini atau
-                                                    klik untuk memilih
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    JPG, PNG, atau WebP
-                                                    maksimal 2 MB.
-                                                </p>
-                                            </div>
-                                        )
-                                    )}
-                                    <input
-                                        ref={fileInputRef}
-                                        id="identity_card"
-                                        type="file"
-                                        accept={IDENTITY_CARD_ACCEPT}
-                                        className="hidden"
-                                        onChange={(event) =>
-                                            selectIdentityCard(
-                                                event.target.files?.[0],
-                                            )
-                                        }
-                                    />
-                                    <InputError
-                                        message={errorFor('identity_card')}
-                                    />
-                                </div>
-
+                                        <SocialMediaInput
+                                            id="social_media"
+                                            label="Sosial media"
+                                            value={socialMediaValue}
+                                            onChange={(val) =>
+                                                setValue('social_media', val, {
+                                                    shouldDirty: true,
+                                                })
+                                            }
+                                            error={errorFor('social_media')}
+                                        />
                                     </CardContent>
                                 </CollapsibleContent>
                             </Card>
@@ -613,43 +399,6 @@ export default function Profile() {
                     )}
                 </form>
             </div>
-
-            <Dialog open={ktpPreviewOpen} onOpenChange={setKtpPreviewOpen}>
-                <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl">
-                    <DialogHeader className="shrink-0">
-                        <DialogTitle>Foto KTP</DialogTitle>
-                        <DialogDescription>
-                            {auth.user.name}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="min-h-0 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
-                        {(identityCardPreview ??
-                            (!removeIdentityCard
-                                ? customer?.identity_card_url
-                                : null)) && (
-                            <img
-                                src={
-                                    (identityCardPreview ??
-                                        (!removeIdentityCard
-                                            ? customer?.identity_card_url
-                                            : null)) as string
-                                }
-                                alt={`Foto KTP ${auth.user.name}`}
-                                className="w-full rounded-md object-contain"
-                            />
-                        )}
-                    </div>
-                    <DialogFooter className="shrink-0">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setKtpPreviewOpen(false)}
-                        >
-                            Tutup
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             <DeleteUser />
         </>

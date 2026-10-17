@@ -10,7 +10,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,9 +29,9 @@ class ProfileController extends Controller
             'status' => $request->session()->get('status'),
             'customer' => $customer ? [
                 'phone_number' => $customer->phone_number,
-                'identity_number' => $customer->identity_number,
+                'emergency_contact' => $customer->emergency_contact,
                 'address' => $customer->address,
-                'identity_card_url' => $customer->identity_card_url,
+                'social_media' => $customer->social_media,
                 'is_verified' => $customer->is_verified,
             ] : null,
         ]);
@@ -46,7 +45,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $validated = $request->validated();
 
-        DB::transaction(function () use ($user, $validated, $request): void {
+        DB::transaction(function () use ($user, $validated): void {
             $user->fill([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -60,33 +59,10 @@ class ProfileController extends Controller
 
             $customer = $user->customer()->firstOrNew([]);
 
-            $removeCard = (bool) ($validated['remove_identity_card'] ?? false);
-
-            if ($request->hasFile('identity_card')) {
-                if ($customer->exists && $customer->identity_card_path) {
-                    Storage::disk('public')->delete($customer->identity_card_path);
-                }
-
-                $customer->identity_card_path = $request->file('identity_card')->store('identity-cards', 'public');
-            } elseif ($removeCard) {
-                if ($customer->exists && $customer->identity_card_path) {
-                    Storage::disk('public')->delete($customer->identity_card_path);
-                }
-
-                $customer->identity_card_path = null;
-            }
-
-            $identityChanged = ($validated['identity_number'] ?? null) !== $customer->identity_number
-                || $request->hasFile('identity_card')
-                || $removeCard;
-
             $customer->phone_number = $validated['phone_number'];
-            $customer->identity_number = $validated['identity_number'] ?? null;
+            $customer->emergency_contact = $validated['emergency_contact'] ?? null;
+            $customer->social_media = $validated['social_media'] ?? null;
             $customer->address = $validated['address'] ?? null;
-
-            if ($identityChanged) {
-                $customer->is_verified = false;
-            }
 
             $customer->user()->associate($user);
             $customer->save();
@@ -104,15 +80,9 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $identityCardPath = $user->customer?->identity_card_path;
-
         Auth::logout();
 
         $user->delete();
-
-        if ($identityCardPath) {
-            Storage::disk('public')->delete($identityCardPath);
-        }
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

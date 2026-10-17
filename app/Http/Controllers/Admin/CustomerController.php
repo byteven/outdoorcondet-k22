@@ -94,11 +94,7 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $restored = false;
 
-        DB::transaction(function () use ($validated, $request, &$restored): void {
-            $identityCardPath = $request->hasFile('identity_card')
-                ? $request->file('identity_card')->store('identity-cards', 'public')
-                : null;
-
+        DB::transaction(function () use ($validated, &$restored): void {
             $existingUser = User::where('email', $validated['email'])->first();
 
             if ($existingUser) {
@@ -116,8 +112,8 @@ class CustomerController extends Controller
 
                     $existingCustomer->update([
                         'phone_number' => $validated['phone_number'],
-                        'identity_number' => $validated['identity_number'] ?? null,
-                        'identity_card_path' => $identityCardPath,
+                        'emergency_contact' => $validated['emergency_contact'] ?? null,
+                        'social_media' => $validated['social_media'] ?? null,
                         'address' => $validated['address'] ?? null,
                         'is_active' => true,
                     ]);
@@ -129,8 +125,8 @@ class CustomerController extends Controller
 
                 $existingUser->customer()->create([
                     'phone_number' => $validated['phone_number'],
-                    'identity_number' => $validated['identity_number'] ?? null,
-                    'identity_card_path' => $identityCardPath,
+                    'emergency_contact' => $validated['emergency_contact'] ?? null,
+                    'social_media' => $validated['social_media'] ?? null,
                     'address' => $validated['address'] ?? null,
                 ]);
 
@@ -148,8 +144,8 @@ class CustomerController extends Controller
 
             $user->customer()->create([
                 'phone_number' => $validated['phone_number'],
-                'identity_number' => $validated['identity_number'] ?? null,
-                'identity_card_path' => $identityCardPath,
+                'emergency_contact' => $validated['emergency_contact'] ?? null,
+                'social_media' => $validated['social_media'] ?? null,
                 'address' => $validated['address'] ?? null,
             ]);
         });
@@ -179,7 +175,8 @@ class CustomerController extends Controller
 
             $customer->update([
                 'phone_number' => $validated['phone_number'],
-                'identity_number' => $validated['identity_number'] ?? null,
+                'emergency_contact' => $validated['emergency_contact'] ?? null,
+                'social_media' => $validated['social_media'] ?? null,
                 'address' => $validated['address'] ?? null,
                 'is_active' => $validated['is_active'],
             ]);

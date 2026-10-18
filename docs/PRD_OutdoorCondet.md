@@ -2,7 +2,7 @@
 
 ## OutdoorCondet - Camping & Outdoor Equipment Rental Platform
 
-> **Versi:** 3.1 (FINAL — seluruh keputusan bisnis sudah ditetapkan, tanpa pertanyaan terbuka)
+> **Versi:** 3.2 (FINAL — seluruh keputusan bisnis sudah ditetapkan, tanpa pertanyaan terbuka)
 > **Narasumber / Stakeholder:** Faqih (owner @sewaalatoutdoorcondet)
 > **Sumber requirement:** meeting narasumber 17 Oktober 2026, poster "Sistem Sewa" (Pricelist 2026), dan keputusan tim 18 Oktober 2026.
 > **Penyusun:** Vio Salman
@@ -18,7 +18,7 @@
 | 3 | Deposit | Deposit diatur admin **per quantity per produk/varian** (contoh Rp50.000/unit). |
 | 4 | Sistem sewa pertanggal | Mengikuti poster: **bukan 24 jam**. Ambil jam 18:00 ke atas dihitung tanggal berikutnya; ambil 06:00-17:59 dihitung tanggal itu juga; kembali maksimal 00:00. |
 | 5 | Buffer stok | Setelah tanggal kembali ada **1 hari jeda**. Kembali tgl 18 -> tgl 19 belum ready -> tgl 20 ready 00:00. |
-| 6 | Pembayaran | DP default diizinkan, **50% dari biaya sewa + deposit**. |
+| 6 | Pembayaran | DP default diizinkan, **50% dari biaya sewa saja (deposit tidak ikut)**. Deposit **disetor di outlet saat pengambilan barang**, tidak dibayar online. |
 | 7 | Transaction Monitoring | Dua konfirmasi admin: pesanan masuk dan barang dikembalikan; auto-konfirmasi 2 hari; denda keterlambatan **per hari, nominal konstan**. |
 | 8 | Semua modul | Diperdetail dengan aturan, validasi, dan acceptance criteria. |
 
@@ -50,8 +50,9 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 | Tanggal mulai hitung | Tanggal pertama yang dihitung sebagai hari sewa (lihat 4.3). Bisa sama dengan atau sehari setelah tanggal ambil. |
 | Tanggal kembali | Tanggal terakhir barang boleh dikembalikan (batas 00:00 di akhir tanggal tsb). |
 | Harga tier | Harga total per unit untuk durasi tertentu yang diisi manual admin (contoh: 3 hari = Rp50.000). |
-| Deposit | Uang jaminan per unit; dikembalikan jika barang kembali baik dan tepat waktu. |
-| DP | Down payment: 50% dari (biaya sewa + deposit). |
+| Deposit | Uang jaminan per unit; disetor saat ambil barang dan dikembalikan jika barang kembali baik dan tepat waktu. |
+| DP | Down payment: 50% dari biaya sewa saja (tanpa deposit). |
+| Setoran deposit | Deposit dibayarkan customer ke admin di outlet saat pengambilan barang (tunai/transfer), bukan lewat website. |
 | Buffer pengembalian | Jeda 1 hari penuh setelah tanggal kembali sebelum stok ready lagi. |
 | Maintenance | Isolasi unit kotor/rusak di luar buffer standar; berlaku sampai admin klik "Tandai Siap". |
 
@@ -147,16 +148,17 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
     - `total_days` (Integer)
     - `rental_amount` (Decimal: 12,2) — total biaya sewa (tanpa deposit)
     - `deposit_amount` (Decimal: 12,2, Default: 0)
-    - `grand_total` (Decimal: 12,2) — `rental_amount + deposit_amount`
+    - `grand_total` (Decimal: 12,2) — `rental_amount + deposit_amount` (total keseluruhan, informasi untuk customer)
     - `payment_type` (Enum: `full`, `down_payment`)
     - `down_payment_amount` (Decimal: 12,2, Default: 0)
-    - `remaining_balance` (Decimal: 12,2, Default: 0)
+    - `remaining_balance` (Decimal: 12,2, Default: 0) — sisa **biaya sewa** yang belum dibayar (`rental_amount - down_payment_amount` untuk DP; 0 untuk lunas); **tidak termasuk deposit**
     - `late_fee_per_day` (Decimal: 12,2, Default: 0) — snapshot dari konfigurasi
     - `late_days` (Integer, Default: 0)
     - `late_fee_amount` (Decimal: 12,2, Default: 0)
     - `damage_deduction_amount` (Decimal: 12,2, Default: 0) — potongan deposit karena rusak/hilang
     - `deposit_refund_amount` (Decimal: 12,2, Default: 0)
-    - `deposit_status` (Enum: `held`, `refunded`, `partially_refunded`, `forfeited`, Default: `held`)
+    - `deposit_status` (Enum: `pending`, `held`, `refunded`, `partially_refunded`, `forfeited`, Default: `pending`) — `pending` = belum disetor; `held` = sudah disetor saat ambil barang
+    - `deposit_received_at` (DateTime, Nullable) — waktu deposit diterima admin
     - `payment_deadline_at` (DateTime) — batas waktu bayar
     - `cancel_reason` (Text, Nullable)
     - `refund_amount` (Decimal: 12,2, Default: 0) — refund pembatalan (diisi admin)
@@ -167,7 +169,7 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 
 - **`rental_payments`** _(riwayat bukti bayar; menggantikan `payment_proof_path`)_
     - `id` (PK), `rental_id` (FK, Cascade)
-    - `kind` (Enum: `dp`, `full`, `settlement`, `late_fee_topup`)
+    - `kind` (Enum: `dp`, `full`, `settlement`, `deposit`, `late_fee_topup`) — `dp`/`full` = bayar online atas biaya sewa; `settlement` = pelunasan sisa biaya sewa di outlet; `deposit` = setoran deposit di outlet
     - `amount` (Decimal 12,2)
     - `method` (Enum: `transfer`, `qris`, `cash`)
     - `proof_path` (String, Nullable) — null jika tunai dicatat admin
@@ -205,7 +207,7 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 | `return_buffer_days` | `1` | Jeda hari setelah tanggal kembali |
 | `auto_confirm_return_days` | `2` | Auto-konfirmasi jika admin tidak konfirmasi |
 | `dp_enabled` | `true` | DP diizinkan |
-| `dp_percentage` | `50` | Persentase DP dari (sewa + deposit) |
+| `dp_percentage` | `50` | Persentase DP dari biaya sewa saja (tanpa deposit) |
 | `late_fee_per_day` | `50000` | Denda konstan per hari keterlambatan |
 | `payment_timeout_hours` | `24` | Batas waktu bayar setelah checkout |
 | `min_lead_hours` | `2` | Selisih minimum sekarang ke jadwal ambil |
@@ -258,9 +260,9 @@ Dengan aturan ini harga tidak pernah melebihi tier di atasnya, dan durasi lebih 
 
 **Deposit:** `deposit_per_unit x quantity`, tidak dipengaruhi durasi. Paket memakai `deposit_per_package x quantity paket`.
 
-**Total:** `subtotal_item = unit_price x quantity`; `rental_amount = jumlah subtotal`; `deposit_amount = jumlah deposit_subtotal`; `grand_total = rental_amount + deposit_amount`.
+**Total:** `subtotal_item = unit_price x quantity`; `rental_amount = jumlah subtotal`; `deposit_amount = jumlah deposit_subtotal`; `grand_total = rental_amount + deposit_amount` (informasi total keseluruhan). **Yang dibayar online hanya `rental_amount`** (DP atau lunas); `deposit_amount` disetor di outlet saat ambil barang.
 
-**Contoh:** Tenda 4P (deposit Rp50.000/unit), 2 unit, 4 hari -> sewa 2 x 70.000 = Rp140.000; deposit Rp100.000; grand total Rp240.000.
+**Contoh:** Tenda 4P (deposit Rp50.000/unit), 2 unit, 4 hari -> sewa 2 x 70.000 = Rp140.000; deposit Rp100.000 (disetor saat ambil barang); total keseluruhan Rp240.000. Jika DP: bayar online Rp70.000, saat ambil barang bayar sisa sewa Rp70.000 + deposit Rp100.000 = Rp170.000.
 
 ### 4.3. Sistem Sewa Pertanggal (Aturan Poster "Sistem Sewa")
 
@@ -311,16 +313,16 @@ Sebuah rental **memblokir stok dari `start_date` (tanggal ambil fisik) sampai `e
 
 ### 4.5. Order & Payment Flow
 
-1. **Checkout:** customer memeriksa ringkasan (tanggal, jam, durasi, harga, deposit, grand total) lalu memilih **DP** atau **Lunas**.
-    - **DP:** `down_payment_amount = 50% x grand_total` (sewa + deposit), dibulatkan ke atas ke kelipatan Rp1.000; `remaining_balance = grand_total - down_payment_amount`, dilunasi di outlet saat pengambilan.
-    - **Lunas:** 100% `grand_total`.
+1. **Checkout:** customer memeriksa ringkasan (tanggal, jam, durasi, harga sewa, deposit yang disetor saat ambil barang, total keseluruhan) lalu memilih **DP** atau **Lunas** (keduanya atas biaya sewa saja).
+    - **DP:** `down_payment_amount = 50% x rental_amount` (**tanpa deposit**), dibulatkan ke atas ke kelipatan Rp1.000; `remaining_balance = rental_amount - down_payment_amount`, dilunasi di outlet saat pengambilan.
+    - **Lunas:** 100% `rental_amount` (`remaining_balance = 0`). Deposit tetap disetor di outlet saat ambil barang.
 2. **Hold stok:** order berstatus `pending_payment` menahan stok sampai `payment_deadline_at` (= checkout + 24 jam). Lewat batas -> otomatis `cancelled`, stok dilepas. Penolakan bukti bayar tidak memperpanjang batas ini.
 3. **Instruksi bayar:** tampil rekening/QRIS, nominal, dan hitung mundur batas bayar.
 4. **Upload bukti:** screenshot (jpg/png/pdf, maks 5 MB) -> `rental_payments.status = waiting`, rental `waiting_confirmation`.
 5. **Konfirmasi #1 Admin (pesanan masuk):**
     - **Approve** -> `dp_paid` (jika DP) atau `fully_paid` (jika lunas); booking resmi.
     - **Reject** (catatan alasan wajib) -> kembali `pending_payment`; customer unggah ulang selama masih sebelum `payment_deadline_at`.
-6. **Pengambilan:** pada tanggal ambil, admin mencatat pelunasan sisa (`rental_payments` kind `settlement`, transfer/QRIS/tunai) -> `fully_paid`, lalu "Tandai Diambil" -> `picked_up` (isi `picked_up_at`). Tidak bisa `picked_up` jika `remaining_balance > 0`. Jika customer tidak datang, admin membatalkan manual (4.9).
+6. **Pengambilan & setoran deposit:** pada tanggal ambil, di outlet admin: (a) mencatat pelunasan sisa biaya sewa jika `dp_paid` (`rental_payments` kind `settlement`, transfer/QRIS/tunai) -> `fully_paid`; (b) mencatat **setoran deposit** sebesar `deposit_amount` (`rental_payments` kind `deposit`, tunai/transfer) -> `deposit_status = held`, `deposit_received_at` terisi; (c) memverifikasi KTP fisik, lalu klik "Tandai Diambil" -> `picked_up` (isi `picked_up_at`). Tombol "Tandai Diambil" hanya aktif jika `remaining_balance = 0` **dan** deposit sudah diterima (`deposit_status = held`). Customer melihat total yang harus disiapkan saat ambil barang = `remaining_balance + deposit_amount`. Jika customer tidak datang, admin membatalkan manual (4.9).
 
 ### 4.6. Return Confirmation, Late Fee & Auto-Confirm
 
@@ -351,8 +353,8 @@ Sebuah rental **memblokir stok dari `start_date` (tanggal ambil fisik) sampai `e
 pending_payment ──(upload bukti)──> waiting_confirmation
 waiting_confirmation ──approve──> dp_paid | fully_paid
 waiting_confirmation ──reject──> pending_payment
-dp_paid ──(pelunasan di outlet)──> fully_paid
-fully_paid ──(tandai diambil)──> picked_up
+dp_paid ──(pelunasan sisa sewa di outlet)──> fully_paid
+fully_paid ──(setoran deposit + tandai diambil)──> picked_up
 picked_up ──(konfirmasi admin / auto-konfirmasi H+2)──> returned
 returned ──(lewat stock_release_at + deposit selesai)──> completed
 pending_payment | waiting_confirmation | dp_paid | fully_paid ──> cancelled
@@ -384,7 +386,7 @@ Setiap transisi dicatat di `rental_status_logs`.
 | AD-07 | Transaction Monitoring | Manage Rentals | Dua konfirmasi, preview bukti bayar, pelunasan, denda, deposit; detail 5.1.2. |
 | AD-08 | Return & Maintenance | Return Inspector | Detail 5.1.3. |
 | AD-09 | Rental Calendar | Visual Scheduler | View bulanan/mingguan; blok booking, **blok buffer 1 hari (warna berbeda)**, blok maintenance, kapasitas unit per tanggal; klik blok membuka detail rental. |
-| AD-10 | Self Order (POS) | Admin Manual Order | Order walk-in/offline: pilih/buat customer, item, tanggal & jam ambil, tanggal kembali; harga/deposit memakai engine yang sama; catat pembayaran tunai/transfer; `is_self_order = true`; melewati gate kelengkapan data customer; langsung berstatus `dp_paid`/`fully_paid` sesuai nominal yang dicatat. |
+| AD-10 | Self Order (POS) | Admin Manual Order | Order walk-in/offline: pilih/buat customer, item, tanggal & jam ambil, tanggal kembali; harga/deposit memakai engine yang sama; catat pembayaran tunai/transfer; `is_self_order = true`; melewati gate kelengkapan data customer; langsung berstatus `dp_paid`/`fully_paid` sesuai nominal biaya sewa yang dicatat; deposit dicatat saat itu juga jika barang diambil langsung, dengan aturan yang sama (deposit diterima sebelum "Tandai Diambil"). |
 | AD-11 | Dashboard Metrics | Analytics | Transaksi hari ini, jumlah per status, antrean "Butuh Konfirmasi" (pembayaran menunggu & pengembalian jatuh tempo), barang paling sering disewa, grafik revenue (sewa dan deposit dipisah). |
 
 #### 5.1.1. Detail AD-05: Product Management
@@ -415,8 +417,9 @@ Setiap transisi dicatat di `rental_status_logs`.
 
 - **Daftar rental:** filter status, rentang tanggal, pencarian kode/nama customer; badge **"Butuh Konfirmasi"** untuk `waiting_confirmation` dan untuk `picked_up` yang sudah lewat `return_due_at`; badge "Terlambat" dan "Auto-konfirmasi".
 - **Konfirmasi #1 — Pesanan masuk:** preview bukti transfer (zoom), nominal diterima vs yang seharusnya, tombol **Approve** / **Reject** (catatan wajib).
-- **Pelunasan:** input nominal sisa (transfer/QRIS/tunai), tidak boleh melebihi `remaining_balance`.
-- **Pengambilan:** "Tandai Diambil" (syarat: `fully_paid`).
+- **Pelunasan:** input nominal sisa biaya sewa (transfer/QRIS/tunai), tidak boleh melebihi `remaining_balance`.
+- **Setoran deposit:** form "Terima Deposit" (nominal = `deposit_amount`, tunai/transfer) saat pengambilan; wajib sebelum "Tandai Diambil".
+- **Pengambilan:** "Tandai Diambil" (syarat: `fully_paid` dan deposit sudah diterima).
 - **Konfirmasi #2 — Pengembalian:** "Konfirmasi Dikembalikan" membuka Return Inspector (5.1.3) yang menampilkan batas kembali, `late_days`, dan `late_fee_amount` otomatis.
 - **Deposit:** ringkasan `deposit_amount - late_fee - damage = deposit_refund_amount` dan tombol "Tandai Deposit Dikembalikan".
 - **Pembatalan:** sesuai 4.9.
@@ -432,7 +435,7 @@ Setiap transisi dicatat di `rental_status_logs`.
 
 | ID | Modul | Fitur | Detail Teknis |
 | -- | ----- | ----- | ------------- |
-| CU-01 | Registration Customer | Registrasi | Multi-step: Step 1 Akun (Nama Lengkap, email, telepon, password); Step 2 Kontak Darurat, Alamat, Sosial Media (opsional; icon TikTok/IG/FB). Tanpa KTP/NIK. Email unik; telepon format Indonesia (08xx / 62xx). |
+| CU-01 | Registrasi Customer | Registrasi| Multi-step: Step 1 Akun (Nama Lengkap, email, telepon, password); Step 2 Kontak Darurat, Alamat, Sosial Media (opsional; icon TikTok/IG/FB). Tanpa KTP/NIK. Email unik; telepon format Indonesia (08xx / 62xx). |
 | CU-02 | Profile & Data | Edit Profil & Data Diri | Update Nama Lengkap, no. WA, Kontak Darurat, Alamat, link sosmed; banner kuning awareness jika belum lengkap. |
 | CU-03 | Search & Discovery | Hero Date Picker Search | Date-range picker (Tanggal Ambil - Tanggal Kembali) + pilih jam ambil; tampil ringkasan "mulai dihitung / durasi / kembali maks 00:00" (4.3); keyword; filter kategori. |
 | CU-04 | Catalog & Detail | Filter & Varian Selector | Grid produk, gallery, pilih varian, **harga otomatis sesuai durasi (harga per durasi)**, **info deposit per unit**, ketersediaan real-time (stok per rentang + buffer). |
@@ -443,8 +446,8 @@ Setiap transisi dicatat di `rental_status_logs`.
 #### 5.2.1. Detail CU-06: Checkout
 
 1. Cek gate kelengkapan data (alamat, kontak darurat, >= 1 sosmed); jika kurang, form inline.
-2. Ringkasan: item, tanggal & jam ambil, tanggal mulai hitung, tanggal & jam batas kembali, durasi, rincian harga, deposit, grand total, serta pengingat denda keterlambatan (Rp/hari dari `late_fee_per_day`).
-3. Pilih pembayaran: **DP** (50% dari sewa + deposit) atau **Lunas**; jika `dp_enabled=false`, hanya Lunas. Tampil nominal bayar sekarang dan sisa yang dibayar saat ambil barang.
+2. Ringkasan: item, tanggal & jam ambil, tanggal mulai hitung, tanggal & jam batas kembali, durasi, rincian harga, deposit, grand total, pengingat bahwa **deposit disetor saat ambil barang**, serta pengingat denda keterlambatan (Rp/hari dari `late_fee_per_day`).
+3. Pilih pembayaran atas **biaya sewa saja**: **DP** (50% dari biaya sewa) atau **Lunas** (100% biaya sewa); jika `dp_enabled=false`, hanya Lunas. Tampil nominal bayar sekarang, sisa sewa, dan **deposit** yang keduanya dibayar di outlet saat ambil barang (total disiapkan = sisa sewa + deposit).
 4. Info rekening/QRIS + hitung mundur batas bayar (24 jam).
 5. Unggah bukti -> `waiting_confirmation`, tampil "Menunggu konfirmasi admin".
 6. Jika ditolak, tampil alasan dan tombol unggah ulang (selama belum melewati batas bayar).
@@ -468,8 +471,8 @@ Setiap transisi dicatat di `rental_status_logs`.
 | - | --------- | ---------- |
 | 1 | Sistem sewa | Pertanggal; ambil >= 18:00 dihitung tanggal berikutnya; ambil 06:00-17:59 dihitung tanggal itu; kembali maks 00:00 (poster Sistem Sewa). |
 | 2 | Harga | Nominal manual per durasi; durasi tanpa tier memakai kombinasi termurah (4.2). |
-| 3 | Deposit | Per quantity, per produk/varian/paket, bebas diisi admin. |
-| 4 | DP | Default aktif, 50% dari (sewa + deposit), sisa dilunasi saat ambil barang. |
+| 3 | Deposit | Per quantity, per produk/varian/paket, bebas diisi admin; disetor saat ambil barang. |
+| 4 | DP & deposit | DP default aktif, 50% dari biaya sewa saja. Sisa sewa dan deposit disetor di outlet saat ambil barang; deposit tidak dibayar online. |
 | 5 | Denda keterlambatan | Per hari keterlambatan (dibulatkan ke atas), nominal konstan (Rp50.000/hari, tetap, ditetapkan developer), dipotong dari deposit. |
 | 6 | Buffer | 1 hari setelah tanggal kembali; ready 00:00 hari berikutnya. |
 | 7 | Auto-konfirmasi | H+2 setelah batas kembali, tanpa denda, kondisi dianggap baik. |

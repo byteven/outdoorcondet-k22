@@ -135,3 +135,24 @@ test('storing a product rejects invalid image format', function () {
         ->post(route('admin.products.store'), $payload)
         ->assertSessionHasErrors(['images.0']);
 });
+
+test('admins can store product with deposit per unit and duration prices', function () {
+    $payload = validProductPayload();
+    $payload['variants'][0]['deposit_per_unit'] = 50000;
+    $payload['variants'][0]['duration_prices'] = [
+        ['duration_days' => 3, 'price' => 120000],
+        ['duration_days' => 7, 'price' => 250000],
+    ];
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.products.store'), $payload)
+        ->assertRedirect();
+
+    $product = Product::where('slug', 'tenda-dome-4-orang')->first();
+    $firstVariant = $product?->variants->firstWhere('sku', 'TND-DOME4-MRH');
+
+    expect($firstVariant)->not->toBeNull()
+        ->and((float) $firstVariant->deposit_per_unit)->toBe(50000.0)
+        ->and($firstVariant->durationPrices)->toHaveCount(2)
+        ->and($firstVariant->durationPrices->firstWhere('duration_days', 3)?->price)->toBe('120000.00');
+});

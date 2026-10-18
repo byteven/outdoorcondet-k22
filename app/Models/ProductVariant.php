@@ -16,12 +16,13 @@ use Illuminate\Support\Carbon;
  * @property string $sku
  * @property int $stock
  * @property string $rental_price_per_day
+ * @property string $deposit_per_unit
  * @property int $weight_grams
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['product_id', 'sku', 'stock', 'rental_price_per_day', 'weight_grams', 'is_active'])]
+#[Fillable(['product_id', 'sku', 'stock', 'rental_price_per_day', 'deposit_per_unit', 'weight_grams', 'is_active'])]
 class ProductVariant extends Model
 {
     /** @use HasFactory<ProductVariantFactory> */
@@ -37,6 +38,7 @@ class ProductVariant extends Model
         return [
             'stock' => 'integer',
             'rental_price_per_day' => 'decimal:2',
+            'deposit_per_unit' => 'decimal:2',
             'weight_grams' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -56,5 +58,13 @@ class ProductVariant extends Model
     public function values(): HasMany
     {
         return $this->hasMany(ProductVariantValue::class);
+    }
+
+    /**
+     * @return HasMany<VariantDurationPrice, $this>
+     */
+    public function durationPrices(): HasMany
+    {
+        return $this->hasMany(VariantDurationPrice::class);
     }
 }

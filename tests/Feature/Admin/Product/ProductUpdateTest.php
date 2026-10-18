@@ -169,3 +169,30 @@ test('updating a product can append new images and keep old ones', function () {
         ->and($product->images->where('is_primary', true))->toHaveCount(1)
         ->and($product->images->where('is_primary', true)->first()->id)->not->toBe($oldImage->id);
 });
+
+test('admins can update product variant deposit and duration prices', function () {
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'deposit_per_unit' => 20000,
+    ]);
+    $price1 = $variant->durationPrices()->create(['duration_days' => 3, 'price' => 70000]);
+
+    $payload = updateVariantPayload($product);
+    $payload['variants'][0]['deposit_per_unit'] = 40000;
+    $payload['variants'][0]['duration_prices'] = [
+        ['id' => $price1->id, 'duration_days' => 3, 'price' => 75000],
+        ['duration_days' => 5, 'price' => 110000],
+    ];
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.products.update', $product), $payload)
+        ->assertRedirect();
+
+    $variant->refresh();
+
+    expect((float) $variant->deposit_per_unit)->toBe(40000.0)
+        ->and($variant->durationPrices)->toHaveCount(2)
+        ->and($variant->durationPrices->firstWhere('duration_days', 3)?->price)->toBe('75000.00')
+        ->and($variant->durationPrices->firstWhere('duration_days', 5)?->price)->toBe('110000.00');
+});

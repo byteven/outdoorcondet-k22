@@ -123,11 +123,17 @@ export function ProductDetailDialog({
                 sku: v.sku,
                 stock: v.stock,
                 rental_price_per_day: Number(v.rental_price_per_day),
+                deposit_per_unit: Number(v.deposit_per_unit || 0),
                 weight_grams: v.weight_grams,
                 is_active: v.is_active,
                 values: v.values.map((val) => ({
                     attribute_id: val.attribute_id,
                     value: val.value,
+                })),
+                duration_prices: (v.duration_prices || []).map((dp) => ({
+                    id: dp.id,
+                    duration_days: dp.duration_days,
+                    price: Number(dp.price),
                 })),
             })),
         });
@@ -338,6 +344,30 @@ export function ProductDetailDialog({
                                                             /hari
                                                         </span>
                                                     </p>
+                                                    {Number(
+                                                        variant.deposit_per_unit ||
+                                                            0,
+                                                    ) > 0 && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Jaminan:{' '}
+                                                            {formatRupiah(
+                                                                variant.deposit_per_unit,
+                                                            )}
+                                                            /unit
+                                                        </p>
+                                                    )}
+                                                    {variant.duration_prices &&
+                                                        variant.duration_prices
+                                                            .length > 0 && (
+                                                            <p className="text-[11px] text-muted-foreground">
+                                                                {variant.duration_prices
+                                                                    .map(
+                                                                        (dp) =>
+                                                                            `${dp.duration_days}h: ${formatRupiah(dp.price)}`,
+                                                                    )
+                                                                    .join(', ')}
+                                                            </p>
+                                                        )}
                                                     <p className="text-xs text-muted-foreground">
                                                         {variant.stock} unit ·{' '}
                                                         {variant.weight_grams} g
@@ -695,6 +725,31 @@ export function ProductDetailDialog({
                                                     />
                                                 </div>
                                                 <div className="grid gap-2">
+                                                    <Label>
+                                                        Uang jaminan / unit (Rp)
+                                                    </Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        step={1000}
+                                                        placeholder="Contoh: 50000"
+                                                        disabled={processing}
+                                                        {...register(
+                                                            `variants.${i}.deposit_per_unit`,
+                                                            {
+                                                                valueAsNumber: true,
+                                                            },
+                                                        )}
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            errors.variants?.[i]
+                                                                ?.deposit_per_unit
+                                                                ?.message
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="grid gap-2">
                                                     <Label>Berat (gram)</Label>
                                                     <Input
                                                         type="number"
@@ -717,6 +772,12 @@ export function ProductDetailDialog({
                                                 attributes={attributes}
                                                 processing={processing}
                                             />
+                                            <EditVariantDurationPricesInput
+                                                control={control}
+                                                register={register}
+                                                variantIndex={i}
+                                                processing={processing}
+                                            />
                                         </div>
                                     ))}
                                     <InputError
@@ -735,9 +796,11 @@ export function ProductDetailDialog({
                                                     sku: '',
                                                     stock: 1,
                                                     rental_price_per_day: 0,
+                                                    deposit_per_unit: 0,
                                                     weight_grams: 0,
                                                     is_active: true,
                                                     values: [],
+                                                    duration_prices: [],
                                                 })
                                             }
                                             disabled={
@@ -1071,6 +1134,95 @@ function EditVariantValuesInput({
                     </Button>
                 </div>
             )}
+        </div>
+    );
+}
+
+function EditVariantDurationPricesInput({
+    control,
+    register,
+    variantIndex,
+    processing,
+}: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    control: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    register: any;
+    variantIndex: number;
+    processing: boolean;
+}) {
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: `variants.${variantIndex}.duration_prices`,
+    });
+
+    return (
+        <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3">
+            <div>
+                <p className="text-xs font-medium text-foreground">
+                    Harga per Durasi{' '}
+                    <span className="font-normal text-muted-foreground">
+                        (opsional, mis. 3 hari = Rp50.000)
+                    </span>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                    Tentukan harga total sewa untuk durasi tertentu.
+                </p>
+            </div>
+            {fields.map((field, j) => (
+                <div
+                    key={field.id}
+                    className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+                >
+                    <div className="grid gap-1">
+                        <Label className="text-xs">Durasi (hari)</Label>
+                        <Input
+                            type="number"
+                            min={2}
+                            placeholder="Contoh: 3"
+                            disabled={processing}
+                            {...register(
+                                `variants.${variantIndex}.duration_prices.${j}.duration_days`,
+                                { valueAsNumber: true },
+                            )}
+                        />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label className="text-xs">Harga Total (Rp)</Label>
+                        <Input
+                            type="number"
+                            min={0}
+                            step={500}
+                            placeholder="Contoh: 50000"
+                            disabled={processing}
+                            {...register(
+                                `variants.${variantIndex}.duration_prices.${j}.price`,
+                                { valueAsNumber: true },
+                            )}
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(j)}
+                    >
+                        <Trash2 />
+                    </Button>
+                </div>
+            ))}
+            <div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => append({ duration_days: 3, price: 0 })}
+                    disabled={fields.length >= 20}
+                >
+                    <Plus />
+                    Tambah durasi
+                </Button>
+            </div>
         </div>
     );
 }

@@ -37,7 +37,7 @@ class ProductController extends Controller
         $sortDir = $filters['sort_dir'] ?? 'desc';
 
         $products = Product::query()
-            ->with(['category:id,name,slug', 'images', 'variants.values.attribute:id,name'])
+            ->with(['category:id,name,slug', 'images', 'variants.values.attribute:id,name', 'variants.durationPrices'])
             ->when(
                 $filters['search'] ?? null,
                 fn ($query, string $search) => $query->search($search),
@@ -54,14 +54,13 @@ class ProductController extends Controller
             ->paginate($filters['per_page'] ?? 10)
             ->withQueryString();
 
-        $summaryRow = Product::query()
-            ->selectRaw('COUNT(*) AS total, COALESCE(SUM(is_active), 0) AS active')
-            ->first();
+        $total = Product::query()->count();
+        $active = Product::query()->where('is_active', true)->count();
 
         $summary = [
-            'total' => (int) $summaryRow->total,
-            'active' => (int) $summaryRow->active,
-            'inactive' => (int) $summaryRow->total - (int) $summaryRow->active,
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
             'total_stock' => (int) ProductVariant::sum('stock'),
         ];
 
@@ -176,6 +175,7 @@ class ProductController extends Controller
                     'sku' => $row['sku'],
                     'stock' => $row['stock'],
                     'rental_price_per_day' => $row['rental_price_per_day'],
+                    'deposit_per_unit' => $row['deposit_per_unit'] ?? 0,
                     'weight_grams' => $row['weight_grams'] ?? 0,
                     'is_active' => filter_var($row['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN),
                 ],
@@ -187,6 +187,22 @@ class ProductController extends Controller
                     'attribute_id' => $value['attribute_id'],
                     'value' => $value['value'],
                 ]);
+            }
+
+            /** @var array<int, array{id?: int|null, duration_days: int, price: numeric}> $durationPrices */
+            $durationPrices = (array) ($row['duration_prices'] ?? []);
+            $keepPriceIds = collect($durationPrices)->map(fn (array $p) => $p['id'] ?? null)->filter()->values()->all();
+            $variant->durationPrices()->whereNotIn('id', $keepPriceIds ?: [0])->delete();
+            foreach ($durationPrices as $priceRow) {
+                $variant->durationPrices()->updateOrCreate(
+                    [
+                        'id' => $priceRow['id'] ?? 0,
+                    ],
+                    [
+                        'duration_days' => (int) $priceRow['duration_days'],
+                        'price' => $priceRow['price'],
+                    ],
+                );
             }
         }
     }

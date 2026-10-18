@@ -375,7 +375,7 @@ Setiap transisi dicatat di `rental_status_logs`.
 
 | ID | Modul | Fitur | Detail Teknis |
 | -- | ----- | ----- | ------------- |
-| AD-01 | Login User | Login / Logout | Laravel Sanctum / Session guard; rate limiting; hanya `role=admin`. |
+| AD-01 | Login User | Login / Logout | Laravel Sanctum / Session guard; rate limiting;. |
 | AD-02 | Customer Management | CRUD & Toggle Status | List, search (nama/email/telepon), activate/deactivate, klik baris untuk edit profil; field: nama lengkap, email, telepon, alamat, kontak darurat, sosial media. Tanpa KTP/NIK. Customer nonaktif tidak bisa login/checkout. |
 | AD-03 | Master Catalog | CRUD Category | Slug otomatis, nested hierarchy (opsional); kategori berisi produk tidak dapat dihapus. |
 | AD-04 | Master Attributes | Dynamic Attribute Management | Opsi: Warna, Ukuran, Kapasitas; atribut yang dipakai varian tidak dapat dihapus. |

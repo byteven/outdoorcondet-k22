@@ -127,7 +127,7 @@ export default function Login({ status, canResetPassword }: Props) {
                             )}
                         />
                         <Label htmlFor="remember" className="cursor-pointer">
-                            Ingatkan Saya
+                            Ingat Saya
                         </Label>
                     </div>
 

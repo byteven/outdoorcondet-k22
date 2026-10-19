@@ -200,6 +200,26 @@ export function ProductDetailDialog({
                 String(variant.rental_price_per_day),
             );
             formData.append(
+                `variants[${i}][deposit_per_unit]`,
+                String(variant.deposit_per_unit ?? 0),
+            );
+            (variant.duration_prices ?? []).forEach((dp, j) => {
+                if (dp.id) {
+                    formData.append(
+                        `variants[${i}][duration_prices][${j}][id]`,
+                        String(dp.id),
+                    );
+                }
+                formData.append(
+                    `variants[${i}][duration_prices][${j}][duration_days]`,
+                    String(dp.duration_days),
+                );
+                formData.append(
+                    `variants[${i}][duration_prices][${j}][price]`,
+                    String(dp.price),
+                );
+            });
+            formData.append(
                 `variants[${i}][weight_grams]`,
                 String(variant.weight_grams ?? 0),
             );
@@ -349,7 +369,7 @@ export function ProductDetailDialog({
                                                             0,
                                                     ) > 0 && (
                                                         <p className="text-xs text-muted-foreground">
-                                                            Jaminan:{' '}
+                                                            Deposit:{' '}
                                                             {formatRupiah(
                                                                 variant.deposit_per_unit,
                                                             )}
@@ -726,7 +746,8 @@ export function ProductDetailDialog({
                                                 </div>
                                                 <div className="grid gap-2">
                                                     <Label>
-                                                        Uang jaminan / unit (Rp)
+                                                        Harga deposit / unit
+                                                        (Rp)
                                                     </Label>
                                                     <Input
                                                         type="number"
@@ -750,8 +771,13 @@ export function ProductDetailDialog({
                                                     />
                                                 </div>
                                                 <div className="grid gap-2">
-                                                    <Label>Berat (gram)</Label>
+                                                    <Label
+                                                        htmlFor={`variant-weight-${i}`}
+                                                    >
+                                                        Berat (gram)
+                                                    </Label>
                                                     <Input
+                                                        id={`variant-weight-${i}`}
                                                         type="number"
                                                         min={0}
                                                         disabled={processing}
@@ -953,7 +979,7 @@ export function ProductDetailDialog({
     );
 }
 
-function ActiveSwitch({
+export function ActiveSwitch({
     checked,
     onChange,
     disabled,
@@ -1177,6 +1203,7 @@ function EditVariantDurationPricesInput({
                     <div className="grid gap-1">
                         <Label className="text-xs">Durasi (hari)</Label>
                         <Input
+                            id={`variant-duration-days-${variantIndex}-${j}`}
                             type="number"
                             min={2}
                             placeholder="Contoh: 3"
@@ -1190,6 +1217,7 @@ function EditVariantDurationPricesInput({
                     <div className="grid gap-1">
                         <Label className="text-xs">Harga Total (Rp)</Label>
                         <Input
+                            id={`variant-duration-price-${variantIndex}-${j}`}
                             type="number"
                             min={0}
                             step={500}

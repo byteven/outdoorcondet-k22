@@ -88,7 +88,51 @@ test.describe('AD-05 Product Management (Manajemen Data Barang)', () => {
         page,
     }) => {
         const uniqueName = `Tenda Dome ${Date.now()}`;
-        await createTestProduct(page, uniqueName, '25000', '10');
+        await page
+            .getByRole('button', { name: /Tambah produk/i })
+            .first()
+            .click();
+
+        // Step 0: Informasi dasar
+        await page.locator('#product-category').click();
+        await page.locator('[role="option"]').first().click();
+        await page.locator('#product-name').fill(uniqueName);
+        await page.getByRole('button', { name: /Lanjut/i }).click();
+
+        // Step 1: Varian & stok + deposit + tarif multi-durasi
+        await expect(page.locator('#variant-sku-0')).toBeVisible({
+            timeout: 10000,
+        });
+        await page.locator('#variant-sku-0').fill(`SKU-${Date.now()}`);
+        await page.locator('#variant-stock-0').fill('10');
+        await page.locator('#variant-price-0').fill('25000');
+        await page.locator('#variant-deposit-0').fill('50000');
+        await page
+            .getByRole('button', { name: /Tambah durasi/i })
+            .first()
+            .click();
+        await page.locator('#variant-duration-days-0-0').fill('3');
+        await page.locator('#variant-duration-price-0-0').fill('60000');
+        await page.getByRole('button', { name: /Lanjut/i }).click();
+
+        // Step 2: Gambar & Publikasi
+        await expect(page.locator('#product-images')).toBeVisible({
+            timeout: 10000,
+        });
+        const submitBtn = page.getByRole('button', { name: /Simpan produk/i });
+        await expect(submitBtn).toBeEnabled({ timeout: 10000 });
+        await submitBtn.click();
+        await expect(
+            page.locator('table').getByText(uniqueName, { exact: true }),
+        ).toBeVisible({ timeout: 15000 });
+
+        // Verifikasi deposit & tarif durasi tersimpan di detail produk
+        await page
+            .locator('table')
+            .getByText(uniqueName, { exact: true })
+            .click();
+        await expect(page.getByText(/Deposit:/)).toBeVisible();
+        await expect(page.getByText(/3h:/)).toBeVisible();
     });
 
     test('TC.ADM.010.002 - Validasi field wajib tambah barang (EP Invalid)', async ({
@@ -134,7 +178,9 @@ test.describe('AD-05 Product Management (Manajemen Data Barang)', () => {
         await expect(submitBtn).toBeEnabled({ timeout: 10000 });
         await submitBtn.click();
 
-        await expect(page.getByText(/sudah digunakan/i)).toBeVisible();
+        await expect(page.getByText(/sudah digunakan/i)).toBeVisible({
+            timeout: 15000,
+        });
     });
 
     test('TC.ADM.010.004 - Uji nilai batas stok barang = 0 (BVA Minimum Valid)', async ({

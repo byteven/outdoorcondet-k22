@@ -97,9 +97,9 @@ const variantSchema = z.object({
         .min(0, 'Harga minimal 0.')
         .max(100000000, 'Harga terlalu besar.'),
     deposit_per_unit: z
-        .number({ error: 'Uang jaminan wajib diisi.' })
-        .min(0, 'Uang jaminan minimal 0.')
-        .max(100000000, 'Uang jaminan terlalu besar.'),
+        .number({ error: 'Harga deposit wajib diisi.' })
+        .min(0, 'Harga deposit minimal 0.')
+        .max(100000000, 'Harga deposit terlalu besar.'),
     weight_grams: z
         .number()
         .int()

@@ -15,7 +15,7 @@ import {
     type ProductFormData,
 } from '@/components/product-shared';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ActiveSwitch } from '@/components/product-detail-dialog';
 import {
     Dialog,
     DialogClose,
@@ -184,6 +184,20 @@ export function ProductFormDialog({
                 `variants[${i}][rental_price_per_day]`,
                 String(variant.rental_price_per_day),
             );
+            formData.append(
+                `variants[${i}][deposit_per_unit]`,
+                String(variant.deposit_per_unit ?? 0),
+            );
+            (variant.duration_prices ?? []).forEach((dp, j) => {
+                formData.append(
+                    `variants[${i}][duration_prices][${j}][duration_days]`,
+                    String(dp.duration_days),
+                );
+                formData.append(
+                    `variants[${i}][duration_prices][${j}][price]`,
+                    String(dp.price),
+                );
+            });
             formData.append(
                 `variants[${i}][weight_grams]`,
                 String(variant.weight_grams ?? 0),
@@ -360,14 +374,25 @@ export function ProductFormDialog({
                                 />
                             </div>
 
-                            <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                <Checkbox
+                            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+                                <span className="flex flex-col">
+                                    <span className="font-medium text-foreground">
+                                        Tampilkan di katalog
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {watch('is_active')
+                                            ? 'Produk aktif dan dapat disewa oleh pelanggan'
+                                            : 'Produk nonaktif dan disembunyikan dari katalog'}
+                                    </span>
+                                </span>
+                                <ActiveSwitch
                                     checked={watch('is_active')}
-                                    onCheckedChange={(v) =>
-                                        setValue('is_active', v === true)
+                                    onChange={(next) =>
+                                        setValue('is_active', next)
                                     }
+                                    disabled={processing}
+                                    label="Status aktif produk"
                                 />
-                                Tampilkan di katalog (aktif)
                             </label>
                         </div>
                     )}
@@ -485,7 +510,7 @@ export function ProductFormDialog({
                                             <Label
                                                 htmlFor={`variant-deposit-${i}`}
                                             >
-                                                Uang jaminan / unit (Rp)
+                                                Harga deposit / unit (Rp)
                                             </Label>
                                             <Input
                                                 id={`variant-deposit-${i}`}
@@ -860,6 +885,7 @@ function VariantDurationPricesInput({
                     <div className="grid gap-1">
                         <Label className="text-xs">Durasi (hari)</Label>
                         <Input
+                            id={`variant-duration-days-${variantIndex}-${j}`}
                             type="number"
                             min={2}
                             placeholder="Contoh: 3"
@@ -873,6 +899,7 @@ function VariantDurationPricesInput({
                     <div className="grid gap-1">
                         <Label className="text-xs">Harga Total (Rp)</Label>
                         <Input
+                            id={`variant-duration-price-${variantIndex}-${j}`}
                             type="number"
                             min={0}
                             step={500}

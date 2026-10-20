@@ -20,10 +20,24 @@ test('new users can register', function () {
         'phone_number' => '+6281234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
     ]);
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('home'));
+});
+
+test('new users cannot register without accepting the policy and privacy', function () {
+    $response = $this->post(route('register.store'), [
+        'name' => 'Test User',
+        'email' => 'test@example.com',
+        'phone_number' => '+6281234567890',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors('terms');
+    $this->assertGuest();
 });
 
 test('new customers are redirected away from the admin dashboard', function () {
@@ -33,6 +47,7 @@ test('new customers are redirected away from the admin dashboard', function () {
         'phone_number' => '+6281234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
     ]);
 
     $this->assertAuthenticated();
@@ -47,6 +62,7 @@ test('new registration creates an active and verified customer profile', functio
         'phone_number' => '081234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
     ]);
 
     $customer = Customer::whereHas('user', fn ($query) => $query->where('email', 'udin@example.com'))->firstOrFail();
@@ -66,6 +82,7 @@ test('new users can register with optional profile data', function () {
         'emergency_contact' => '6281234567890 (Orang Tua)',
         'address' => 'Jl. Condet Raya No. 22',
         'social_media' => 'https://instagram.com/udinsaputra',
+        'terms' => true,
     ]);
 
     $this->assertAuthenticated();
@@ -86,6 +103,7 @@ test('registration rejects an invalid phone number', function () {
         'phone_number' => 'abc',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms' => true,
     ]);
 
     $response->assertSessionHasErrors('phone_number');

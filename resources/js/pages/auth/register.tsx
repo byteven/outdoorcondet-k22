@@ -1,20 +1,24 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { InfoIcon } from 'lucide-react';
 import { EmergencyContactInput } from '@/components/emergency-contact-input';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { SocialMediaInput } from '@/components/social-media-input';
 import TextLink from '@/components/text-link';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { login } from '@/routes';
+import { policy, privacy } from '@/routes/legal';
 import { store } from '@/routes/register';
 
 const registerSchema = z
@@ -55,6 +59,10 @@ const registerSchema = z
             .string()
             .max(255, 'Sosial media maksimal 255 karakter.')
             .optional(),
+        terms: z.boolean().refine((value) => value === true, {
+            message:
+                'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
+        }),
     })
     .refine((data) => data.password === data.password_confirmation, {
         message: 'Konfirmasi password tidak sama.',
@@ -65,7 +73,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 const STEP_FIELDS = [
     ['name', 'email', 'phone_number', 'password', 'password_confirmation'],
-    ['emergency_contact', 'address', 'social_media'],
+    ['emergency_contact', 'address', 'social_media', 'terms'],
 ] as const;
 
 const STEPS = [{ label: 'Data Akun' }, { label: 'Data Pendukung' }];
@@ -85,6 +93,7 @@ export default function Register({ passwordRules }: Props) {
         trigger,
         setValue,
         watch,
+        control,
         formState: { errors },
     } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
@@ -97,15 +106,22 @@ export default function Register({ passwordRules }: Props) {
             emergency_contact: '',
             address: '',
             social_media: '',
+            terms: false,
         },
     });
 
     const emergencyContactValue = watch('emergency_contact');
     const socialMediaValue = watch('social_media');
+    const addressValue = watch('address');
 
-    const errorFor = (
-        field: keyof RegisterFormData,
-    ): string | undefined => errors[field]?.message ?? serverErrors[field];
+    const hasSupportingData = Boolean(
+        addressValue?.trim() ||
+        emergencyContactValue?.trim() ||
+        socialMediaValue?.trim(),
+    );
+
+    const errorFor = (field: keyof RegisterFormData): string | undefined =>
+        errors[field]?.message ?? serverErrors[field];
 
     const normalizePhoneRest = (value: string): string => {
         const digits = value.replace(/\D/g, '').slice(0, 13).replace(/^0+/, '');
@@ -137,6 +153,7 @@ export default function Register({ passwordRules }: Props) {
                 emergency_contact: data.emergency_contact || undefined,
                 address: data.address || undefined,
                 social_media: data.social_media || undefined,
+                terms: data.terms,
             },
             {
                 onStart: () => setProcessing(true),
@@ -266,13 +283,16 @@ export default function Register({ passwordRules }: Props) {
 
                 {step === 1 && (
                     <div className="grid gap-4">
+                        <Alert className="items-center border-0 bg-info-muted text-info [&>svg]:translate-y-0">
+                            <InfoIcon />
+                            <p className="text-xs">
+                                Data pendukung wajib diisi ketika mulai menyewa,
+                                ya.
+                            </p>
+                        </Alert>
+
                         <div className="grid gap-2">
-                            <Label htmlFor="address">
-                                Alamat{' '}
-                                <span className="text-xs font-normal text-muted-foreground">
-                                    (opsional)
-                                </span>
-                            </Label>
+                            <Label htmlFor="address">Alamat</Label>
                             <Textarea
                                 id="address"
                                 rows={3}
@@ -287,7 +307,7 @@ export default function Register({ passwordRules }: Props) {
 
                         <EmergencyContactInput
                             id="emergency_contact"
-                            label="Kontak darurat (opsional)"
+                            label="Kontak darurat"
                             value={emergencyContactValue}
                             onChange={(val) =>
                                 setValue('emergency_contact', val, {
@@ -299,15 +319,62 @@ export default function Register({ passwordRules }: Props) {
 
                         <SocialMediaInput
                             id="social_media"
-                            label="Sosial media (opsional)"
+                            label="Sosial media"
                             value={socialMediaValue}
                             onChange={(val) => setValue('social_media', val)}
                             error={errorFor('social_media')}
                         />
 
-                        <p className="text-xs text-muted-foreground">
-                            Alamat dan Kontak Darurat Masih Bisa Diisi Nanti.
-                        </p>
+                        <div className="grid gap-2">
+                            <div className="flex items-center gap-3">
+                                <Controller
+                                    name="terms"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Checkbox
+                                            id="terms"
+                                            checked={field.value}
+                                            onCheckedChange={(checked) =>
+                                                field.onChange(checked === true)
+                                            }
+                                            aria-invalid={!!errorFor('terms')}
+                                            aria-label="Setuju dengan Kebijakan dan Privasi"
+                                        />
+                                    )}
+                                />
+                                <Label
+                                    htmlFor="terms"
+                                    className="cursor-pointer text-xs font-normal leading-snug text-muted-foreground"
+                                >
+                                    Saya menyetujui{' '}
+                                    <TextLink
+                                        href={policy()}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs"
+                                        onClick={(event) =>
+                                            event.stopPropagation()
+                                        }
+                                    >
+                                        Kebijakan
+                                    </TextLink>{' '}
+                                    dan{' '}
+                                    <TextLink
+                                        href={privacy()}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs"
+                                        onClick={(event) =>
+                                            event.stopPropagation()
+                                        }
+                                    >
+                                        Privasi
+                                    </TextLink>{' '}
+                                    OutdoorCondet.
+                                </Label>
+                            </div>
+                            <InputError message={errorFor('terms')} />
+                        </div>
 
                         <div className="mt-2 grid grid-cols-2 gap-4">
                             <Button
@@ -319,7 +386,9 @@ export default function Register({ passwordRules }: Props) {
                             </Button>
                             <Button type="submit" disabled={processing}>
                                 {processing && <Spinner />}
-                                Buat akun
+                                {hasSupportingData
+                                    ? 'Daftar'
+                                    : 'Lewati & Daftar'}
                             </Button>
                         </div>
                     </div>

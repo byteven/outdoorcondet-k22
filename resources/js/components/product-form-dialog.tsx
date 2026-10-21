@@ -1,7 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
@@ -15,7 +15,7 @@ import {
     type ProductFormData,
 } from '@/components/product-shared';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ActiveSwitch } from '@/components/product-detail-dialog';
 import {
     Dialog,
     DialogClose,
@@ -42,9 +42,11 @@ const defaultVariant = {
     sku: '',
     stock: 1,
     rental_price_per_day: 0,
+    deposit_per_unit: 0,
     weight_grams: 0,
     is_active: true,
     values: [],
+    duration_prices: [],
 };
 
 export function ProductFormDialog({
@@ -104,6 +106,31 @@ export function ProductFormDialog({
         }
     };
 
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        if (
+            serverErrors.category_id ||
+            serverErrors.name ||
+            serverErrors.slug ||
+            serverErrors.description
+        ) {
+            setStep(0);
+        } else if (
+            serverErrors.variants ||
+            Object.keys(serverErrors).some((k) => k.startsWith('variants.'))
+        ) {
+            setStep(1);
+        } else if (
+            serverErrors.images ||
+            Object.keys(serverErrors).some((k) => k.startsWith('images.'))
+        ) {
+            setStep(2);
+        }
+    }, [serverErrors, open]);
+
     const nextStep = async () => {
         const fields =
             step === 0
@@ -157,6 +184,20 @@ export function ProductFormDialog({
                 `variants[${i}][rental_price_per_day]`,
                 String(variant.rental_price_per_day),
             );
+            formData.append(
+                `variants[${i}][deposit_per_unit]`,
+                String(variant.deposit_per_unit ?? 0),
+            );
+            (variant.duration_prices ?? []).forEach((dp, j) => {
+                formData.append(
+                    `variants[${i}][duration_prices][${j}][duration_days]`,
+                    String(dp.duration_days),
+                );
+                formData.append(
+                    `variants[${i}][duration_prices][${j}][price]`,
+                    String(dp.price),
+                );
+            });
             formData.append(
                 `variants[${i}][weight_grams]`,
                 String(variant.weight_grams ?? 0),
@@ -333,14 +374,25 @@ export function ProductFormDialog({
                                 />
                             </div>
 
-                            <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                <Checkbox
+                            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+                                <span className="flex flex-col">
+                                    <span className="font-medium text-foreground">
+                                        Tampilkan di katalog
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {watch('is_active')
+                                            ? 'Produk aktif dan dapat disewa oleh pelanggan'
+                                            : 'Produk nonaktif dan disembunyikan dari katalog'}
+                                    </span>
+                                </span>
+                                <ActiveSwitch
                                     checked={watch('is_active')}
-                                    onCheckedChange={(v) =>
-                                        setValue('is_active', v === true)
+                                    onChange={(next) =>
+                                        setValue('is_active', next)
                                     }
+                                    disabled={processing}
+                                    label="Status aktif produk"
                                 />
-                                Tampilkan di katalog (aktif)
                             </label>
                         </div>
                     )}
@@ -456,6 +508,35 @@ export function ProductFormDialog({
                                         </div>
                                         <div className="grid gap-2">
                                             <Label
+                                                htmlFor={`variant-deposit-${i}`}
+                                            >
+                                                Harga deposit / unit (Rp)
+                                            </Label>
+                                            <Input
+                                                id={`variant-deposit-${i}`}
+                                                type="number"
+                                                min={0}
+                                                step={1000}
+                                                placeholder="Contoh: 50000"
+                                                disabled={processing}
+                                                {...register(
+                                                    `variants.${i}.deposit_per_unit`,
+                                                    { valueAsNumber: true },
+                                                )}
+                                            />
+                                            <InputError
+                                                message={
+                                                    errors.variants?.[i]
+                                                        ?.deposit_per_unit
+                                                        ?.message ??
+                                                    serverErrors[
+                                                        `variants.${i}.deposit_per_unit`
+                                                    ]
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label
                                                 htmlFor={`variant-weight-${i}`}
                                             >
                                                 Berat (gram)
@@ -484,6 +565,12 @@ export function ProductFormDialog({
                                         setValue={setValue}
                                         variantIndex={i}
                                         attributes={attributes}
+                                        processing={processing}
+                                    />
+                                    <VariantDurationPricesInput
+                                        control={control}
+                                        register={register}
+                                        variantIndex={i}
                                         processing={processing}
                                     />
                                 </div>
@@ -625,6 +712,7 @@ export function ProductFormDialog({
                         </DialogClose>
                         {step < STEPS.length - 1 ? (
                             <Button
+                                key="btn-step-next"
                                 type="button"
                                 onClick={nextStep}
                                 disabled={processing}
@@ -633,6 +721,7 @@ export function ProductFormDialog({
                             </Button>
                         ) : (
                             <Button
+                                key="btn-step-submit"
                                 type="submit"
                                 form="create-product-form"
                                 disabled={processing}
@@ -753,6 +842,97 @@ function VariantValuesInput({
                     </Button>
                 </div>
             )}
+        </div>
+    );
+}
+
+function VariantDurationPricesInput({
+    control,
+    register,
+    variantIndex,
+    processing,
+}: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    control: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    register: any;
+    variantIndex: number;
+    processing: boolean;
+}) {
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: `variants.${variantIndex}.duration_prices`,
+    });
+
+    return (
+        <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3">
+            <div>
+                <p className="text-xs font-medium text-foreground">
+                    Harga per Durasi{' '}
+                    <span className="font-normal text-muted-foreground">
+                        (opsional, mis. 3 hari = Rp50.000)
+                    </span>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                    Tentukan harga total sewa untuk durasi tertentu.
+                </p>
+            </div>
+            {fields.map((field, j) => (
+                <div
+                    key={field.id}
+                    className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+                >
+                    <div className="grid gap-1">
+                        <Label className="text-xs">Durasi (hari)</Label>
+                        <Input
+                            id={`variant-duration-days-${variantIndex}-${j}`}
+                            type="number"
+                            min={2}
+                            placeholder="Contoh: 3"
+                            disabled={processing}
+                            {...register(
+                                `variants.${variantIndex}.duration_prices.${j}.duration_days`,
+                                { valueAsNumber: true },
+                            )}
+                        />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label className="text-xs">Harga Total (Rp)</Label>
+                        <Input
+                            id={`variant-duration-price-${variantIndex}-${j}`}
+                            type="number"
+                            min={0}
+                            step={500}
+                            placeholder="Contoh: 50000"
+                            disabled={processing}
+                            {...register(
+                                `variants.${variantIndex}.duration_prices.${j}.price`,
+                                { valueAsNumber: true },
+                            )}
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(j)}
+                    >
+                        <Trash2 />
+                    </Button>
+                </div>
+            ))}
+            <div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => append({ duration_days: 3, price: 0 })}
+                    disabled={fields.length >= 20}
+                >
+                    <Plus />
+                    Tambah durasi
+                </Button>
+            </div>
         </div>
     );
 }

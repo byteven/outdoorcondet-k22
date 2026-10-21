@@ -17,14 +17,22 @@ export type ProductVariantValueRow = {
     value: string;
 };
 
+export type VariantDurationPriceRow = {
+    id?: number;
+    duration_days: number;
+    price: number | string;
+};
+
 export type ProductVariantRow = {
     id: number;
     sku: string;
     stock: number;
     rental_price_per_day: string | number;
+    deposit_per_unit: string | number;
     weight_grams: number;
     is_active: boolean;
     values: ProductVariantValueRow[];
+    duration_prices?: VariantDurationPriceRow[];
 };
 
 export type ProductImageRow = {
@@ -59,6 +67,19 @@ const variantValueSchema = z.object({
         .max(100, 'Nilai atribut maksimal 100 karakter.'),
 });
 
+const durationPriceSchema = z.object({
+    id: z.number().int().optional(),
+    duration_days: z
+        .number({ error: 'Durasi hari wajib diisi.' })
+        .int()
+        .min(2, 'Durasi hari minimal 2 hari.')
+        .max(365, 'Durasi hari maksimal 365 hari.'),
+    price: z
+        .number({ error: 'Harga durasi wajib diisi.' })
+        .min(0, 'Harga minimal 0.')
+        .max(100000000, 'Harga terlalu besar.'),
+});
+
 const variantSchema = z.object({
     id: z.number().int().optional(),
     sku: z
@@ -75,6 +96,10 @@ const variantSchema = z.object({
         .number({ error: 'Harga sewa wajib diisi.' })
         .min(0, 'Harga minimal 0.')
         .max(100000000, 'Harga terlalu besar.'),
+    deposit_per_unit: z
+        .number({ error: 'Harga deposit wajib diisi.' })
+        .min(0, 'Harga deposit minimal 0.')
+        .max(100000000, 'Harga deposit terlalu besar.'),
     weight_grams: z
         .number()
         .int()
@@ -84,6 +109,9 @@ const variantSchema = z.object({
     values: z
         .array(variantValueSchema)
         .max(10, 'Maksimal 10 atribut per varian.'),
+    duration_prices: z
+        .array(durationPriceSchema)
+        .max(20, 'Maksimal 20 opsi durasi.'),
 });
 
 export const productFormSchema = z.object({

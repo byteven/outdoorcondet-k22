@@ -45,8 +45,10 @@ class UpdateProductRequest extends FormRequest
         $product = $this->route('product');
         $productId = $product instanceof Product ? $product->id : $product;
 
-        $variantIds = collect($this->input('variants', []))
-            ->map(fn ($variant) => $variant['id'] ?? null)
+        /** @var array<int, array<string, mixed>> $rawVariants */
+        $rawVariants = (array) $this->input('variants', []);
+        $variantIds = collect($rawVariants)
+            ->map(fn (array $variant) => $variant['id'] ?? null)
             ->filter()
             ->values()
             ->all();
@@ -72,6 +74,11 @@ class UpdateProductRequest extends FormRequest
             'variants.*.sku' => ['required', 'string', 'max:50'],
             'variants.*.stock' => ['required', 'integer', 'min:0', 'max:10000'],
             'variants.*.rental_price_per_day' => ['required', 'numeric', 'min:0', 'max:100000000'],
+            'variants.*.deposit_per_unit' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'variants.*.duration_prices' => ['nullable', 'array', 'max:20'],
+            'variants.*.duration_prices.*.id' => ['nullable', 'integer'],
+            'variants.*.duration_prices.*.duration_days' => ['required', 'integer', 'min:2', 'max:365'],
+            'variants.*.duration_prices.*.price' => ['required', 'numeric', 'min:0', 'max:100000000'],
             'variants.*.weight_grams' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'variants.*.is_active' => ['nullable', 'boolean'],
             'variants.*.values' => ['nullable', 'array', 'max:10'],

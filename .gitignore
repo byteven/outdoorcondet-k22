@@ -42,3 +42,10 @@ yarn-error.log
 /boost.json
 /opencode.json
 /opencode.jsonc
+
+# Playwright E2E test artifacts (rekaman video, screenshot, trace, report)
+/tests/e2e/recordings/
+/test-results/
+/playwright-report/
+/videos/
+/playwright/

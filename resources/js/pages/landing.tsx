@@ -6,7 +6,7 @@ import {
     ShoppingCartIcon,
     UserRoundIcon,
 } from 'lucide-react';
-import { RentalSearch } from '@/components/rental-search';
+import { RentalRange } from '@/components/rental-range';
 import { SiteFooter } from '@/components/site-footer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -68,20 +68,12 @@ export default function Landing() {
                     )}
                 >
                     <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-6 px-4 md:px-6">
-                        <Link href="/" className="flex items-center gap-2.5">
+                        <Link href="/" className="flex items-center">
                             <img
-                                src="/images/logo-transparent.webp"
+                                src="/images/logo-landscape-transparent.webp"
                                 alt="OutdoorCondet"
-                                className="size-10 object-contain"
+                                className="h-10 w-auto object-contain"
                             />
-                            <span className="flex flex-col leading-tight">
-                                <span className="text-base font-bold tracking-tight">
-                                    outdoorcondet
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                    Sewa Alat Outdoor
-                                </span>
-                            </span>
                         </Link>
 
                         {auth.user ? (
@@ -101,7 +93,7 @@ export default function Landing() {
                                         <ShoppingCartIcon className="size-5" />
                                     </Button>
 
-                                    <DropdownMenu>
+                                    <DropdownMenu modal={false}>
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
@@ -209,9 +201,9 @@ export default function Landing() {
                                 </span>
                             </h1>
 
-                            <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-left">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex -space-x-3">
+                            <div className="mt-10 flex flex-nowrap items-center justify-center gap-3 text-left sm:gap-6">
+                                <div className="flex items-center -space-x-2">
+                                    <div className="flex -space-x-4">
                                         {[0, 1, 2].map((item) => (
                                             <span
                                                 key={item}
@@ -222,16 +214,16 @@ export default function Landing() {
                                         ))}
                                     </div>
                                     <span className="flex size-9 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
-                                        100+
+                                        5K+
                                     </span>
                                 </div>
                                 <span className="hidden h-10 w-px bg-border sm:block" />
-                                <div>
-                                    <p className="text-sm font-semibold">
-                                        100+ Pelanggan
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold sm:text-sm">
+                                        5.000+ Pelanggan
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Melayani lebih dari 100 pelanggan
+                                    <p className="text-[11px] leading-snug text-muted-foreground sm:text-xs">
+                                        Melayani lebih dari 5.000 pelanggan
                                     </p>
                                 </div>
                             </div>
@@ -239,7 +231,7 @@ export default function Landing() {
                     </section>
 
                     <section className="relative z-10 mx-auto -mt-16 w-full max-w-5xl px-4 md:-mt-28">
-                        <RentalSearch
+                        <RentalRange
                             onSearch={(params) => {
                                 setFilter({
                                     pickupDate: params.pickupDate,

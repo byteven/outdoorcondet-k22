@@ -4,7 +4,7 @@ export const SITE = {
     tagline: 'Sewa Alat Outdoor',
     address: 'Condet, Jakarta Timur',
     addressUrl: 'https://maps.app.goo.gl/eG9LpNbY4XZBaNW19',
-    operatingHours: 'Setiap hari 06.00 - 23.30 WIB',
+    operatingHours: 'Setiap hari 18.00 - 23.59 WIB',
     whatsappNumber: '6285353027923',
     whatsappDisplay: '+62 853-5302-7923',
     whatsappUrl:

@@ -7,18 +7,28 @@ import { InfoIcon } from 'lucide-react';
 import { EmergencyContactInput } from '@/components/emergency-contact-input';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
+import { LegalDocument } from '@/components/legal-document';
 import PasswordInput from '@/components/password-input';
 import { SocialMediaInput } from '@/components/social-media-input';
 import TextLink from '@/components/text-link';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import kebijakanPrivasi from '@/content/kebijakan-privasi.md?raw';
+import syaratKetentuan from '@/content/syarat-ketentuan.md?raw';
 import { login } from '@/routes';
-import { policy, privacy } from '@/routes/legal';
 import { store } from '@/routes/register';
 
 const registerSchema = z
@@ -85,6 +95,9 @@ type Props = {
 export default function Register({ passwordRules }: Props) {
     const [step, setStep] = useState(0);
     const [processing, setProcessing] = useState(false);
+    const [legalDocument, setLegalDocument] = useState<
+        'terms' | 'privacy' | null
+    >(null);
     const serverErrors = usePage().props.errors as Record<string, string>;
 
     const {
@@ -344,32 +357,32 @@ export default function Register({ passwordRules }: Props) {
                                 />
                                 <Label
                                     htmlFor="terms"
-                                    className="cursor-pointer text-xs font-normal leading-snug text-muted-foreground"
+                                    className="cursor-pointer text-xs leading-snug font-normal text-muted-foreground"
                                 >
                                     Saya menyetujui{' '}
-                                    <TextLink
-                                        href={policy()}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-xs"
-                                        onClick={(event) =>
-                                            event.stopPropagation()
-                                        }
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            setLegalDocument('terms');
+                                        }}
+                                        className="cursor-pointer text-xs font-medium text-primary underline underline-offset-4 hover:text-primary/80"
                                     >
                                         Kebijakan
-                                    </TextLink>{' '}
+                                    </button>{' '}
                                     dan{' '}
-                                    <TextLink
-                                        href={privacy()}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-xs"
-                                        onClick={(event) =>
-                                            event.stopPropagation()
-                                        }
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            setLegalDocument('privacy');
+                                        }}
+                                        className="cursor-pointer text-xs font-medium text-primary underline underline-offset-4 hover:text-primary/80"
                                     >
                                         Privasi
-                                    </TextLink>{' '}
+                                    </button>{' '}
                                     OutdoorCondet.
                                 </Label>
                             </div>
@@ -398,6 +411,49 @@ export default function Register({ passwordRules }: Props) {
                     Sudah punya akun? <TextLink href={login()}>Masuk</TextLink>
                 </div>
             </form>
+
+            <Dialog
+                open={legalDocument !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setLegalDocument(null);
+                    }
+                }}
+            >
+                <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
+                    <DialogHeader className="shrink-0">
+                        <DialogTitle>
+                            {legalDocument === 'privacy'
+                                ? 'Kebijakan Privasi'
+                                : 'Syarat & Ketentuan'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {legalDocument === 'privacy'
+                                ? 'Penjelasan mengenai data pribadi yang kami kumpulkan dan cara kami menggunakannya.'
+                                : 'Ketentuan penggunaan layanan sewa alat outdoor OutdoorCondet.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="min-h-0 flex-1 [scrollbar-width:thin] overflow-y-auto px-1 pb-2">
+                        <LegalDocument
+                            source={
+                                legalDocument === 'privacy'
+                                    ? kebijakanPrivasi
+                                    : syaratKetentuan
+                            }
+                        />
+                    </div>
+
+                    <DialogFooter className="shrink-0">
+                        <Button
+                            type="button"
+                            onClick={() => setLegalDocument(null)}
+                        >
+                            Mengerti
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

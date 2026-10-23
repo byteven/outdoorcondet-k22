@@ -21,18 +21,12 @@ export function LegalShell({ title, description, updatedAt, children }: Props) {
             <div className="flex min-h-screen flex-col bg-background">
                 <header className="border-b border-border">
                     <div className="mx-auto flex h-16 w-full max-w-4xl items-center justify-between gap-4 px-4">
-                        <Link
-                            href={home()}
-                            className="flex items-center gap-2.5"
-                        >
+                        <Link href={home()} className="flex items-center">
                             <img
-                                src="/images/logo-transparent.webp"
+                                src="/images/logo-landscape-transparent.webp"
                                 alt="OutdoorCondet"
-                                className="size-8 object-contain"
+                                className="h-8 w-auto object-contain"
                             />
-                            <span className="text-base font-bold tracking-tight">
-                                outdoorcondet
-                            </span>
                         </Link>
 
                         <Button asChild variant="outline" size="sm">

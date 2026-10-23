@@ -33,10 +33,13 @@ class CreateNewUser implements CreatesNewUsers
             'emergency_contact' => ['nullable', 'string', 'max:255'],
             'social_media' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
+            'terms' => ['required', 'accepted'],
         ], [
             'phone_number.required' => 'Nomor telepon wajib diisi.',
             'phone_number.regex' => 'Nomor telepon hanya boleh berisi angka.',
             'phone_number.min' => 'Nomor telepon minimal 9 digit.',
+            'terms.required' => 'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
+            'terms.accepted' => 'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
         ])->validate();
 
         return DB::transaction(function () use ($input): User {

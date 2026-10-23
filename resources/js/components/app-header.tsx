@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import { House, LayoutGrid, Menu, UserRound } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -99,13 +98,10 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                                 </SheetTitle>
                                 <SheetHeader className="flex flex-row items-center gap-2 border-b border-sidebar-border/60 px-4 py-3 text-left">
                                     <img
-                                        src="/images/logo-transparent.webp"
+                                        src="/images/logo-landscape-transparent.webp"
                                         alt="OutdoorCondet"
-                                        className="aspect-square size-8 shrink-0 rounded-md object-contain"
+                                        className="h-7 w-auto object-contain"
                                     />
-                                    <span className="text-sm font-semibold">
-                                        OutdoorCondet
-                                    </span>
                                 </SheetHeader>
                                 <nav
                                     aria-label="Navigasi seluler"
@@ -144,7 +140,11 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                         prefetch
                         className="flex items-center space-x-2"
                     >
-                        <AppLogo />
+                        <img
+                            src="/images/logo-landscape-transparent.webp"
+                            alt="OutdoorCondet"
+                            className="h-8 w-auto object-contain"
+                        />
                     </Link>
 
                     {/* Desktop Navigation */}

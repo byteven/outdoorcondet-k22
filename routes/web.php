@@ -6,7 +6,10 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::inertia('/', 'landing')->name('home');
+
+Route::inertia('kebijakan', 'legal/policy')->name('legal.policy');
+Route::inertia('privasi', 'legal/privacy')->name('legal.privacy');
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/admin/dashboard');

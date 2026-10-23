@@ -71,22 +71,6 @@ export function buildEmergencyContact(
 }
 
 function renderLabelWithOptional(label: React.ReactNode) {
-    if (typeof label !== 'string') {
-        return label;
-    }
-
-    if (label.includes('(opsional)')) {
-        const [main] = label.split('(opsional)');
-        return (
-            <>
-                {main.trim()}{' '}
-                <span className="text-xs font-normal text-muted-foreground">
-                    (opsional)
-                </span>
-            </>
-        );
-    }
-
     return label;
 }
 
@@ -162,7 +146,8 @@ export function EmergencyContactInput({
             <div
                 className={cn(
                     'flex items-center rounded-md border border-input bg-background focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-[color,box-shadow] overflow-hidden text-sm',
-                    error && 'border-destructive aria-invalid:ring-destructive/20',
+                    error &&
+                        'border-destructive aria-invalid:ring-destructive/20',
                     disabled && 'opacity-50',
                 )}
             >

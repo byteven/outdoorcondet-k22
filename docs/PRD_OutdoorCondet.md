@@ -437,7 +437,7 @@ Setiap transisi dicatat di `rental_status_logs`.
 | -- | ----- | ----- | ------------- |
 | CU-01 | Registrasi Customer | Registrasi| Multi-step: Step 1 Akun (Nama Lengkap, email, telepon, password); Step 2 Kontak Darurat, Alamat, Sosial Media (opsional; icon TikTok/IG/FB). Tanpa KTP/NIK. Email unik; telepon format Indonesia (08xx / 62xx). |
 | CU-02 | Profile & Data | Edit Profil & Data Diri | Update Nama Lengkap, no. WA, Kontak Darurat, Alamat, link sosmed; banner kuning awareness jika belum lengkap. |
-| CU-03 | Search & Discovery | Hero Date Picker Search | Date-range picker (Tanggal Ambil - Tanggal Kembali) + pilih jam ambil; tampil ringkasan "mulai dihitung / durasi / kembali maks 00:00" (4.3); keyword; filter kategori. |
+| CU-03 | Rental Range | Hero Date Picker Search | Date-range picker (Tanggal Ambil - Tanggal Kembali) + pilih jam ambil; tampil ringkasan "mulai dihitung / durasi / kembali maks 23:59" (4.3); keyword; filter kategori. |
 | CU-04 | Catalog & Detail | Filter & Varian Selector | Grid produk, gallery, pilih varian, **harga otomatis sesuai durasi (harga per durasi)**, **info deposit per unit**, ketersediaan real-time (stok per rentang + buffer). |
 | CU-05 | Cart | Multi-Item Cart | Qty dibatasi stok tersedia; ringkasan subtotal sewa, **total deposit**, grand total; tanggal tersimpan di cart; ketersediaan divalidasi ulang saat checkout. |
 | CU-06 | Checkout | DP / Full Payment | Detail 5.2.1. |

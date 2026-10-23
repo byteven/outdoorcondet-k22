@@ -1,19 +1,33 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { InfoIcon } from 'lucide-react';
 import { EmergencyContactInput } from '@/components/emergency-contact-input';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
+import { LegalDocument } from '@/components/legal-document';
 import PasswordInput from '@/components/password-input';
 import { SocialMediaInput } from '@/components/social-media-input';
 import TextLink from '@/components/text-link';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import kebijakanPrivasi from '@/content/kebijakan-privasi.md?raw';
+import syaratKetentuan from '@/content/syarat-ketentuan.md?raw';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 
@@ -55,6 +69,10 @@ const registerSchema = z
             .string()
             .max(255, 'Sosial media maksimal 255 karakter.')
             .optional(),
+        terms: z.boolean().refine((value) => value === true, {
+            message:
+                'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
+        }),
     })
     .refine((data) => data.password === data.password_confirmation, {
         message: 'Konfirmasi password tidak sama.',
@@ -65,7 +83,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 const STEP_FIELDS = [
     ['name', 'email', 'phone_number', 'password', 'password_confirmation'],
-    ['emergency_contact', 'address', 'social_media'],
+    ['emergency_contact', 'address', 'social_media', 'terms'],
 ] as const;
 
 const STEPS = [{ label: 'Data Akun' }, { label: 'Data Pendukung' }];
@@ -77,6 +95,9 @@ type Props = {
 export default function Register({ passwordRules }: Props) {
     const [step, setStep] = useState(0);
     const [processing, setProcessing] = useState(false);
+    const [legalDocument, setLegalDocument] = useState<
+        'terms' | 'privacy' | null
+    >(null);
     const serverErrors = usePage().props.errors as Record<string, string>;
 
     const {
@@ -85,6 +106,7 @@ export default function Register({ passwordRules }: Props) {
         trigger,
         setValue,
         watch,
+        control,
         formState: { errors },
     } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
@@ -97,15 +119,22 @@ export default function Register({ passwordRules }: Props) {
             emergency_contact: '',
             address: '',
             social_media: '',
+            terms: false,
         },
     });
 
     const emergencyContactValue = watch('emergency_contact');
     const socialMediaValue = watch('social_media');
+    const addressValue = watch('address');
 
-    const errorFor = (
-        field: keyof RegisterFormData,
-    ): string | undefined => errors[field]?.message ?? serverErrors[field];
+    const hasSupportingData = Boolean(
+        addressValue?.trim() ||
+        emergencyContactValue?.trim() ||
+        socialMediaValue?.trim(),
+    );
+
+    const errorFor = (field: keyof RegisterFormData): string | undefined =>
+        errors[field]?.message ?? serverErrors[field];
 
     const normalizePhoneRest = (value: string): string => {
         const digits = value.replace(/\D/g, '').slice(0, 13).replace(/^0+/, '');
@@ -137,6 +166,7 @@ export default function Register({ passwordRules }: Props) {
                 emergency_contact: data.emergency_contact || undefined,
                 address: data.address || undefined,
                 social_media: data.social_media || undefined,
+                terms: data.terms,
             },
             {
                 onStart: () => setProcessing(true),
@@ -266,13 +296,16 @@ export default function Register({ passwordRules }: Props) {
 
                 {step === 1 && (
                     <div className="grid gap-4">
+                        <Alert className="items-center border-0 bg-info-muted text-info [&>svg]:translate-y-0">
+                            <InfoIcon />
+                            <p className="text-xs">
+                                Data pendukung wajib diisi ketika mulai menyewa,
+                                ya.
+                            </p>
+                        </Alert>
+
                         <div className="grid gap-2">
-                            <Label htmlFor="address">
-                                Alamat{' '}
-                                <span className="text-xs font-normal text-muted-foreground">
-                                    (opsional)
-                                </span>
-                            </Label>
+                            <Label htmlFor="address">Alamat</Label>
                             <Textarea
                                 id="address"
                                 rows={3}
@@ -287,7 +320,7 @@ export default function Register({ passwordRules }: Props) {
 
                         <EmergencyContactInput
                             id="emergency_contact"
-                            label="Kontak darurat (opsional)"
+                            label="Kontak darurat"
                             value={emergencyContactValue}
                             onChange={(val) =>
                                 setValue('emergency_contact', val, {
@@ -299,15 +332,62 @@ export default function Register({ passwordRules }: Props) {
 
                         <SocialMediaInput
                             id="social_media"
-                            label="Sosial media (opsional)"
+                            label="Sosial media"
                             value={socialMediaValue}
                             onChange={(val) => setValue('social_media', val)}
                             error={errorFor('social_media')}
                         />
 
-                        <p className="text-xs text-muted-foreground">
-                            Alamat dan Kontak Darurat Masih Bisa Diisi Nanti.
-                        </p>
+                        <div className="grid gap-2">
+                            <div className="flex items-center gap-3">
+                                <Controller
+                                    name="terms"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Checkbox
+                                            id="terms"
+                                            checked={field.value}
+                                            onCheckedChange={(checked) =>
+                                                field.onChange(checked === true)
+                                            }
+                                            aria-invalid={!!errorFor('terms')}
+                                            aria-label="Setuju dengan Kebijakan dan Privasi"
+                                        />
+                                    )}
+                                />
+                                <Label
+                                    htmlFor="terms"
+                                    className="cursor-pointer text-xs leading-snug font-normal text-muted-foreground"
+                                >
+                                    Saya menyetujui{' '}
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            setLegalDocument('terms');
+                                        }}
+                                        className="cursor-pointer text-xs font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+                                    >
+                                        Kebijakan
+                                    </button>{' '}
+                                    dan{' '}
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            setLegalDocument('privacy');
+                                        }}
+                                        className="cursor-pointer text-xs font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+                                    >
+                                        Privasi
+                                    </button>{' '}
+                                    OutdoorCondet.
+                                </Label>
+                            </div>
+                            <InputError message={errorFor('terms')} />
+                        </div>
 
                         <div className="mt-2 grid grid-cols-2 gap-4">
                             <Button
@@ -319,7 +399,9 @@ export default function Register({ passwordRules }: Props) {
                             </Button>
                             <Button type="submit" disabled={processing}>
                                 {processing && <Spinner />}
-                                Buat akun
+                                {hasSupportingData
+                                    ? 'Daftar'
+                                    : 'Lewati & Daftar'}
                             </Button>
                         </div>
                     </div>
@@ -329,6 +411,49 @@ export default function Register({ passwordRules }: Props) {
                     Sudah punya akun? <TextLink href={login()}>Masuk</TextLink>
                 </div>
             </form>
+
+            <Dialog
+                open={legalDocument !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setLegalDocument(null);
+                    }
+                }}
+            >
+                <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
+                    <DialogHeader className="shrink-0">
+                        <DialogTitle>
+                            {legalDocument === 'privacy'
+                                ? 'Kebijakan Privasi'
+                                : 'Syarat & Ketentuan'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {legalDocument === 'privacy'
+                                ? 'Penjelasan mengenai data pribadi yang kami kumpulkan dan cara kami menggunakannya.'
+                                : 'Ketentuan penggunaan layanan sewa alat outdoor OutdoorCondet.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="min-h-0 flex-1 [scrollbar-width:thin] overflow-y-auto px-1 pb-2">
+                        <LegalDocument
+                            source={
+                                legalDocument === 'privacy'
+                                    ? kebijakanPrivasi
+                                    : syaratKetentuan
+                            }
+                        />
+                    </div>
+
+                    <DialogFooter className="shrink-0">
+                        <Button
+                            type="button"
+                            onClick={() => setLegalDocument(null)}
+                        >
+                            Mengerti
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

@@ -123,11 +123,25 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 
 - **`product_variant_values`**: `id` (PK), `product_variant_id` (FK, Cascade), `attribute_id` (FK), `value`, `timestamps`
 
-### 3.3. Packages (Bundling)
+### 3.3. Packages (Bundling — Virtual Grouping dengan Varian Selection)
+
+Paket adalah **grouping virtual** dari produk-produk individual. Stok paket tidak ada; ketersediaan dihitung real-time dari stok produk yang ada di dalam paket. Saat checkout, customer dapat **memilih varian** dari setiap produk dalam paket (jika admin mengaktifkan opsi tersebut).
 
 - **`packages`**: `id` (PK), `name`, `slug` (Unique), `description` (Nullable), `daily_price` (Decimal 12,2; harga 1 hari), `deposit_per_package` (Decimal 12,2, Default 0), `image_path` (Nullable), `is_active` (Default `true`), `timestamps`
 - **`package_duration_prices`**: `id` (PK), `package_id` (FK, Cascade), `duration_days` (>= 2), `price` (Decimal 12,2), `timestamps`; Unique (`package_id`, `duration_days`)
-- **`package_items`**: `id` (PK), `package_id` (FK, Cascade), `product_variant_id` (FK), `quantity`, `timestamps`
+- **`package_items`** _(komposisi paket; support varian selection)_
+    - `id` (PK)
+    - `package_id` (FK, Cascade)
+    - `product_id` (FK -> `products.id`, Cascade) — produk yang ada di paket
+    - `quantity` (Integer) — berapa qty dari produk ini yang ada di paket
+    - `allow_variant_selection` (Boolean, Default: `false`) — jika `true`, customer bisa memilih varian apa pun dari produk ini; jika `false`, hanya variant tertentu (di bawah) yang diizinkan
+    - `product_variant_id` (FK -> `product_variants.id`, Nullable) — jika `allow_variant_selection = false`, ini adalah varian yang di-fix untuk paket ini
+    - `timestamps`
+
+**Ketersediaan Paket:**
+- Untuk setiap `package_item`, hitung `available = floor(available_stock_variant / quantity)` dari varian yang dipilih customer (atau varian yang di-fix jika tidak allow selection).
+- Ketersediaan paket = `min(available dari semua items)`.
+- Jika ada satu item yang `available = 0`, maka paket tidak tersedia untuk rental range tersebut.
 
 ### 3.4. Rentals, Payments & Maintenance
 
@@ -200,12 +214,12 @@ OutdoorCondet adalah platform rental alat camping dan outdoor berbasis web denga
 
 | Key konfigurasi | Nilai tetap | Keterangan |
 | --------------- | ----------- | ---------- |
-| `pickup_earliest_time` | `06:00` | Jam ambil paling awal |
-| `pickup_latest_time` | `23:30` | Slot ambil terakhir (slot per 30 menit) |
-| `evening_cutoff_time` | `18:00` | Ambil pada/setelah jam ini dihitung tanggal berikutnya |
-| `return_deadline_time` | `24:00` | Batas kembali pada akhir tanggal kembali |
-| `return_buffer_days` | `1` | Jeda hari setelah tanggal kembali |
-| `auto_confirm_return_days` | `2` | Auto-konfirmasi jika admin tidak konfirmasi |
+| `store_open_time` | `18:00` | Jam buka toko (sekaligus jam ambil paling awal) |
+| `store_close_time` | `23:59` | Jam tutup toko (sekaligus jam ambil/kembalian paling akhir) |
+| `pickup_slot_interval` | `30 menit` | Interval slot ambil (contoh: 18:00, 18:30, 19:00, ..., 23:30) |
+| `return_deadline_time` | `23:59` | Batas kembali pada akhir tanggal kembali |
+| `return_buffer_days` | `1` | Jeda hari penuh setelah tanggal kembali untuk maintenance; stok ready lagi jam 00:00 hari berikutnya |
+| `auto_confirm_return_days` | `2` | Auto-konfirmasi jika admin tidak konfirmasi dalam H+2 setelah `return_due_at` |
 | `dp_enabled` | `true` | DP diizinkan |
 | `dp_percentage` | `50` | Persentase DP dari biaya sewa saja (tanpa deposit) |
 | `late_fee_per_day` | `50000` | Denda konstan per hari keterlambatan |
@@ -264,32 +278,32 @@ Dengan aturan ini harga tidak pernah melebihi tier di atasnya, dan durasi lebih 
 
 **Contoh:** Tenda 4P (deposit Rp50.000/unit), 2 unit, 4 hari -> sewa 2 x 70.000 = Rp140.000; deposit Rp100.000 (disetor saat ambil barang); total keseluruhan Rp240.000. Jika DP: bayar online Rp70.000, saat ambil barang bayar sisa sewa Rp70.000 + deposit Rp100.000 = Rp170.000.
 
-### 4.3. Sistem Sewa Pertanggal (Aturan Poster "Sistem Sewa")
+### 4.3. Sistem Sewa Pertanggal (Operasional 18:00-23:59)
 
-Sistem sewa **pertanggal (bukan 24 jam)**.
+Sistem sewa **pertanggal (bukan 24 jam)**. Toko operasional **18:00-23:59 setiap hari**. Customer dapat mengambil barang kapan saja dalam jam operasional tanpa mencatat jam pasti.
 
-**Jam ambil:** customer memilih tanggal ambil dan jam ambil (slot 30 menit, **06:00 sampai 23:30**).
+**Jam ambil:** customer memilih tanggal ambil dan jam ambil (slot 30 menit, **18:00 sampai 23:30** — hanya saat toko buka).
 
 **Menentukan tanggal mulai hitung (`billing_start_date`):**
-- Jam ambil **06:00-17:59** -> `billing_start_date` = tanggal ambil.
-- Jam ambil **18:00-23:30** (18:00 ke atas) -> `billing_start_date` = **tanggal ambil + 1 hari**.
+Karena toko hanya buka 18:00-23:59, semua pengambilan dalam jam operasional akan dihitung **tanggal berikutnya**:
+- Ambil tanggal 1 pukul 18:00-23:59 → `billing_start_date` = tanggal 2.
 
-**Pengembalian:** customer memilih **tanggal kembali**; batas kembali adalah **00:00 pada akhir tanggal kembali** (`return_due_at` = `end_date` 24:00). Jam kembali tidak dipilih customer.
+**Pengembalian:** customer memilih **tanggal kembali**; batas kembali adalah **23:59 pada tanggal kembali** (`return_due_at` = `end_date` 23:59). Jam kembali tidak dipilih customer.
 
 **Durasi:** `total_days = end_date - billing_start_date + 1` (inklusif).
 
+**Buffer Maintenance (1 hari penuh):** setelah tanggal kembali, ada jeda 1 hari penuh untuk pemeriksaan/pembersihan. Stok **kembali ready jam 00:00 hari berikutnya setelah buffer**.
+
 **Validasi tanggal kembali:** `end_date >= billing_start_date`. Pickup tidak boleh lebih awal dari `now + min_lead_hours`.
 
-| Contoh | Ambil | Mulai hitung | Kembali | Durasi |
-| ------ | ----- | ------------ | ------- | ------ |
-| 1 hari sewa (poster) | tgl 1, 19:00 | tgl 2 | tgl 2 maks 00:00 | **1 hari** |
-| Pertrip 3 hari (poster) | tgl 1, 19:00 | tgl 2 | tgl 4 maks 00:00 | **3 hari** |
-| Ambil pagi | tgl 1, 10:00 | tgl 1 | tgl 2 maks 00:00 | **2 hari** |
-| Ambil pagi, kembali hari yang sama | tgl 1, 10:00 | tgl 1 | tgl 1 maks 00:00 | **1 hari** |
+| Contoh | Ambil | Mulai hitung | Kembali | Durasi | Buffer | Ready |
+| ------ | ----- | ------------ | ------- | ------ | ------ | ----- |
+| 1 hari sewa | tgl 1, 19:00 | tgl 2 | tgl 2 maks 23:59 | **1 hari** | tgl 3 | tgl 4, 00:00 |
+| 3 hari sewa | tgl 1, 19:00 | tgl 2 | tgl 4 maks 23:59 | **3 hari** | tgl 5 | tgl 6, 00:00 |
 
-(Catatan penulisan: "tgl 2 maks 00:00" berarti sampai akhir tanggal 2 / tengah malam; "jam 12 malam" pada poster.)
+(Catatan: toko buka jam 18:00-23:59; batas kembali = akhir tanggal / 23:59; buffer = 1 hari penuh + 1 hari untuk maintenance.)
 
-**UI kalender:** date-range picker (Tanggal Ambil - Tanggal Kembali) + pilihan jam ambil. Setelah memilih, tampil ringkasan otomatis: "Mulai dihitung: <tanggal>", "Durasi: N hari", "Kembali maksimal: <tanggal> pukul 00:00". Tanggal kembali yang < `billing_start_date` dinonaktifkan di kalender.
+**UI kalender:** date-range picker (Tanggal Ambil - Tanggal Kembali) + pilihan jam ambil (18:00-23:30 saja). Setelah memilih, tampil ringkasan otomatis: "Mulai dihitung: <tanggal>", "Durasi: N hari", "Kembali maksimal: <tanggal> pukul 23:59", "Stok ready: <tanggal buffer+1> jam 00:00". Tanggal kembali yang < `billing_start_date` dinonaktifkan di kalender.
 
 ### 4.4. Availability & Real-Time Stock Calculation
 

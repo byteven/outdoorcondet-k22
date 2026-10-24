@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Package;
 use App\Models\PackageItem;
 use App\Models\Product;
+use App\Services\AvailabilityService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,6 +23,8 @@ class LandingController extends Controller
         $categoryId = $request->input('category');
         $page = max(1, (int) $request->input('page', 1));
         $perPage = min(48, max(24, (int) $request->input('per_page', 24)));
+        $pickupDate = $request->input('pickup_date');
+        $returnDate = $request->input('return_date');
 
         return Inertia::render('landing', [
             'filters' => [
@@ -29,6 +33,8 @@ class LandingController extends Controller
                 'category' => $categoryId ? (int) $categoryId : null,
                 'page' => $page,
                 'per_page' => $perPage,
+                'pickup_date' => $pickupDate,
+                'return_date' => $returnDate,
             ],
             'catalog' => Inertia::defer(fn (): array => $this->catalog(
                 tab: in_array($tab, ['alat', 'bundle'], true) ? $tab : 'alat',
@@ -36,6 +42,8 @@ class LandingController extends Controller
                 categoryId: $categoryId ? (int) $categoryId : null,
                 page: $page,
                 perPage: $perPage,
+                pickupDate: $pickupDate,
+                returnDate: $returnDate,
             )),
         ]);
     }
@@ -50,9 +58,22 @@ class LandingController extends Controller
      *     pagination: array{current_page: int, last_page: int, per_page: int, total: int, from: int|null, to: int|null}
      * }
      */
-    private function catalog(string $tab, string $search, ?int $categoryId, int $page, int $perPage): array
-    {
-        // Always load all categories for the filter UI
+    private function catalog(
+        string $tab,
+        string $search,
+        ?int $categoryId,
+        int $page,
+        int $perPage,
+        ?string $pickupDate = null,
+        ?string $returnDate = null,
+    ): array {
+        $pickupCarbon = $pickupDate ? Carbon::parse($pickupDate) : null;
+        $returnCarbon = $returnDate ? Carbon::parse($returnDate) : null;
+    
+        $availabilityService = ($pickupCarbon && $returnCarbon)
+            ? app(AvailabilityService::class)
+            : null;
+        
         $allProducts = Product::query()
             ->where('is_active', true)
             ->whereHas('variants', fn ($query) => $query->where('is_active', true))
@@ -71,7 +92,7 @@ class LandingController extends Controller
 
         if ($tab === 'bundle') {
             $query = Package::query()
-                ->active()
+                ->where('is_active', true)
                 ->with([
                     'items:id,package_id,product_variant_id,quantity',
                     'items.variant:id,product_id,sku',
@@ -88,22 +109,34 @@ class LandingController extends Controller
 
             $paginated = $query->paginate($perPage, ['*'], 'page', $page);
 
-            $packages = collect($paginated->items())->map(fn (Package $package): array => [
-                'id' => $package->id,
-                'name' => $package->name,
-                'description' => $package->description,
-                'image' => $package->image_path,
-                'daily_price' => (float) $package->daily_price,
-                'deposit_per_package' => (float) $package->deposit_per_package,
-                'item_count' => $package->items->count(),
-                'items' => $package->items
-                    ->map(fn (PackageItem $item): array => [
-                        'name' => $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
-                        'quantity' => $item->quantity,
-                    ])
-                    ->values()
-                    ->all(),
-            ])->values()->all();
+            $packages = collect($paginated->items())->map(function (Package $package) use ($availabilityService, $pickupCarbon, $returnCarbon): array {
+                $available = null;
+                if ($availabilityService && $pickupCarbon && $returnCarbon) {
+                    $available = $availabilityService->availablePackageStock(
+                        $package->id,
+                        $pickupCarbon,
+                        $returnCarbon
+                    );
+                }
+                
+                return [
+                    'id' => $package->id,
+                    'name' => $package->name,
+                    'description' => $package->description,
+                    'image' => $package->image_path,
+                    'daily_price' => (float) $package->daily_price,
+                    'deposit_per_package' => (float) $package->deposit_per_package,
+                    'item_count' => $package->items->count(),
+                    'available' => $available,
+                    'items' => $package->items
+                        ->map(fn (PackageItem $item): array => [
+                            'name' => $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
+                            'quantity' => $item->quantity,
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })->values()->all();
 
             return [
                 'categories' => $categories,
@@ -120,7 +153,6 @@ class LandingController extends Controller
             ];
         }
 
-        // Tab: alat
         $query = Product::query()
             ->where('is_active', true)
             ->whereHas('variants', fn ($q) => $q->where('is_active', true))
@@ -147,19 +179,49 @@ class LandingController extends Controller
 
         $paginated = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $products = collect($paginated->items())->map(fn (Product $product): array => [
-            'id' => $product->id,
-            'name' => $product->name,
-            'description' => $product->description,
-            'category' => $product->category ? [
-                'id' => $product->category->id,
-                'name' => $product->category->name,
-            ] : null,
-            'image' => $this->primaryImagePath($product),
-            'daily_price' => (float) ($product->variants->min('rental_price_per_day') ?? 0),
-            'deposit_per_unit' => (float) ($product->variants->min('deposit_per_unit') ?? 0),
-            'stock' => (int) $product->variants->sum('stock'),
-        ])->values()->all();
+        $variantIds = collect($paginated->items())
+            ->flatMap(fn ($product) => $product->variants->pluck('id'))
+            ->all();
+            
+        $availability = [];
+        if ($availabilityService && $pickupCarbon && $returnCarbon && !empty($variantIds)) {
+            $availability = $availabilityService->batchAvailableStock(
+                $variantIds,
+                $pickupCarbon,
+                $returnCarbon
+            );
+        }
+
+        $products = collect($paginated->items())->map(function (Product $product) use ($availability, $availabilityService, $pickupCarbon, $returnCarbon): array {
+            $totalStock = (int) $product->variants->sum('stock');
+            
+        
+            $available = null;
+            
+            if ($availabilityService && $pickupCarbon && $returnCarbon) {
+    
+                $totalAvailable = $product->variants->sum(fn ($variant) => $availability[$variant->id] ?? 0);
+                $available = (int) $totalAvailable;
+            } elseif ($totalStock > 0) {
+            
+                $available = $totalStock;
+            }
+            
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'description' => $product->description,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name,
+                ] : null,
+                'image' => $this->primaryImagePath($product),
+                'daily_price' => (float) ($product->variants->min('rental_price_per_day') ?? 0),
+                'deposit_per_unit' => (float) ($product->variants->min('deposit_per_unit') ?? 0),
+                'stock' => $totalStock,
+                'available' => $available,
+            ];
+        })->values()->all();
 
         return [
             'categories' => $categories,
@@ -187,3 +249,4 @@ class LandingController extends Controller
         return $image?->image_path;
     }
 }
+

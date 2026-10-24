@@ -52,6 +52,7 @@ export type CatalogPackage = {
     daily_price: number;
     deposit_per_package: number;
     item_count: number;
+    available: number | null;
     items: CatalogPackageItem[];
 };
 
@@ -77,6 +78,8 @@ export type CatalogFilters = {
     category: number | null;
     page: number;
     per_page: number;
+    pickup_date?: string;
+    return_date?: string;
 };
 
 const PER_PAGE_OPTIONS = [24, 48];
@@ -273,6 +276,7 @@ export function CatalogSection({
                                     dailyPrice={product.daily_price}
                                     badge={product.category?.name}
                                     stock={product.stock}
+                                    available={product.available}
                                     fallbackIcon={
                                         <PackageIcon
                                             className="size-10 text-muted-foreground/40"
@@ -332,6 +336,7 @@ export function CatalogSection({
                                     image={pkg.image}
                                     name={pkg.name}
                                     dailyPrice={pkg.daily_price}
+                                    available={pkg.available}
                                     fallbackIcon={
                                         <PackageOpenIcon
                                             className="size-10 text-muted-foreground/40"
@@ -489,21 +494,24 @@ function CatalogCard({
     stock?: number;
     fallbackIcon: React.ReactNode;
 }) {
-
-
+    const isUnavailable = available === 0 || stock === 0;
 
     return (
-        <article className={cn(
-            "group flex flex-col overflow-hidden rounded-[1.25rem] bg-card p-2 border border-border/20 transition-opacity"
-        )}>
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[1rem] bg-muted cursor-pointer">
+        <article
+            className={cn(
+                'group flex flex-col overflow-hidden rounded-[1.25rem] border border-border/20 bg-card p-2 transition-opacity',
+                isUnavailable && 'opacity-50',
+            )}
+        >
+            <div className="relative aspect-[4/3] cursor-pointer overflow-hidden rounded-[1rem] bg-muted">
                 {image ? (
                     <img
                         src={`/storage/${image}`}
                         alt={name}
                         loading="lazy"
                         className={cn(
-                            "size-full object-cover transition-all"
+                            'size-full object-cover transition-all',
+                            isUnavailable && 'grayscale',
                         )}
                     />
                 ) : (
@@ -511,12 +519,18 @@ function CatalogCard({
                         {fallbackIcon}
                     </div>
                 )}
+
+                {isUnavailable && (
+                    <span className="absolute bottom-3 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-white">
+                        Tidak Tersedia
+                    </span>
+                )}
             </div>
 
             <div className="flex flex-1 flex-col gap-1.5 px-2 pt-2.5 pb-2">
                 <div className="flex flex-col">
                     {badge && (
-                        <span className="shrink-0 rounded-full w-fit py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="w-fit shrink-0 rounded-full py-0.5 text-[10px] font-medium text-muted-foreground">
                             {badge}
                         </span>
                     )}

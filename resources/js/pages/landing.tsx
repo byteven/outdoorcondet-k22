@@ -32,7 +32,7 @@ import {
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
-import { formatDateID } from '@/lib/rental-date';
+import { formatDateID, loadStoredRentalRange } from '@/lib/rental-date';
 import { home } from '@/routes';
 import { login } from '@/routes';
 import { register } from '@/routes';
@@ -97,35 +97,29 @@ export default function Landing({ catalog, filters }: Props) {
 
         // Add rental range to query params
         if (rentalFilter?.pickupDate) {
-            query.pickup_date = rentalFilter.pickupDate.toISOString().split('T')[0];
+            // Format as YYYY-MM-DD without timezone conversion
+            const pickupDate = new Date(rentalFilter.pickupDate);
+            query.pickup_date = pickupDate.toLocaleDateString('en-CA');
         }
 
         if (rentalFilter?.returnDate) {
-            query.return_date = rentalFilter.returnDate.toISOString().split('T')[0];
+            const returnDate = new Date(rentalFilter.returnDate);
+            query.return_date = returnDate.toLocaleDateString('en-CA');
         }
-
-        const catalogEl = document.getElementById('katalog');
-        const scrollYBefore = window.scrollY;
 
         router.get(home.url(), query, {
             preserveState: true,
+            preserveScroll: true,
             replace: true,
             only: ['catalog', 'filters'],
-            onStart: () => {
-                setCatalogLoading(true);
-            },
+            onStart: () => setCatalogLoading(true),
             onFinish: () => {
                 setCatalogLoading(false);
+
                 requestAnimationFrame(() => {
-                    if (catalogEl) {
-                        const headerOffset = 96;
-                        const rect = catalogEl.getBoundingClientRect();
-                        const targetTop = rect.top + window.scrollY - headerOffset;
-                        // If user was scrolled down past or near catalog, keep them aligned to catalog top area
-                        if (scrollYBefore > 200) {
-                            window.scrollTo({ top: targetTop, behavior: 'auto' });
-                        }
-                    }
+                    document
+                        .getElementById('katalog')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             },
         });
@@ -306,16 +300,70 @@ export default function Landing({ catalog, filters }: Props) {
 
                     <section className="relative z-10 mx-auto -mt-16 w-full max-w-5xl px-4 md:-mt-28">
                         <RentalRange
+                            initialPickupDate={
+                                filters.pickup_date
+                                    ? new Date(filters.pickup_date)
+                                    : undefined
+                            }
+                            initialReturnDate={
+                                filters.return_date
+                                    ? new Date(filters.return_date)
+                                    : undefined
+                            }
                             onSearch={(params) => {
-                                setRentalFilter({
-                                    pickupDate: params.pickupDate,
-                                    returnDate: params.returnDate,
-                                    totalDays: params.totalDays,
-                                });
+                                const hasRange = !!(params.pickupDate && params.returnDate);
 
-                                document
-                                    .getElementById('katalog')
-                                    ?.scrollIntoView({ behavior: 'smooth' });
+                                setRentalFilter(
+                                    hasRange
+                                        ? {
+                                            pickupDate: params.pickupDate,
+                                            returnDate: params.returnDate,
+                                            totalDays: params.totalDays,
+                                        }
+                                        : null,
+                                );
+
+                                const query: Record<string, string | number> = {
+                                    tab: filterRef.current.tab,
+                                    per_page: filterRef.current.per_page,
+                                    page: 1,
+                                };
+
+                                if (filterRef.current.search) {
+                                    query.search = filterRef.current.search;
+                                }
+
+                                if (
+                                    filterRef.current.category !== null &&
+                                    filterRef.current.category !== undefined
+                                ) {
+                                    query.category = filterRef.current.category;
+                                }
+
+                                if (params.pickupDate) {
+                                    query.pickup_date = new Date(params.pickupDate).toLocaleDateString('en-CA');
+                                }
+
+                                if (params.returnDate) {
+                                    query.return_date = new Date(params.returnDate).toLocaleDateString('en-CA');
+                                }
+
+                                router.get(home.url(), query, {
+                                    preserveState: true,
+                                    preserveScroll: true,
+                                    replace: true,
+                                    only: ['catalog', 'filters'],
+                                    onStart: () => setCatalogLoading(true),
+                                    onFinish: () => {
+                                        setCatalogLoading(false);
+
+                                        if (hasRange) {
+                                            document
+                                                .getElementById('katalog')
+                                                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }
+                                    },
+                                });
                             }}
                         />
                     </section>

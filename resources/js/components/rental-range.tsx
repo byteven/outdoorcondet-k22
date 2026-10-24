@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { startOfToday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
@@ -22,8 +22,6 @@ import {
     formatDateID,
     getBillingStartDate,
     getRentalDurationDays,
-    loadStoredRentalRange,
-    saveStoredRentalRange,
     STORE_PICKUP_TIME,
     STORE_RETURN_TIME,
 } from '@/lib/rental-date';
@@ -37,6 +35,8 @@ export type RentalRangeParams = {
 
 type RentalRangeProps = {
     onSearch?: (params: RentalRangeParams) => void;
+    initialPickupDate?: Date;
+    initialReturnDate?: Date;
     className?: string;
 };
 
@@ -50,27 +50,23 @@ type PickedRange = {
     to?: Date;
 };
 
-export function RentalRange({ onSearch, className }: RentalRangeProps) {
+
+
+export function RentalRange({
+    onSearch,
+    initialPickupDate,
+    initialReturnDate,
+    className,
+}: RentalRangeProps) {
     const [pickupOpen, setPickupOpen] = useState(false);
     const [returnOpen, setReturnOpen] = useState(false);
-    const [range, setRange] = useState<DateRange | undefined>(() => {
-        const stored = loadStoredRentalRange();
+    const [range, setRange] = useState<DateRange | undefined>(() =>
+        initialPickupDate
+            ? { from: initialPickupDate, to: initialReturnDate }
+            : undefined,
+    );
+    const [showError, setShowError] = useState(false);
 
-        if (!stored?.from) {
-            return undefined;
-        }
-
-        const nextBillingStart = getBillingStartDate(
-            stored.from,
-            STORE_PICKUP_TIME,
-        );
-
-        if (stored.to && stored.to >= nextBillingStart) {
-            return { from: stored.from, to: stored.to };
-        }
-
-        return { from: stored.from, to: undefined };
-    });
 
     const pickupDate = range?.from;
     const returnDate = range?.to;
@@ -90,10 +86,6 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
                 : undefined,
         [billingStartDate, returnDate],
     );
-
-    useEffect(() => {
-        saveStoredRentalRange(range);
-    }, [range]);
 
     const handlePickupSelect = (date?: Date) => {
         if (!date) {
@@ -128,6 +120,13 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
     };
 
     const handleSearch = () => {
+        if (!pickupDate || !returnDate) {
+            setShowError(true);
+            return;
+        }
+
+        setShowError(false);
+
         onSearch?.({
             pickupDate,
             returnDate,
@@ -139,6 +138,8 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
     const handleClearPickup = (e: React.MouseEvent) => {
         e.stopPropagation();
         setRange(undefined);
+        // Clear URL by calling onSearch with no dates
+        onSearch?.({});
     };
 
     const handleClearReturn = (e: React.MouseEvent) => {
@@ -147,6 +148,8 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
             return;
         }
         setRange({ from: range.from });
+        // Clear URL by calling onSearch with no dates
+        onSearch?.({});
     };
 
     return (
@@ -179,10 +182,13 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
                                     <span className="flex shrink-0 items-center justify-center">
                                         <CalendarArrowDownIcon className="size-4 text-primary" />
                                     </span>
-                                    <span className="flex-1 text-left">
-                                        {pickupDate
-                                            ? formatDateID(pickupDate)
-                                            : 'Pilih tanggal'}
+                                    <span
+                                        className={cn(
+                                            'flex-1 text-left',
+                                            !pickupDate && showError && 'text-primary',
+                                        )}
+                                    >
+                                        {pickupDate ? formatDateID(pickupDate) : 'Pilih tanggal'}
                                     </span>
                                     {pickupDate && (
                                         <span
@@ -265,10 +271,13 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
                                     <span className="flex shrink-0 items-center justify-center">
                                         <CalendarArrowUpIcon className="size-4 text-primary" />
                                     </span>
-                                    <span className="flex-1 text-left">
-                                        {returnDate
-                                            ? formatDateID(returnDate)
-                                            : 'Pilih tanggal'}
+                                    <span
+                                        className={cn(
+                                            'flex-1 text-left',
+                                            !returnDate && showError && 'text-primary',
+                                        )}
+                                    >
+                                        {returnDate ? formatDateID(returnDate) : 'Pilih tanggal'}
                                     </span>
                                     {returnDate && (
                                         <span

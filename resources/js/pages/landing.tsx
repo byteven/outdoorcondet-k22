@@ -1,11 +1,17 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 import {
     CircleUserRoundIcon,
     MenuIcon,
     ShoppingCartIcon,
     UserRoundIcon,
 } from 'lucide-react';
+import {
+    CatalogSection,
+    CatalogSkeleton,
+    type CatalogData,
+    type CatalogFilters,
+} from '@/components/catalog-section';
 import { RentalRange } from '@/components/rental-range';
 import { SiteFooter } from '@/components/site-footer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,25 +33,32 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { formatDateID } from '@/lib/rental-date';
+import { home } from '@/routes';
 import { login } from '@/routes';
 import { register } from '@/routes';
 import { dashboard } from '@/routes/admin';
 import { edit as editProfile } from '@/routes/profile';
 
-const CATALOG_PLACEHOLDERS = [0, 1, 2, 3, 4, 5];
-
-type CatalogFilter = {
+type RentalFilter = {
     pickupDate?: Date;
     returnDate?: Date;
     totalDays?: number;
 };
 
-export default function Landing() {
+type Props = {
+    catalog?: CatalogData;
+    filters: CatalogFilters;
+};
+
+export default function Landing({ catalog, filters }: Props) {
     const { auth } = usePage().props;
     const isAdmin = auth.user?.role === 'admin';
     const getInitials = useInitials();
-    const [filter, setFilter] = useState<CatalogFilter | null>(null);
+    const [rentalFilter, setRentalFilter] = useState<RentalFilter | null>(null);
     const [scrolled, setScrolled] = useState(false);
+    const [catalogLoading, setCatalogLoading] = useState(false);
+    const filterRef = useRef(filters);
+    filterRef.current = filters;
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 8);
@@ -55,6 +68,59 @@ export default function Landing() {
 
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    const handleFilterChange = (
+        params: Partial<CatalogFilters> & { page?: number },
+    ) => {
+        const next = {
+            tab: filterRef.current.tab,
+            search: filterRef.current.search,
+            category: filterRef.current.category,
+            page: filterRef.current.page,
+            per_page: filterRef.current.per_page,
+            ...params,
+        };
+
+        const query: Record<string, string | number> = {
+            tab: next.tab,
+            per_page: next.per_page,
+            page: next.page ?? 1,
+        };
+
+        if (next.search) {
+            query.search = next.search;
+        }
+
+        if (next.category !== null && next.category !== undefined) {
+            query.category = next.category;
+        }
+
+        const catalogEl = document.getElementById('katalog');
+        const scrollYBefore = window.scrollY;
+
+        router.get(home.url(), query, {
+            preserveState: true,
+            replace: true,
+            only: ['catalog', 'filters'],
+            onStart: () => {
+                setCatalogLoading(true);
+            },
+            onFinish: () => {
+                setCatalogLoading(false);
+                requestAnimationFrame(() => {
+                    if (catalogEl) {
+                        const headerOffset = 96;
+                        const rect = catalogEl.getBoundingClientRect();
+                        const targetTop = rect.top + window.scrollY - headerOffset;
+                        // If user was scrolled down past or near catalog, keep them aligned to catalog top area
+                        if (scrollYBefore > 200) {
+                            window.scrollTo({ top: targetTop, behavior: 'auto' });
+                        }
+                    }
+                });
+            },
+        });
+    };
 
     return (
         <>
@@ -163,7 +229,7 @@ export default function Landing() {
                             <div className="flex items-center gap-2">
                                 <Button
                                     asChild
-                                    variant="outline"
+                                    variant="ghost"
                                     className="rounded-full px-5"
                                 >
                                     <Link href={register()}>Daftar</Link>
@@ -176,21 +242,20 @@ export default function Landing() {
                     </div>
                 </header>
 
-                <main>
+                <main className="bg-[#fbfbfc]">
                     <section
                         id="beranda"
-                        className="relative isolate scroll-mt-20 overflow-hidden"
+                        className="relative isolate scroll-mt-20 overflow-hidden bg-[#fbfbfc]"
                     >
                         <div
                             aria-hidden="true"
-                            className="absolute inset-0 -z-10"
+                            className="absolute inset-0 -z-10 "
                         >
                             <img
                                 src="/images/mount-landscape.webp"
                                 alt=""
                                 className="size-full [mask-image:linear-gradient(to_bottom,black_80%,transparent_100%)] object-cover object-[5%_100%] opacity-100 [-webkit-mask-image:linear-gradient(to_bottom,black_80%,transparent_100%)]"
                             />
-                            <div className="absolute inset-0 bg-background/20" />
                         </div>
 
                         <div className="mx-auto w-full max-w-4xl px-4 pt-24 pb-48 text-center md:pt-56 md:pb-80">
@@ -233,7 +298,7 @@ export default function Landing() {
                     <section className="relative z-10 mx-auto -mt-16 w-full max-w-5xl px-4 md:-mt-28">
                         <RentalRange
                             onSearch={(params) => {
-                                setFilter({
+                                setRentalFilter({
                                     pickupDate: params.pickupDate,
                                     returnDate: params.returnDate,
                                     totalDays: params.totalDays,
@@ -248,39 +313,75 @@ export default function Landing() {
 
                     <section
                         id="katalog"
-                        className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-16 md:px-6 md:py-20"
+                        className="scroll-mt-20 bg-[#fbfbfc]"
                     >
-                        <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
-                            Produk katalog
-                        </h2>
-
-                        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {CATALOG_PLACEHOLDERS.map((item) => (
-                                <div
-                                    key={item}
-                                    className="h-44 rounded-2xl border border-dashed border-border bg-muted/30"
-                                />
-                            ))}
-                        </div>
-
-                        {filter && (
-                            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                                {filter.pickupDate && (
-                                    <span className="rounded-full border border-border/60 bg-card px-3 py-1">
-                                        Ambil {formatDateID(filter.pickupDate)}
-                                    </span>
-                                )}
-                                {filter.returnDate && (
-                                    <span className="rounded-full border border-border/60 bg-card px-3 py-1">
-                                        Kembali{' '}
-                                        {formatDateID(filter.returnDate)}
-                                        {filter.totalDays
-                                            ? ` (${filter.totalDays} hari)`
-                                            : ''}
-                                    </span>
-                                )}
+                        <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6 md:py-20">
+                            <div className="max-w-2xl">
+                                <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+                                    Katalog perlengkapan
+                                </h2>
+                                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                                    Temukan tenda, carrier, dan perlengkapan
+                                    camping lain yang siap disewa untuk
+                                    petualangan Anda.
+                                </p>
                             </div>
-                        )}
+
+                            {rentalFilter && (
+                                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                                    {rentalFilter.pickupDate && (
+                                        <span className="rounded-full border border-border/60 bg-card px-3 py-1">
+                                            Ambil{' '}
+                                            {formatDateID(
+                                                rentalFilter.pickupDate,
+                                            )}
+                                        </span>
+                                    )}
+                                    {rentalFilter.returnDate && (
+                                        <span className="rounded-full border border-border/60 bg-card px-3 py-1">
+                                            Kembali{' '}
+                                            {formatDateID(
+                                                rentalFilter.returnDate,
+                                            )}
+                                            {rentalFilter.totalDays
+                                                ? ` (${rentalFilter.totalDays} hari)`
+                                                : ''}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            <Deferred
+                                data="catalog"
+                                fallback={
+                                    <CatalogSection
+                                        catalog={{
+                                            categories: [],
+                                            products: null,
+                                            packages: null,
+                                            pagination: {
+                                                current_page: 1,
+                                                last_page: 1,
+                                                per_page: 12,
+                                                total: 0,
+                                                from: null,
+                                                to: null,
+                                            },
+                                        }}
+                                        filters={filters}
+                                        onFilterChange={handleFilterChange}
+                                        loading
+                                    />
+                                }
+                            >
+                                <CatalogSection
+                                    catalog={catalog!}
+                                    filters={filters}
+                                    onFilterChange={handleFilterChange}
+                                    loading={catalogLoading}
+                                />
+                            </Deferred>
+                        </div>
                     </section>
                 </main>
 

@@ -57,9 +57,9 @@ export function DataTablePagination({
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
+                    {/* <span className="text-sm text-muted-foreground">
                         Baris per halaman
-                    </span>
+                    </span> */}
                     <Select value={perPage} onValueChange={onPerPageChange}>
                         <SelectTrigger
                             aria-label="Baris per halaman"

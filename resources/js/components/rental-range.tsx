@@ -319,7 +319,7 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
 
                 <div className="flex items-center md:pl-2">
                     <Button
-                        className="h-14 w-full rounded-xl text-base md:h-15 md:w-auto md:min-w-40 md:px-8"
+                        className="h-14 w-full rounded-full text-base md:h-15 md:w-auto md:min-w-40 md:px-8"
                         onClick={handleSearch}
                     >
                         <SearchIcon />

@@ -4,9 +4,10 @@ use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'landing')->name('home');
+Route::get('/', [LandingController::class, 'index'])->name('home');
 
 Route::inertia('kebijakan', 'legal/policy')->name('legal.policy');
 Route::inertia('privasi', 'legal/privacy')->name('legal.privacy');

@@ -95,6 +95,15 @@ export default function Landing({ catalog, filters }: Props) {
             query.category = next.category;
         }
 
+        // Add rental range to query params
+        if (rentalFilter?.pickupDate) {
+            query.pickup_date = rentalFilter.pickupDate.toISOString().split('T')[0];
+        }
+
+        if (rentalFilter?.returnDate) {
+            query.return_date = rentalFilter.returnDate.toISOString().split('T')[0];
+        }
+
         const catalogEl = document.getElementById('katalog');
         const scrollYBefore = window.scrollY;
 
@@ -318,38 +327,13 @@ export default function Landing({ catalog, filters }: Props) {
                         <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6 md:py-20">
                             <div className="max-w-2xl">
                                 <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
-                                    Katalog perlengkapan
+                                    Katalog Peralatan
                                 </h2>
                                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                    Temukan tenda, carrier, dan perlengkapan
-                                    camping lain yang siap disewa untuk
-                                    petualangan Anda.
+                                    Cari tenda, carrier, dan perlengkapan
+                                    camping lain yang kamu butuhkan.
                                 </p>
                             </div>
-
-                            {rentalFilter && (
-                                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                                    {rentalFilter.pickupDate && (
-                                        <span className="rounded-full border border-border/60 bg-card px-3 py-1">
-                                            Ambil{' '}
-                                            {formatDateID(
-                                                rentalFilter.pickupDate,
-                                            )}
-                                        </span>
-                                    )}
-                                    {rentalFilter.returnDate && (
-                                        <span className="rounded-full border border-border/60 bg-card px-3 py-1">
-                                            Kembali{' '}
-                                            {formatDateID(
-                                                rentalFilter.returnDate,
-                                            )}
-                                            {rentalFilter.totalDays
-                                                ? ` (${rentalFilter.totalDays} hari)`
-                                                : ''}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
 
                             <Deferred
                                 data="catalog"

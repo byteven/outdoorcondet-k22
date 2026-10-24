@@ -4,6 +4,7 @@ import {
     PackageOpenIcon,
     SearchXIcon,
     TagsIcon,
+    XIcon,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { DataTablePagination } from '@/components/data-table-pagination';
@@ -35,6 +36,7 @@ export type CatalogProduct = {
     daily_price: number;
     deposit_per_unit: number;
     stock: number;
+    available: number | null; // null = belum pilih tanggal
 };
 
 export type CatalogPackageItem = {
@@ -112,8 +114,9 @@ export function CatalogSection({
         onFilterChange({ tab, search: '', category: null, page: 1 });
     };
 
-    const handleCategoryChange = (id: number | null) => {
-        onFilterChange({ category: id, page: 1 });
+    const handleCategoryChange = (id: number) => {
+        const next = filters.category === id ? null : id;
+        onFilterChange({ category: next, page: 1 });
         setCategoryDialogOpen(false);
     };
 
@@ -153,12 +156,6 @@ export function CatalogSection({
                             className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden"
                         >
                             <div className="flex w-max gap-2 pr-12">
-                                <CategoryPill
-                                    active={filters.category === null}
-                                    onClick={() => handleCategoryChange(null)}
-                                >
-                                    Semua
-                                </CategoryPill>
                                 {catalog.categories.map((category) => (
                                     <CategoryPill
                                         key={category.id}
@@ -194,14 +191,6 @@ export function CatalogSection({
                                 <DialogTitle>Pilih kategori</DialogTitle>
                             </DialogHeader>
                             <div className="flex flex-wrap gap-2 pt-2">
-                                <CategoryPill
-                                    active={filters.category === null}
-                                    onClick={() =>
-                                        handleCategoryChange(null)
-                                    }
-                                >
-                                    Semua
-                                </CategoryPill>
                                 {catalog.categories.map((category) => (
                                     <CategoryPill
                                         key={category.id}
@@ -243,17 +232,8 @@ export function CatalogSection({
                 <div className="mt-6">
                     {loading ? (
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                            {[0, 1, 2, 3, 4, 5, 6, 7].map((item) => (
-                                <div
-                                    key={item}
-                                    className="overflow-hidden rounded-[1.25rem] bg-card p-2"
-                                >
-                                    <Skeleton className="aspect-[4/3] w-full rounded-[1rem] bg-muted" />
-                                    <div className="space-y-2 px-2 pt-2.5 pb-2">
-                                        <Skeleton className="h-4 w-3/4 bg-muted" />
-                                        <Skeleton className="h-4 w-1/3 bg-muted" />
-                                    </div>
-                                </div>
+                            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                                <CatalogCardSkeleton key={i} />
                             ))}
                         </div>
                     ) : !catalog.products || catalog.products.length === 0 ? (
@@ -286,9 +266,19 @@ export function CatalogSection({
                     ) : (
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                             {catalog.products.map((product) => (
-                                <ProductCard
+                                <CatalogCard
                                     key={product.id}
-                                    product={product}
+                                    image={product.image}
+                                    name={product.name}
+                                    dailyPrice={product.daily_price}
+                                    badge={product.category?.name}
+                                    stock={product.stock}
+                                    fallbackIcon={
+                                        <PackageIcon
+                                            className="size-10 text-muted-foreground/40"
+                                            strokeWidth={1.5}
+                                        />
+                                    }
                                 />
                             ))}
                         </div>
@@ -301,18 +291,8 @@ export function CatalogSection({
                 <div className="mt-6">
                     {loading ? (
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                            {[0, 1, 2, 3, 4, 5].map((item) => (
-                                <div
-                                    key={item}
-                                    className="overflow-hidden rounded-[1.25rem] bg-card p-2"
-                                >
-                                    <Skeleton className="aspect-[4/3] w-full rounded-[1rem] bg-muted" />
-                                    <div className="space-y-2 px-2 pt-2.5 pb-2">
-                                        <Skeleton className="h-4 w-3/4 bg-muted" />
-                                        <Skeleton className="h-4 w-2/3 bg-muted" />
-                                        <Skeleton className="h-4 w-1/3 bg-muted" />
-                                    </div>
-                                </div>
+                            {[0, 1, 2, 3, 4, 5].map((i) => (
+                                <CatalogCardSkeleton key={i} />
                             ))}
                         </div>
                     ) : !catalog.packages || catalog.packages.length === 0 ? (
@@ -346,8 +326,19 @@ export function CatalogSection({
                         />
                     ) : (
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                            {catalog.packages.map((item) => (
-                                <PackageCard key={item.id} item={item} />
+                            {catalog.packages.map((pkg) => (
+                                <CatalogCard
+                                    key={pkg.id}
+                                    image={pkg.image}
+                                    name={pkg.name}
+                                    dailyPrice={pkg.daily_price}
+                                    fallbackIcon={
+                                        <PackageOpenIcon
+                                            className="size-10 text-muted-foreground/40"
+                                            strokeWidth={1.5}
+                                        />
+                                    }
+                                />
                             ))}
                         </div>
                     )}
@@ -441,10 +432,11 @@ function TabButton({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors',
+                'flex cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
+
                 active
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border/70 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                    ? 'bg-primary text-background'
+                    : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
             )}
         >
             {icon}
@@ -468,51 +460,70 @@ function CategoryPill({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                'shrink-0 cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                'shrink-0 cursor-pointer rounded-full border px-4 py-2 text-sm font-medium flex items-center gap-1.5',
                 active
                     ? 'border-primary bg-primary text-white'
                     : 'text-muted-foreground hover:text-primary hover:border-primary/40',
             )}
         >
             {children}
+            {active && <XIcon className="size-3.5" strokeWidth={2.5} />}
         </button>
     );
 }
 
-function ProductCard({ product }: { product: CatalogProduct }) {
+function CatalogCard({
+    image,
+    name,
+    dailyPrice,
+    badge,
+    available,
+    stock,
+    fallbackIcon,
+}: {
+    image: string | null;
+    name: string;
+    dailyPrice: number;
+    badge?: string;
+    available?: number | null;
+    stock?: number;
+    fallbackIcon: React.ReactNode;
+}) {
+
+
+
     return (
-        <article className="group flex flex-col overflow-hidden rounded-[1.25rem] bg-card p-2 border border-border/20">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[1rem] bg-muted">
-                {product.image ? (
-                    <>
-                        <img
-                            src={`/storage/${product.image}`}
-                            alt={product.name}
-                            loading="lazy"
-                            className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                    </>
+        <article className={cn(
+            "group flex flex-col overflow-hidden rounded-[1.25rem] bg-card p-2 border border-border/20 transition-opacity"
+        )}>
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[1rem] bg-muted cursor-pointer">
+                {image ? (
+                    <img
+                        src={`/storage/${image}`}
+                        alt={name}
+                        loading="lazy"
+                        className={cn(
+                            "size-full object-cover transition-all"
+                        )}
+                    />
                 ) : (
                     <div className="flex size-full items-center justify-center">
-                        <PackageIcon
-                            className="size-10 text-muted-foreground/40"
-                            strokeWidth={1.5}
-                        />
+                        {fallbackIcon}
                     </div>
                 )}
             </div>
 
             <div className="flex flex-1 flex-col gap-1.5 px-2 pt-2.5 pb-2">
                 <div className="flex flex-col">
-                    {product.category && (
+                    {badge && (
                         <span className="shrink-0 rounded-full w-fit py-0.5 text-[10px] font-medium text-muted-foreground">
-                            {product.category.name}
+                            {badge}
                         </span>
                     )}
-                    <h3 className="line-clamp-1 font-semibold">{product.name}</h3>
+                    <h3 className="line-clamp-1 font-semibold">{name}</h3>
                 </div>
                 <p className="text-sm font-semibold text-primary">
-                    {formatRupiah(product.daily_price)}
+                    {formatRupiah(dailyPrice)}
                     <span className="text-xs font-normal text-muted-foreground">
                         {' '}
                         / hari
@@ -523,39 +534,15 @@ function ProductCard({ product }: { product: CatalogProduct }) {
     );
 }
 
-function PackageCard({ item }: { item: CatalogPackage }) {
+function CatalogCardSkeleton() {
     return (
-        <article className="group flex flex-col overflow-hidden rounded-[1.25rem] bg-card p-2 border border-border/20">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[1rem] bg-muted">
-                {item.image ? (
-                    <>
-                        <img
-                            src={`/storage/${item.image}`}
-                            alt={item.name}
-                            loading="lazy"
-                            className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                    </>
-                ) : (
-                    <div className="flex size-full items-center justify-center">
-                        <PackageOpenIcon
-                            className="size-10 text-muted-foreground/40"
-                            strokeWidth={1.5}
-                        />
-                    </div>
-                )}
+        <div className="overflow-hidden rounded-[1.25rem] bg-card p-2 border border-border/20">
+            <Skeleton className="aspect-[4/3] w-full rounded-[1rem] bg-muted" />
+            <div className="space-y-2 px-2 pt-2.5 pb-2">
+                <Skeleton className="h-3 w-1/3 bg-muted" />
+                <Skeleton className="h-4 w-3/4 bg-muted" />
+                <Skeleton className="h-4 w-2/5 bg-muted" />
             </div>
-
-            <div className="flex flex-1 flex-col gap-1.5 px-2 pt-2.5 pb-2">
-                <h3 className="line-clamp-1 font-semibold">{item.name}</h3>
-                <p className="text-sm font-semibold text-primary">
-                    {formatRupiah(item.daily_price)}
-                    <span className="text-xs font-normal text-muted-foreground">
-                        {' '}
-                        / hari
-                    </span>
-                </p>
-            </div>
-        </article>
+        </div>
     );
 }

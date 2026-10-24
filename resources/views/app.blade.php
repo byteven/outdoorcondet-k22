@@ -11,8 +11,8 @@
             }
         </style>
 
-        <link rel="icon" href="/images/logo-white.webp" type="image/webp">
-        <link rel="apple-touch-icon" href="/images/logo-white.webp">
+        <link rel="icon" href="/images/logo-circle.webp" type="image/webp">
+        <link rel="apple-touch-icon" href="/images/logo-circle.webp">
 
         @fonts
 

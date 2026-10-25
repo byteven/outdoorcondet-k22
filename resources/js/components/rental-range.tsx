@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { startOfToday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
@@ -22,8 +23,6 @@ import {
     formatDateID,
     getBillingStartDate,
     getRentalDurationDays,
-    loadStoredRentalRange,
-    saveStoredRentalRange,
     STORE_PICKUP_TIME,
     STORE_RETURN_TIME,
 } from '@/lib/rental-date';
@@ -37,7 +36,11 @@ export type RentalRangeParams = {
 
 type RentalRangeProps = {
     onSearch?: (params: RentalRangeParams) => void;
+    initialPickupDate?: Date;
+    initialReturnDate?: Date;
     className?: string;
+    variant?: 'default' | 'compact';
+    hideButton?: boolean;
 };
 
 type DateRange = {
@@ -50,27 +53,35 @@ type PickedRange = {
     to?: Date;
 };
 
-export function RentalRange({ onSearch, className }: RentalRangeProps) {
+export function RentalRange({
+    onSearch,
+    initialPickupDate,
+    initialReturnDate,
+    className,
+    variant = 'default',
+    hideButton = false,
+}: RentalRangeProps) {
     const [pickupOpen, setPickupOpen] = useState(false);
     const [returnOpen, setReturnOpen] = useState(false);
-    const [range, setRange] = useState<DateRange | undefined>(() => {
-        const stored = loadStoredRentalRange();
+    const [range, setRange] = useState<DateRange | undefined>(() =>
+        initialPickupDate
+            ? { from: initialPickupDate, to: initialReturnDate }
+            : undefined,
+    );
+    const [showError, setShowError] = useState(false);
 
-        if (!stored?.from) {
-            return undefined;
+    useEffect(() => {
+        if (!initialPickupDate) {
+            setRange(undefined);
+
+            return;
         }
 
-        const nextBillingStart = getBillingStartDate(
-            stored.from,
-            STORE_PICKUP_TIME,
-        );
-
-        if (stored.to && stored.to >= nextBillingStart) {
-            return { from: stored.from, to: stored.to };
-        }
-
-        return { from: stored.from, to: undefined };
-    });
+        setRange({ from: initialPickupDate, to: initialReturnDate });
+    }, [
+        dateKey(initialPickupDate),
+        dateKey(initialReturnDate),
+    ]);
 
     const pickupDate = range?.from;
     const returnDate = range?.to;
@@ -91,10 +102,6 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
         [billingStartDate, returnDate],
     );
 
-    useEffect(() => {
-        saveStoredRentalRange(range);
-    }, [range]);
-
     const handlePickupSelect = (date?: Date) => {
         if (!date) {
             return;
@@ -102,13 +109,28 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
 
         const nextBillingStart = getBillingStartDate(date, STORE_PICKUP_TIME);
 
-        setRange({
+        const newRange = {
             from: date,
             to:
                 range?.to && range.to >= nextBillingStart
                     ? range.to
                     : undefined,
-        });
+        };
+
+        setRange(newRange);
+
+        // Auto search when hideButton is true and both dates are selected
+        if (hideButton && newRange.to) {
+            const billing = getBillingStartDate(date, STORE_PICKUP_TIME);
+            const days = getRentalDurationDays(billing, newRange.to);
+
+            onSearch?.({
+                pickupDate: date,
+                returnDate: newRange.to,
+                billingStartDate: billing,
+                totalDays: days,
+            });
+        }
     };
 
     const handleReturnSelect = (next?: PickedRange) => {
@@ -121,13 +143,35 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
             STORE_PICKUP_TIME,
         );
 
-        setRange({
+        const newRange = {
             from: next.from,
             to: next.to && next.to >= nextBillingStart ? next.to : undefined,
-        });
+        };
+
+        setRange(newRange);
+
+        // Auto search when hideButton is true and both dates are selected
+        if (hideButton && newRange.to) {
+            const billing = getBillingStartDate(next.from, STORE_PICKUP_TIME);
+            const days = getRentalDurationDays(billing, newRange.to);
+
+            onSearch?.({
+                pickupDate: next.from,
+                returnDate: newRange.to,
+                billingStartDate: billing,
+                totalDays: days,
+            });
+        }
     };
 
     const handleSearch = () => {
+        if (!pickupDate || !returnDate) {
+            setShowError(true);
+            return;
+        }
+
+        setShowError(false);
+
         onSearch?.({
             pickupDate,
             returnDate,
@@ -136,106 +180,87 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
         });
     };
 
-    const handleClearPickup = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleClearPickup = (event: React.MouseEvent) => {
+        event.stopPropagation();
         setRange(undefined);
+        onSearch?.({});
     };
 
-    const handleClearReturn = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleClearReturn = (event: React.MouseEvent) => {
+        event.stopPropagation();
+
         if (!range?.from) {
             return;
         }
+
         setRange({ from: range.from });
+        onSearch?.({});
     };
 
     return (
         <Card
             className={cn(
-                'relative gap-0 overflow-hidden rounded-2xl border-none bg-card p-3 shadow-lg',
+                'relative gap-0 overflow-hidden bg-card',
+                variant === 'compact'
+                    ? 'rounded-lg p-2 shadow-none'
+                    : 'rounded-xl border-none p-2 shadow-md md:rounded-2xl md:p-3 md:shadow-lg',
                 className,
             )}
         >
-            <div className="grid gap-y-3 md:grid-cols-[1fr_1fr_auto]">
+            <div
+                className={cn(
+                    'grid gap-y-2',
+                    hideButton
+                        ? 'md:grid-cols-2 md:gap-x-3 md:gap-y-2'
+                        : variant === 'compact'
+                            ? 'md:grid-cols-[1fr_1fr_auto] md:gap-y-2'
+                            : 'md:grid-cols-[1fr_1fr_auto] md:gap-y-3',
+                )}
+            >
                 <div className="relative md:pr-3">
-                    <div className="flex flex-col gap-2 rounded-xl px-4 py-4 hover:bg-muted/50 md:px-5 md:py-4">
-                        <div className="flex items-center gap-2 text-left">
-                            <span className="text-sm font-medium text-muted-foreground">
-                                Tanggal Ambil
-                            </span>
-
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <ClockArrowDown className="w-3 text-muted-foreground/50" />
-                                {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
-                            </span>
-                        </div>
-
-                        <Popover open={pickupOpen} onOpenChange={setPickupOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    className="group h-11 w-full justify-start gap-4 px-0 text-base font-medium text-foreground hover:bg-transparent hover:text-foreground"
-                                >
-                                    <span className="flex shrink-0 items-center justify-center">
-                                        <CalendarArrowDownIcon className="size-4 text-primary" />
-                                    </span>
-                                    <span className="flex-1 text-left">
-                                        {pickupDate
-                                            ? formatDateID(pickupDate)
-                                            : 'Pilih tanggal'}
-                                    </span>
-                                    {pickupDate && (
-                                        <span
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={handleClearPickup}
-                                            onKeyDown={(event) => {
-                                                if (
-                                                    event.key === 'Enter' ||
-                                                    event.key === ' '
-                                                ) {
-                                                    event.preventDefault();
-                                                    handleClearPickup(
-                                                        event as unknown as React.MouseEvent,
-                                                    );
-                                                }
-                                            }}
-                                            aria-label="Hapus tanggal ambil"
-                                            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <XIcon className="size-4" />
-                                        </span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                align="start"
-                                className="w-[17.5rem] max-w-[calc(100vw-2rem)] p-3 shadow-lg"
-                            >
-                                <Calendar
-                                    mode="single"
-                                    locale={idLocale}
-                                    selected={pickupDate}
-                                    onSelect={handlePickupSelect}
-                                    disabled={{ before: startOfToday() }}
-                                />
-
-                                <div className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                                    <p>
-                                        Pengambilan selalu jam{' '}
-                                        {STORE_PICKUP_TIME}, dihitung mulai
-                                        tanggal berikutnya.
+                    <RentalDateField
+                        label="Tanggal Ambil"
+                        icon={
+                            <CalendarArrowDownIcon
+                                className={cn(
+                                    'text-primary',
+                                    variant === 'compact'
+                                        ? 'size-3 md:size-3.5'
+                                        : 'size-3.5 md:size-4',
+                                )}
+                            />
+                        }
+                        open={pickupOpen}
+                        onOpenChange={setPickupOpen}
+                        selectedDate={pickupDate}
+                        showError={showError}
+                        clearLabel="Hapus tanggal ambil"
+                        onClear={handleClearPickup}
+                        calendar={
+                            <Calendar
+                                mode="single"
+                                locale={idLocale}
+                                selected={pickupDate}
+                                onSelect={handlePickupSelect}
+                                disabled={{ before: startOfToday() }}
+                            />
+                        }
+                        helpContent={
+                            <div className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                <p>
+                                    Pengambilan selalu jam {STORE_PICKUP_TIME},
+                                    dihitung mulai tanggal berikutnya.
+                                </p>
+                                {billingStartDate && (
+                                    <p className="text-foreground">
+                                        Mulai dihitung{' '}
+                                        {formatDateID(billingStartDate)}
                                     </p>
-                                    {billingStartDate && (
-                                        <p className="text-foreground">
-                                            Mulai dihitung{' '}
-                                            {formatDateID(billingStartDate)}
-                                        </p>
-                                    )}
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                                )}
+                            </div>
+                        }
+                        variant={variant}
+                    />
 
                     <span
                         aria-hidden="true"
@@ -244,93 +269,85 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
                 </div>
 
                 <div className="md:pl-3">
-                    <div className="flex flex-col gap-2 rounded-xl px-4 py-4 hover:bg-muted/50 md:px-5 md:py-4">
-                        <div className="flex items-center gap-2 text-left">
-                            <span className="text-sm font-medium text-muted-foreground">
-                                Tanggal Kembali
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <ClockArrowDown className="w-3 text-muted-foreground/50" />
-                                {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
-                            </span>
-                        </div>
+                    <RentalDateField
+                        label="Tanggal Kembali"
+                        icon={
+                            <CalendarArrowUpIcon
+                                className={cn(
+                                    'text-primary',
+                                    variant === 'compact'
+                                        ? 'size-3 md:size-3.5'
+                                        : 'size-3.5 md:size-4',
+                                )}
+                            />
+                        }
+                        open={returnOpen}
+                        onOpenChange={setReturnOpen}
+                        selectedDate={returnDate}
+                        showError={showError}
+                        clearLabel="Hapus tanggal kembali"
+                        onClear={handleClearReturn}
+                        triggerDisabled={!pickupDate}
+                        calendar={
+                            <Calendar
+                                mode="range"
+                                locale={idLocale}
+                                selected={range}
+                                onSelect={handleReturnSelect}
+                                disabled={{ before: startOfToday() }}
+                            />
+                        }
+                        helpContent={
+                            <p className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                Pengembalian maksimal pukul {STORE_RETURN_TIME}{' '}
+                                pada tanggal kembali. Klik tanggal lain untuk
+                                mengubah awal atau akhir sewa.
+                            </p>
+                        }
+                        variant={variant}
+                    />
+                </div>
 
-                        <Popover open={returnOpen} onOpenChange={setReturnOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    disabled={!pickupDate}
-                                    className="group h-11 w-full justify-start gap-4 px-0 text-base font-medium text-foreground hover:bg-transparent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <span className="flex shrink-0 items-center justify-center">
-                                        <CalendarArrowUpIcon className="size-4 text-primary" />
-                                    </span>
-                                    <span className="flex-1 text-left">
-                                        {returnDate
-                                            ? formatDateID(returnDate)
-                                            : 'Pilih tanggal'}
-                                    </span>
-                                    {returnDate && (
-                                        <span
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={handleClearReturn}
-                                            onKeyDown={(event) => {
-                                                if (
-                                                    event.key === 'Enter' ||
-                                                    event.key === ' '
-                                                ) {
-                                                    event.preventDefault();
-                                                    handleClearReturn(
-                                                        event as unknown as React.MouseEvent,
-                                                    );
-                                                }
-                                            }}
-                                            aria-label="Hapus tanggal kembali"
-                                            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <XIcon className="size-4" />
-                                        </span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                align="start"
-                                className="w-[17.5rem] max-w-[calc(100vw-2rem)] p-3 shadow-lg"
-                            >
-                                <Calendar
-                                    mode="range"
-                                    locale={idLocale}
-                                    selected={range}
-                                    onSelect={handleReturnSelect}
-                                    disabled={{ before: startOfToday() }}
-                                />
-
-                                <p className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                                    Pengembalian maksimal pukul{' '}
-                                    {STORE_RETURN_TIME} pada tanggal kembali.
-                                    Klik tanggal lain untuk mengubah awal atau
-                                    akhir sewa.
-                                </p>
-                            </PopoverContent>
-                        </Popover>
+                {!hideButton && (
+                    <div className="flex items-center md:pl-2">
+                        <Button
+                            className={cn(
+                                'w-full rounded-full',
+                                variant === 'compact'
+                                    ? 'h-9 text-xs md:h-10 md:w-auto md:min-w-24 md:px-4 md:text-sm'
+                                    : 'h-11 text-sm md:h-14 md:w-auto md:min-w-32 md:px-6 md:text-base',
+                            )}
+                            onClick={handleSearch}
+                        >
+                            <SearchIcon
+                                className={variant === 'compact' ? 'size-3.5' : 'size-4'}
+                            />
+                            Cek
+                        </Button>
                     </div>
-                </div>
-
-                <div className="flex items-center md:pl-2">
-                    <Button
-                        className="h-14 w-full rounded-xl text-base md:h-15 md:w-auto md:min-w-40 md:px-8"
-                        onClick={handleSearch}
-                    >
-                        <SearchIcon />
-                        Cek
-                    </Button>
-                </div>
+                )}
 
                 {totalDays && billingStartDate && returnDate && (
-                    <div className="col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-accent px-2 py-3 pr-10 text-xs text-muted-foreground md:col-span-3 md:px-3 md:pr-12">
-                        <div className="inline-flex items-center gap-1 rounded-lg bg-destructive/10 px-3 py-1 text-sm font-semibold text-destructive">
-                            <RefreshCwIcon className="hidden size-3 md:inline" />
+                    <div
+                        className={cn(
+                            'flex flex-wrap items-center gap-2 rounded-lg bg-accent text-muted-foreground',
+                            hideButton ? 'col-span-full md:col-span-2' : 'col-span-full md:col-span-3',
+                            variant === 'compact'
+                                ? 'px-2 py-1.5 text-[10px] md:px-2.5 md:py-2 md:text-xs'
+                                : 'px-2 py-2 text-xs md:px-3 md:py-3',
+                        )}
+                    >
+                        <div
+                            className={cn(
+                                'inline-flex items-center gap-1 rounded-lg bg-destructive/10 font-semibold text-destructive',
+                                variant === 'compact'
+                                    ? 'px-1.5 py-0.5 text-[10px] md:px-2 md:py-0.5 md:text-xs'
+                                    : 'px-2 py-0.5 text-xs md:px-3 md:py-1 md:text-sm',
+                            )}
+                        >
+                            <RefreshCwIcon
+                                className={variant === 'compact' ? 'size-2.5' : 'size-3'}
+                            />
                             <span>{totalDays} Hari</span>
                         </div>
                         <span>
@@ -338,7 +355,6 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
                             <span className="text-primary italic">
                                 {formatDateID(returnDate)}
                             </span>{' '}
-                            {' '}
                             <span className="text-primary italic">
                                 {STORE_RETURN_TIME}
                             </span>
@@ -347,5 +363,157 @@ export function RentalRange({ onSearch, className }: RentalRangeProps) {
                 )}
             </div>
         </Card>
+    );
+}
+
+type RentalDateFieldProps = {
+    label: string;
+    icon: ReactNode;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    selectedDate?: Date;
+    showError: boolean;
+    clearLabel: string;
+    onClear: (event: React.MouseEvent) => void;
+    calendar: ReactNode;
+    helpContent: ReactNode;
+    triggerDisabled?: boolean;
+    variant?: 'default' | 'compact';
+};
+
+function RentalDateField({
+    label,
+    icon,
+    open,
+    onOpenChange,
+    selectedDate,
+    showError,
+    clearLabel,
+    onClear,
+    calendar,
+    helpContent,
+    triggerDisabled = false,
+    variant = 'default',
+}: RentalDateFieldProps) {
+    return (
+        <div
+            className={cn(
+                'flex flex-col rounded-lg hover:bg-muted/30',
+                variant === 'compact'
+                    ? 'gap-1 px-1.5 py-1.5 md:gap-1.5 md:px-2 md:py-2'
+                    : 'gap-1.5 px-2 py-2 md:gap-2 md:rounded-xl md:px-4 md:py-3 md:hover:bg-muted/50',
+            )}
+        >
+            <div className="flex items-center gap-2 text-left">
+                <span
+                    className={cn(
+                        'font-medium text-muted-foreground',
+                        variant === 'compact'
+                            ? 'text-[10px] md:text-xs'
+                            : 'text-xs md:text-sm',
+                    )}
+                >
+                    {label}
+                </span>
+
+                <span
+                    className={cn(
+                        'flex items-center gap-1 text-muted-foreground',
+                        variant === 'compact'
+                            ? 'text-[9px] md:text-[10px]'
+                            : 'text-xs',
+                    )}
+                >
+                    <ClockArrowDown
+                        className={cn(
+                            'text-muted-foreground/50',
+                            variant === 'compact' ? 'w-2 md:w-2.5' : 'w-2.5 md:w-3',
+                        )}
+                    />
+                    <span>
+                        {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
+                    </span>
+                </span>
+            </div>
+
+            <Popover open={open} onOpenChange={onOpenChange}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        disabled={triggerDisabled}
+                        className={cn(
+                            'group w-full justify-start gap-2 px-0 font-medium text-foreground hover:bg-transparent hover:text-foreground',
+                            variant === 'compact'
+                                ? 'h-7 text-[11px] md:h-8 md:text-xs'
+                                : 'h-8 text-sm md:h-11 md:gap-4 md:text-base',
+                            triggerDisabled &&
+                            'disabled:cursor-not-allowed disabled:opacity-60',
+                        )}
+                    >
+                        <span className="flex shrink-0 items-center justify-center">
+                            {icon}
+                        </span>
+                        <span
+                            className={cn(
+                                'flex-1 text-left',
+                                !selectedDate && showError && 'text-primary',
+                            )}
+                        >
+                            {selectedDate
+                                ? formatDateID(selectedDate)
+                                : 'Pilih tanggal'}
+                        </span>
+                        {selectedDate && (
+                            <ClearDateButton
+                                label={clearLabel}
+                                onClick={onClear}
+                                variant={variant}
+                            />
+                        )}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                    align="start"
+                    className="w-[17.5rem] max-w-[calc(100vw-2rem)] p-3 shadow-lg"
+                >
+                    {calendar}
+                    {helpContent}
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+}
+
+function dateKey(date?: Date): string | undefined {
+    return date?.toLocaleDateString('en-CA');
+}
+
+function ClearDateButton({
+    label,
+    onClick,
+    variant = 'default',
+}: {
+    label: string;
+    onClick: (event: React.MouseEvent) => void;
+    variant?: 'default' | 'compact';
+}) {
+    return (
+        <span
+            role="button"
+            tabIndex={0}
+            onClick={onClick}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClick(event as unknown as React.MouseEvent);
+                }
+            }}
+            aria-label={label}
+            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
+        >
+            <XIcon
+                className={variant === 'compact' ? 'size-2.5 md:size-3' : 'size-3 md:size-4'}
+            />
+        </span>
     );
 }

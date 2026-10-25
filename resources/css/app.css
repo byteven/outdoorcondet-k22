@@ -15,6 +15,7 @@
     --radius-sm: calc(var(--radius) - 4px);
 
     --color-background: var(--background);
+    --color-surface: var(--surface);
     --color-foreground: var(--foreground);
 
     --color-card: var(--card);
@@ -47,7 +48,7 @@
     --color-warning: #b45309;
     --color-warning-muted: #fef3c7;
 
-    --color-border: #d1d5db;
+    --color-border: #e5e7eb;
     --color-input: #d1d5db;
     --color-ring: #c21c24;
 
@@ -70,6 +71,7 @@
 :root {
     --background: #ffffff;
     --foreground: #111827;
+    --surface: #fbfbfc;
     --card: #ffffff;
     --card-foreground: #111827;
     --popover: #ffffff;
@@ -90,7 +92,7 @@
     --info-muted: #dbeafe;
     --warning: #b45309;
     --warning-muted: #fef3c7;
-    --border: #d1d5db;
+    --border: #e5e7eb;
     --input: #d1d5db;
     --ring: #c21c24;
     --chart-1: #6366f1;

@@ -73,5 +73,11 @@ class DatabaseSeeder extends Seeder
                 ],
             );
         }
+
+        $this->call([
+            ProductSeeder::class,
+            PackageSeeder::class,
+            RentalTestSeeder::class,
+        ]);
     }
 }

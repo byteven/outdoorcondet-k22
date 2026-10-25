@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\BuildsCatalogPayloads;
 use App\Models\Category;
 use App\Models\Package;
-use App\Models\PackageItem;
 use App\Models\Product;
 use App\Services\AvailabilityService;
 use Carbon\Carbon;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LandingController extends Controller
 {
+    use BuildsCatalogPayloads;
+
     private const TABS = ['alat', 'bundle'];
 
     private const DEFAULT_TAB = 'alat';
@@ -30,7 +30,7 @@ class LandingController extends Controller
      */
     public function index(Request $request): Response
     {
-        $filters = $this->filters($request);
+        $filters = $this->landingFilters($request);
 
         return Inertia::render('landing', [
             'filters' => [
@@ -62,15 +62,13 @@ class LandingController extends Controller
      */
     private function catalog(array $filters): array
     {
-        $pickupDate = $filters['pickup'];
-        $returnDate = $filters['return'];
+        $availability = $this->resolveAvailability(
+            $filters['pickup'],
+            $filters['return'],
+        );
 
-        $availability = ($pickupDate && $returnDate)
-            ? app(AvailabilityService::class)
-            : null;
-
-        $products = $this->products($filters, $availability, $pickupDate, $returnDate);
-        $packages = $this->packages($filters, $availability, $pickupDate, $returnDate);
+        $products = $this->products($filters, $availability);
+        $packages = $this->packages($filters, $availability);
 
         return [
             'categories' => $this->categories(),
@@ -87,10 +85,11 @@ class LandingController extends Controller
      *
      * @return array{tab: string, search: string, category: int|null, page: int, per_page: int, pickup: Carbon|null, return: Carbon|null}
      */
-    private function filters(Request $request): array
+    private function landingFilters(Request $request): array
     {
         $tab = (string) $request->input('tab', self::DEFAULT_TAB);
         $category = $request->input('category');
+        $range = $this->resolveRentalRange($request);
 
         return [
             'tab' => in_array($tab, self::TABS, true) ? $tab : self::DEFAULT_TAB,
@@ -101,29 +100,19 @@ class LandingController extends Controller
                 self::MAX_PER_PAGE,
                 max(self::DEFAULT_PER_PAGE, (int) $request->input('per_page', self::DEFAULT_PER_PAGE)),
             ),
-            'pickup' => $this->parseDate($request->input('pickup_date')),
-            'return' => $this->parseDate($request->input('return_date')),
+            'pickup' => $range['pickup'],
+            'return' => $range['return'],
         ];
     }
 
     /**
-     * Parse a Y-m-d request value into a Carbon instance, or null when invalid.
+     * Instantiate the availability service only when a full range is present.
      */
-    private function parseDate(mixed $value): ?Carbon
+    private function resolveAvailability(?Carbon $pickupDate, ?Carbon $returnDate): ?AvailabilityService
     {
-        if (! is_string($value) || ! Carbon::hasFormat($value, 'Y-m-d')) {
-            return null;
-        }
-
-        return Carbon::parse($value);
-    }
-
-    /**
-     * Escape user input so it cannot inject LIKE wildcards.
-     */
-    private function likePattern(string $search): string
-    {
-        return '%'.addcslashes($search, '\\%_').'%';
+        return ($pickupDate && $returnDate)
+            ? app(AvailabilityService::class)
+            : null;
     }
 
     /**
@@ -160,12 +149,8 @@ class LandingController extends Controller
      *     pagination: array{current_page: int, last_page: int, per_page: int, total: int, from: int|null, to: int|null}
      * }
      */
-    private function packages(
-        array $filters,
-        ?AvailabilityService $availability,
-        ?Carbon $pickupDate,
-        ?Carbon $returnDate,
-    ): array {
+    private function packages(array $filters, ?AvailabilityService $availability): array
+    {
         $query = Package::query()
             ->where('is_active', true)
             ->with([
@@ -188,11 +173,9 @@ class LandingController extends Controller
 
         return [
             'packages' => collect($paginated->items())
-                ->map(fn (Package $package): array => $this->packagePayload(
+                ->map(fn (Package $package): array => $this->packageCardPayload(
                     $package,
-                    $availability,
-                    $pickupDate,
-                    $returnDate,
+                    $this->availableForPackage($package, $availability, $filters['pickup'], $filters['return']),
                 ))
                 ->values()
                 ->all(),
@@ -209,12 +192,8 @@ class LandingController extends Controller
      *     pagination: array{current_page: int, last_page: int, per_page: int, total: int, from: int|null, to: int|null}
      * }
      */
-    private function products(
-        array $filters,
-        ?AvailabilityService $availability,
-        ?Carbon $pickupDate,
-        ?Carbon $returnDate,
-    ): array {
+    private function products(array $filters, ?AvailabilityService $availability): array
+    {
         $query = Product::query()
             ->where('is_active', true)
             ->whereHas('variants', fn (Builder $query) => $query->where('is_active', true))
@@ -241,25 +220,11 @@ class LandingController extends Controller
 
         $paginated = $query->paginate($filters['per_page'], ['*'], 'page', $filters['page']);
 
-        $variantIds = collect($paginated->items())
-            ->flatMap(fn (Product $product) => $product->variants->pluck('id'))
-            ->all();
-
-        $variantAvailability = [];
-        if ($availability && $variantIds !== []) {
-            $variantAvailability = $availability->batchAvailableStock(
-                $variantIds,
-                $pickupDate,
-                $returnDate,
-            );
-        }
-
         return [
             'products' => collect($paginated->items())
-                ->map(fn (Product $product): array => $this->productPayload(
+                ->map(fn (Product $product): array => $this->productCardPayload(
                     $product,
-                    $availability,
-                    $variantAvailability,
+                    $this->availableForProduct($product, $availability, $filters['pickup'], $filters['return']),
                 ))
                 ->values()
                 ->all(),
@@ -268,96 +233,18 @@ class LandingController extends Controller
     }
 
     /**
-     * Map a package into the payload consumed by the landing page.
-     *
-     * @return array<string, mixed>
+     * Available package stock = the limiting item's availability.
      */
-    private function packagePayload(
+    private function availableForPackage(
         Package $package,
         ?AvailabilityService $availability,
         ?Carbon $pickupDate,
         ?Carbon $returnDate,
-    ): array {
-        $available = $availability && $pickupDate && $returnDate
-            ? $availability->availablePackageStock($package->id, $pickupDate, $returnDate)
-            : null;
+    ): ?int {
+        if (! $availability || ! $pickupDate || ! $returnDate) {
+            return null;
+        }
 
-        return [
-            'id' => $package->id,
-            'name' => $package->name,
-            'description' => $package->description,
-            'image' => $package->image_path,
-            'daily_price' => (float) $package->daily_price,
-            'deposit_per_package' => (float) $package->deposit_per_package,
-            'item_count' => $package->items->count(),
-            'available' => $available,
-            'items' => $package->items
-                ->map(fn (PackageItem $item): array => [
-                    'name' => $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
-                    'quantity' => $item->quantity,
-                ])
-                ->values()
-                ->all(),
-        ];
-    }
-
-    /**
-     * Map a product into the payload consumed by the landing page.
-     *
-     * @param  array<int, int>  $variantAvailability
-     * @return array<string, mixed>
-     */
-    private function productPayload(
-        Product $product,
-        ?AvailabilityService $availability,
-        array $variantAvailability,
-    ): array {
-        $totalStock = (int) $product->variants->sum('stock');
-
-        $available = $availability
-            ? (int) $product->variants->sum(fn ($variant) => $variantAvailability[$variant->id] ?? 0)
-            : ($totalStock > 0 ? $totalStock : null);
-
-        return [
-            'id' => $product->id,
-            'name' => $product->name,
-            'description' => $product->description,
-            'category' => $product->category ? [
-                'id' => $product->category->id,
-                'name' => $product->category->name,
-            ] : null,
-            'image' => $this->primaryImage($product->images),
-            'daily_price' => (float) ($product->variants->min('rental_price_per_day') ?? 0),
-            'deposit_per_unit' => (float) ($product->variants->min('deposit_per_unit') ?? 0),
-            'stock' => $totalStock,
-            'available' => $available,
-        ];
-    }
-
-    /**
-     * Path of the primary product image, falling back to the first image.
-     */
-    private function primaryImage(Collection $images): ?string
-    {
-        $image = $images->firstWhere('is_primary', true) ?? $images->first();
-
-        return $image?->image_path;
-    }
-
-    /**
-     * Shared pagination metadata for both tab payloads.
-     *
-     * @return array{current_page: int, last_page: int, per_page: int, total: int, from: int|null, to: int|null}
-     */
-    private function paginationPayload(LengthAwarePaginator $paginated): array
-    {
-        return [
-            'current_page' => $paginated->currentPage(),
-            'last_page' => $paginated->lastPage(),
-            'per_page' => $paginated->perPage(),
-            'total' => $paginated->total(),
-            'from' => $paginated->firstItem(),
-            'to' => $paginated->lastItem(),
-        ];
+        return $availability->availablePackageStock($package->id, $pickupDate, $returnDate);
     }
 }

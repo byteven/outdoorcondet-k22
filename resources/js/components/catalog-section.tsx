@@ -9,11 +9,13 @@ import {
     XIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { CatalogCard } from '@/components/catalog-card';
 import { DataTablePagination } from '@/components/data-table-pagination';
 import { EmptyState } from '@/components/empty-state';
-import { formatRupiah } from '@/components/product-shared';
 import { SearchInput } from '@/components/search-input';
 import { Button } from '@/components/ui/button';
+import { show as showPackage } from '@/routes/packages';
+import { show as showProduct } from '@/routes/products';
 import {
     Dialog,
     DialogContent,
@@ -32,6 +34,7 @@ export type CatalogCategory = {
 export type CatalogProduct = {
     id: number;
     name: string;
+    slug: string;
     description: string | null;
     category: CatalogCategory | null;
     image: string | null;
@@ -49,6 +52,7 @@ export type CatalogPackageItem = {
 export type CatalogPackage = {
     id: number;
     name: string;
+    slug: string;
     description: string | null;
     image: string | null;
     daily_price: number;
@@ -193,7 +197,7 @@ export function CatalogSection({
 
     return (
         <div>
-            <div className="mt-8 flex md:w-fit w-full items-center justify-evenly gap-1 rounded-full border border-border bg-background p-2">
+            <div className="mt-8 flex w-full items-center justify-evenly gap-1 rounded-full border border-border bg-background p-2 md:w-fit">
                 <TabButton
                     active={filters.tab === 'alat'}
                     icon={<BoxIcon className="size-4" />}
@@ -240,6 +244,9 @@ export function CatalogSection({
                     renderItem={(product) => (
                         <CatalogCard
                             key={product.id}
+                            href={showProduct.url({
+                                productSlug: product.slug,
+                            })}
                             image={product.image}
                             name={product.name}
                             dailyPrice={product.daily_price}
@@ -265,6 +272,9 @@ export function CatalogSection({
                     renderItem={(pkg) => (
                         <CatalogCard
                             key={pkg.id}
+                            href={showPackage.url({
+                                packageSlug: pkg.slug,
+                            })}
                             image={pkg.image}
                             name={pkg.name}
                             dailyPrice={pkg.daily_price}
@@ -633,7 +643,7 @@ function TabButton({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                'flex cursor-pointer w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
+                'flex w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
                 active
                     ? 'bg-primary text-background'
                     : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
@@ -670,79 +680,6 @@ function CategoryPill({
             {children}
             {active && <XIcon className="size-3.5" strokeWidth={2.5} />}
         </button>
-    );
-}
-
-type CatalogCardProps = {
-    image: string | null;
-    name: string;
-    dailyPrice: number;
-    badge?: string;
-    available?: number | null;
-    stock?: number;
-    fallbackIcon: ReactNode;
-};
-
-function CatalogCard({
-    image,
-    name,
-    dailyPrice,
-    badge,
-    available,
-    stock,
-    fallbackIcon,
-}: CatalogCardProps) {
-    const isUnavailable = available === 0 || stock === 0;
-
-    return (
-        <article
-            className={cn(
-                'group flex flex-col overflow-hidden rounded-[1.25rem] border border-border/20 bg-card p-2 transition-opacity',
-                isUnavailable && 'opacity-50',
-            )}
-        >
-            <div className="relative aspect-[4/3] cursor-pointer overflow-hidden rounded-[1rem] bg-muted">
-                {image ? (
-                    <img
-                        src={`/storage/${image}`}
-                        alt={name}
-                        loading="lazy"
-                        className={cn(
-                            'size-full object-cover transition-all',
-                            isUnavailable && 'grayscale',
-                        )}
-                    />
-                ) : (
-                    <div className="flex size-full items-center justify-center">
-                        {fallbackIcon}
-                    </div>
-                )}
-
-                {isUnavailable && (
-                    <span className="absolute bottom-3 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-white">
-                        Tidak Tersedia
-                    </span>
-                )}
-            </div>
-
-            <div className="flex flex-1 flex-col gap-1.5 px-2 pt-2.5 pb-2">
-                <div className="flex flex-col">
-                    {badge && (
-                        <span className="w-fit shrink-0 rounded-full py-0.5 text-[10px] font-medium text-muted-foreground">
-                            {badge}
-                        </span>
-                    )}
-                    <h3 className="line-clamp-1 font-semibold">{name}</h3>
-                </div>
-                <p className="text-sm font-semibold text-primary">
-                    {formatRupiah(dailyPrice)}
-                    <span className="text-xs font-normal text-muted-foreground">
-                        {' '}
-                        / hari
-                    </span>
-                </p>
-            </div>
-        </article>
     );
 }
 

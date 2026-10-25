@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { MenuIcon, ShoppingCartIcon, UserRoundIcon } from 'lucide-react';
+import { useCartCount } from '@/hooks/use-cart-count';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -86,15 +87,25 @@ function UserActions({ user }: { user: User }) {
 }
 
 function CartButton() {
+    const count = useCartCount();
+
     return (
         <Button
             variant="ghost"
             size="icon"
-            className="size-10 rounded-full"
+            className="relative size-10 rounded-full"
             aria-label="Keranjang"
             title="Keranjang"
         >
             <ShoppingCartIcon className="size-5" />
+            {count > 0 && (
+                <span
+                    className="absolute -top-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white"
+                    aria-label={`${count} item di keranjang`}
+                >
+                    {count > 9 ? '9+' : count}
+                </span>
+            )}
         </Button>
     );
 }

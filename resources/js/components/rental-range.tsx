@@ -39,6 +39,7 @@ type RentalRangeProps = {
     initialPickupDate?: Date;
     initialReturnDate?: Date;
     className?: string;
+    variant?: 'default' | 'compact';
 };
 
 type DateRange = {
@@ -56,6 +57,7 @@ export function RentalRange({
     initialPickupDate,
     initialReturnDate,
     className,
+    variant = 'default',
 }: RentalRangeProps) {
     const [pickupOpen, setPickupOpen] = useState(false);
     const [returnOpen, setReturnOpen] = useState(false);
@@ -153,16 +155,33 @@ export function RentalRange({
     return (
         <Card
             className={cn(
-                'relative gap-0 overflow-hidden rounded-2xl border-none bg-card p-3 shadow-lg',
+                'relative gap-0 overflow-hidden bg-card',
+                variant === 'compact'
+                    ? 'rounded-lg border border-border p-2 shadow-none'
+                    : 'rounded-xl border-none p-2 shadow-md md:rounded-2xl md:p-3 md:shadow-lg',
                 className,
             )}
         >
-            <div className="grid gap-y-3 md:grid-cols-[1fr_1fr_auto]">
+            <div
+                className={cn(
+                    'grid gap-y-2',
+                    variant === 'compact'
+                        ? 'md:grid-cols-[1fr_1fr_auto] md:gap-y-2'
+                        : 'md:grid-cols-[1fr_1fr_auto] md:gap-y-3',
+                )}
+            >
                 <div className="relative md:pr-3">
                     <RentalDateField
                         label="Tanggal Ambil"
                         icon={
-                            <CalendarArrowDownIcon className="size-4 text-primary" />
+                            <CalendarArrowDownIcon
+                                className={cn(
+                                    'text-primary',
+                                    variant === 'compact'
+                                        ? 'size-3 md:size-3.5'
+                                        : 'size-3.5 md:size-4',
+                                )}
+                            />
                         }
                         open={pickupOpen}
                         onOpenChange={setPickupOpen}
@@ -193,6 +212,7 @@ export function RentalRange({
                                 )}
                             </div>
                         }
+                        variant={variant}
                     />
 
                     <span
@@ -205,7 +225,14 @@ export function RentalRange({
                     <RentalDateField
                         label="Tanggal Kembali"
                         icon={
-                            <CalendarArrowUpIcon className="size-4 text-primary" />
+                            <CalendarArrowUpIcon
+                                className={cn(
+                                    'text-primary',
+                                    variant === 'compact'
+                                        ? 'size-3 md:size-3.5'
+                                        : 'size-3.5 md:size-4',
+                                )}
+                            />
                         }
                         open={returnOpen}
                         onOpenChange={setReturnOpen}
@@ -230,23 +257,47 @@ export function RentalRange({
                                 mengubah awal atau akhir sewa.
                             </p>
                         }
+                        variant={variant}
                     />
                 </div>
 
                 <div className="flex items-center md:pl-2">
                     <Button
-                        className="h-14 w-full rounded-full text-base md:h-15 md:w-auto md:min-w-40 md:px-8"
+                        className={cn(
+                            'w-full rounded-full',
+                            variant === 'compact'
+                                ? 'h-9 text-xs md:h-10 md:w-auto md:min-w-24 md:px-4 md:text-sm'
+                                : 'h-11 text-sm md:h-14 md:w-auto md:min-w-32 md:px-6 md:text-base',
+                        )}
                         onClick={handleSearch}
                     >
-                        <SearchIcon />
+                        <SearchIcon
+                            className={variant === 'compact' ? 'size-3.5' : 'size-4'}
+                        />
                         Cek
                     </Button>
                 </div>
 
                 {totalDays && billingStartDate && returnDate && (
-                    <div className="col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-accent px-2 py-3 pr-10 text-xs text-muted-foreground md:col-span-3 md:px-3 md:pr-12">
-                        <div className="inline-flex items-center gap-1 rounded-lg bg-destructive/10 px-3 py-1 text-sm font-semibold text-destructive">
-                            <RefreshCwIcon className="hidden size-3 md:inline" />
+                    <div
+                        className={cn(
+                            'col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-accent text-muted-foreground md:col-span-3',
+                            variant === 'compact'
+                                ? 'px-2 py-1.5 text-[10px] md:px-2.5 md:py-2 md:text-xs'
+                                : 'px-2 py-2 text-xs md:px-3 md:py-3',
+                        )}
+                    >
+                        <div
+                            className={cn(
+                                'inline-flex items-center gap-1 rounded-lg bg-destructive/10 font-semibold text-destructive',
+                                variant === 'compact'
+                                    ? 'px-1.5 py-0.5 text-[10px] md:px-2 md:py-0.5 md:text-xs'
+                                    : 'px-2 py-0.5 text-xs md:px-3 md:py-1 md:text-sm',
+                            )}
+                        >
+                            <RefreshCwIcon
+                                className={variant === 'compact' ? 'size-2.5' : 'size-3'}
+                            />
                             <span>{totalDays} Hari</span>
                         </div>
                         <span>
@@ -277,6 +328,7 @@ type RentalDateFieldProps = {
     calendar: ReactNode;
     helpContent: ReactNode;
     triggerDisabled?: boolean;
+    variant?: 'default' | 'compact';
 };
 
 function RentalDateField({
@@ -291,17 +343,46 @@ function RentalDateField({
     calendar,
     helpContent,
     triggerDisabled = false,
+    variant = 'default',
 }: RentalDateFieldProps) {
     return (
-        <div className="flex flex-col gap-2 rounded-xl px-4 py-4 hover:bg-muted/50 md:px-5 md:py-4">
+        <div
+            className={cn(
+                'flex flex-col rounded-lg hover:bg-muted/30',
+                variant === 'compact'
+                    ? 'gap-1 px-1.5 py-1.5 md:gap-1.5 md:px-2 md:py-2'
+                    : 'gap-1.5 px-2 py-2 md:gap-2 md:rounded-xl md:px-4 md:py-3 md:hover:bg-muted/50',
+            )}
+        >
             <div className="flex items-center gap-2 text-left">
-                <span className="text-sm font-medium text-muted-foreground">
+                <span
+                    className={cn(
+                        'font-medium text-muted-foreground',
+                        variant === 'compact'
+                            ? 'text-[10px] md:text-xs'
+                            : 'text-xs md:text-sm',
+                    )}
+                >
                     {label}
                 </span>
 
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <ClockArrowDown className="w-3 text-muted-foreground/50" />
-                    {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
+                <span
+                    className={cn(
+                        'flex items-center gap-1 text-muted-foreground',
+                        variant === 'compact'
+                            ? 'text-[9px] md:text-[10px]'
+                            : 'text-xs',
+                    )}
+                >
+                    <ClockArrowDown
+                        className={cn(
+                            'text-muted-foreground/50',
+                            variant === 'compact' ? 'w-2 md:w-2.5' : 'w-2.5 md:w-3',
+                        )}
+                    />
+                    <span>
+                        {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
+                    </span>
                 </span>
             </div>
 
@@ -311,9 +392,12 @@ function RentalDateField({
                         variant="ghost"
                         disabled={triggerDisabled}
                         className={cn(
-                            'group h-11 w-full justify-start gap-4 px-0 text-base font-medium text-foreground hover:bg-transparent hover:text-foreground',
+                            'group w-full justify-start gap-2 px-0 font-medium text-foreground hover:bg-transparent hover:text-foreground',
+                            variant === 'compact'
+                                ? 'h-7 text-[11px] md:h-8 md:text-xs'
+                                : 'h-8 text-sm md:h-11 md:gap-4 md:text-base',
                             triggerDisabled &&
-                                'disabled:cursor-not-allowed disabled:opacity-60',
+                            'disabled:cursor-not-allowed disabled:opacity-60',
                         )}
                     >
                         <span className="flex shrink-0 items-center justify-center">
@@ -333,6 +417,7 @@ function RentalDateField({
                             <ClearDateButton
                                 label={clearLabel}
                                 onClick={onClear}
+                                variant={variant}
                             />
                         )}
                     </Button>
@@ -352,9 +437,11 @@ function RentalDateField({
 function ClearDateButton({
     label,
     onClick,
+    variant = 'default',
 }: {
     label: string;
     onClick: (event: React.MouseEvent) => void;
+    variant?: 'default' | 'compact';
 }) {
     return (
         <span
@@ -370,7 +457,9 @@ function ClearDateButton({
             aria-label={label}
             className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
         >
-            <XIcon className="size-4" />
+            <XIcon
+                className={variant === 'compact' ? 'size-2.5 md:size-3' : 'size-3 md:size-4'}
+            />
         </span>
     );
 }

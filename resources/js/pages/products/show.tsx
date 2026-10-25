@@ -84,7 +84,7 @@ export default function CatalogDetailPage({
     filters,
     related,
 }: Props) {
-    const { dates: storedDates, saveDates } = useRentalDates();
+    const { dates: storedDates, saveDates, clearDates } = useRentalDates();
     const isBundle = detail.type === 'bundle';
     const bundle = detail.type === 'bundle' ? detail : null;
     const product = detail.type === 'alat' ? detail : null;
@@ -159,9 +159,11 @@ export default function CatalogDetailPage({
     }, [bundle, product]);
 
     const handleRangeChange = (params: RentalRangeParams) => {
-        // Save to localStorage for syncing
+        // Save to localStorage for syncing, or clear if dates removed
         if (params.pickupDate && params.returnDate) {
             saveDates(params.pickupDate, params.returnDate);
+        } else {
+            clearDates();
         }
 
         router.get(

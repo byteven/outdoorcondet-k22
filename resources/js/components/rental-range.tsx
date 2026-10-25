@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { startOfToday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
@@ -50,8 +51,6 @@ type PickedRange = {
     to?: Date;
 };
 
-
-
 export function RentalRange({
     onSearch,
     initialPickupDate,
@@ -66,7 +65,6 @@ export function RentalRange({
             : undefined,
     );
     const [showError, setShowError] = useState(false);
-
 
     const pickupDate = range?.from;
     const returnDate = range?.to;
@@ -135,20 +133,20 @@ export function RentalRange({
         });
     };
 
-    const handleClearPickup = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleClearPickup = (event: React.MouseEvent) => {
+        event.stopPropagation();
         setRange(undefined);
-        // Clear URL by calling onSearch with no dates
         onSearch?.({});
     };
 
-    const handleClearReturn = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleClearReturn = (event: React.MouseEvent) => {
+        event.stopPropagation();
+
         if (!range?.from) {
             return;
         }
+
         setRange({ from: range.from });
-        // Clear URL by calling onSearch with no dates
         onSearch?.({});
     };
 
@@ -161,87 +159,41 @@ export function RentalRange({
         >
             <div className="grid gap-y-3 md:grid-cols-[1fr_1fr_auto]">
                 <div className="relative md:pr-3">
-                    <div className="flex flex-col gap-2 rounded-xl px-4 py-4 hover:bg-muted/50 md:px-5 md:py-4">
-                        <div className="flex items-center gap-2 text-left">
-                            <span className="text-sm font-medium text-muted-foreground">
-                                Tanggal Ambil
-                            </span>
-
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <ClockArrowDown className="w-3 text-muted-foreground/50" />
-                                {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
-                            </span>
-                        </div>
-
-                        <Popover open={pickupOpen} onOpenChange={setPickupOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    className="group h-11 w-full justify-start gap-4 px-0 text-base font-medium text-foreground hover:bg-transparent hover:text-foreground"
-                                >
-                                    <span className="flex shrink-0 items-center justify-center">
-                                        <CalendarArrowDownIcon className="size-4 text-primary" />
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'flex-1 text-left',
-                                            !pickupDate && showError && 'text-primary',
-                                        )}
-                                    >
-                                        {pickupDate ? formatDateID(pickupDate) : 'Pilih tanggal'}
-                                    </span>
-                                    {pickupDate && (
-                                        <span
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={handleClearPickup}
-                                            onKeyDown={(event) => {
-                                                if (
-                                                    event.key === 'Enter' ||
-                                                    event.key === ' '
-                                                ) {
-                                                    event.preventDefault();
-                                                    handleClearPickup(
-                                                        event as unknown as React.MouseEvent,
-                                                    );
-                                                }
-                                            }}
-                                            aria-label="Hapus tanggal ambil"
-                                            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <XIcon className="size-4" />
-                                        </span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                align="start"
-                                className="w-[17.5rem] max-w-[calc(100vw-2rem)] p-3 shadow-lg"
-                            >
-                                <Calendar
-                                    mode="single"
-                                    locale={idLocale}
-                                    selected={pickupDate}
-                                    onSelect={handlePickupSelect}
-                                    disabled={{ before: startOfToday() }}
-                                />
-
-                                <div className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                                    <p>
-                                        Pengambilan selalu jam{' '}
-                                        {STORE_PICKUP_TIME}, dihitung mulai
-                                        tanggal berikutnya.
+                    <RentalDateField
+                        label="Tanggal Ambil"
+                        icon={
+                            <CalendarArrowDownIcon className="size-4 text-primary" />
+                        }
+                        open={pickupOpen}
+                        onOpenChange={setPickupOpen}
+                        selectedDate={pickupDate}
+                        showError={showError}
+                        clearLabel="Hapus tanggal ambil"
+                        onClear={handleClearPickup}
+                        calendar={
+                            <Calendar
+                                mode="single"
+                                locale={idLocale}
+                                selected={pickupDate}
+                                onSelect={handlePickupSelect}
+                                disabled={{ before: startOfToday() }}
+                            />
+                        }
+                        helpContent={
+                            <div className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                <p>
+                                    Pengambilan selalu jam {STORE_PICKUP_TIME},
+                                    dihitung mulai tanggal berikutnya.
+                                </p>
+                                {billingStartDate && (
+                                    <p className="text-foreground">
+                                        Mulai dihitung{' '}
+                                        {formatDateID(billingStartDate)}
                                     </p>
-                                    {billingStartDate && (
-                                        <p className="text-foreground">
-                                            Mulai dihitung{' '}
-                                            {formatDateID(billingStartDate)}
-                                        </p>
-                                    )}
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                                )}
+                            </div>
+                        }
+                    />
 
                     <span
                         aria-hidden="true"
@@ -250,80 +202,35 @@ export function RentalRange({
                 </div>
 
                 <div className="md:pl-3">
-                    <div className="flex flex-col gap-2 rounded-xl px-4 py-4 hover:bg-muted/50 md:px-5 md:py-4">
-                        <div className="flex items-center gap-2 text-left">
-                            <span className="text-sm font-medium text-muted-foreground">
-                                Tanggal Kembali
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <ClockArrowDown className="w-3 text-muted-foreground/50" />
-                                {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
-                            </span>
-                        </div>
-
-                        <Popover open={returnOpen} onOpenChange={setReturnOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    disabled={!pickupDate}
-                                    className="group h-11 w-full justify-start gap-4 px-0 text-base font-medium text-foreground hover:bg-transparent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <span className="flex shrink-0 items-center justify-center">
-                                        <CalendarArrowUpIcon className="size-4 text-primary" />
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'flex-1 text-left',
-                                            !returnDate && showError && 'text-primary',
-                                        )}
-                                    >
-                                        {returnDate ? formatDateID(returnDate) : 'Pilih tanggal'}
-                                    </span>
-                                    {returnDate && (
-                                        <span
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={handleClearReturn}
-                                            onKeyDown={(event) => {
-                                                if (
-                                                    event.key === 'Enter' ||
-                                                    event.key === ' '
-                                                ) {
-                                                    event.preventDefault();
-                                                    handleClearReturn(
-                                                        event as unknown as React.MouseEvent,
-                                                    );
-                                                }
-                                            }}
-                                            aria-label="Hapus tanggal kembali"
-                                            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <XIcon className="size-4" />
-                                        </span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                align="start"
-                                className="w-[17.5rem] max-w-[calc(100vw-2rem)] p-3 shadow-lg"
-                            >
-                                <Calendar
-                                    mode="range"
-                                    locale={idLocale}
-                                    selected={range}
-                                    onSelect={handleReturnSelect}
-                                    disabled={{ before: startOfToday() }}
-                                />
-
-                                <p className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                                    Pengembalian maksimal pukul{' '}
-                                    {STORE_RETURN_TIME} pada tanggal kembali.
-                                    Klik tanggal lain untuk mengubah awal atau
-                                    akhir sewa.
-                                </p>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                    <RentalDateField
+                        label="Tanggal Kembali"
+                        icon={
+                            <CalendarArrowUpIcon className="size-4 text-primary" />
+                        }
+                        open={returnOpen}
+                        onOpenChange={setReturnOpen}
+                        selectedDate={returnDate}
+                        showError={showError}
+                        clearLabel="Hapus tanggal kembali"
+                        onClear={handleClearReturn}
+                        triggerDisabled={!pickupDate}
+                        calendar={
+                            <Calendar
+                                mode="range"
+                                locale={idLocale}
+                                selected={range}
+                                onSelect={handleReturnSelect}
+                                disabled={{ before: startOfToday() }}
+                            />
+                        }
+                        helpContent={
+                            <p className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                Pengembalian maksimal pukul {STORE_RETURN_TIME}{' '}
+                                pada tanggal kembali. Klik tanggal lain untuk
+                                mengubah awal atau akhir sewa.
+                            </p>
+                        }
+                    />
                 </div>
 
                 <div className="flex items-center md:pl-2">
@@ -347,7 +254,6 @@ export function RentalRange({
                             <span className="text-primary italic">
                                 {formatDateID(returnDate)}
                             </span>{' '}
-                            {' '}
                             <span className="text-primary italic">
                                 {STORE_RETURN_TIME}
                             </span>
@@ -356,5 +262,115 @@ export function RentalRange({
                 )}
             </div>
         </Card>
+    );
+}
+
+type RentalDateFieldProps = {
+    label: string;
+    icon: ReactNode;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    selectedDate?: Date;
+    showError: boolean;
+    clearLabel: string;
+    onClear: (event: React.MouseEvent) => void;
+    calendar: ReactNode;
+    helpContent: ReactNode;
+    triggerDisabled?: boolean;
+};
+
+function RentalDateField({
+    label,
+    icon,
+    open,
+    onOpenChange,
+    selectedDate,
+    showError,
+    clearLabel,
+    onClear,
+    calendar,
+    helpContent,
+    triggerDisabled = false,
+}: RentalDateFieldProps) {
+    return (
+        <div className="flex flex-col gap-2 rounded-xl px-4 py-4 hover:bg-muted/50 md:px-5 md:py-4">
+            <div className="flex items-center gap-2 text-left">
+                <span className="text-sm font-medium text-muted-foreground">
+                    {label}
+                </span>
+
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ClockArrowDown className="w-3 text-muted-foreground/50" />
+                    {STORE_PICKUP_TIME} - {STORE_RETURN_TIME}
+                </span>
+            </div>
+
+            <Popover open={open} onOpenChange={onOpenChange}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        disabled={triggerDisabled}
+                        className={cn(
+                            'group h-11 w-full justify-start gap-4 px-0 text-base font-medium text-foreground hover:bg-transparent hover:text-foreground',
+                            triggerDisabled &&
+                                'disabled:cursor-not-allowed disabled:opacity-60',
+                        )}
+                    >
+                        <span className="flex shrink-0 items-center justify-center">
+                            {icon}
+                        </span>
+                        <span
+                            className={cn(
+                                'flex-1 text-left',
+                                !selectedDate && showError && 'text-primary',
+                            )}
+                        >
+                            {selectedDate
+                                ? formatDateID(selectedDate)
+                                : 'Pilih tanggal'}
+                        </span>
+                        {selectedDate && (
+                            <ClearDateButton
+                                label={clearLabel}
+                                onClick={onClear}
+                            />
+                        )}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                    align="start"
+                    className="w-[17.5rem] max-w-[calc(100vw-2rem)] p-3 shadow-lg"
+                >
+                    {calendar}
+                    {helpContent}
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+}
+
+function ClearDateButton({
+    label,
+    onClick,
+}: {
+    label: string;
+    onClick: (event: React.MouseEvent) => void;
+}) {
+    return (
+        <span
+            role="button"
+            tabIndex={0}
+            onClick={onClick}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClick(event as unknown as React.MouseEvent);
+                }
+            }}
+            aria-label={label}
+            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-foreground"
+        >
+            <XIcon className="size-4" />
+        </span>
     );
 }

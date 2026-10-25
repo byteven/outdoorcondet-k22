@@ -33,7 +33,7 @@ export function DetailAccordion({
     ].filter((section) => section.key !== 'items' || (items?.length ?? 0) > 0);
 
     return (
-        <div className={cn('overflow-hidden rounded-2xl bg-card', className)}>
+        <div className={cn('overflow-hidden rounded-2xl border border-border bg-card', className)}>
             <Accordion sections={sections} />
         </div>
     );

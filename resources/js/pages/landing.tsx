@@ -10,6 +10,7 @@ import { LandingHeader } from '@/components/landing/landing-header';
 import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
 import { SiteFooter } from '@/components/site-footer';
 import { home } from '@/routes';
+import { useRentalDates } from '@/hooks/use-rental-dates';
 
 type RentalSelection = Pick<
     RentalRangeParams,
@@ -28,6 +29,7 @@ export default function Landing({ catalog, filters }: Props) {
         useState<RentalSelection | null>(null);
     const [isCatalogLoading, setIsCatalogLoading] = useState(false);
     const latestFilters = useRef(filters);
+    const { saveDates } = useRentalDates();
     latestFilters.current = filters;
 
     const visitCatalog = (
@@ -68,6 +70,11 @@ export default function Landing({ catalog, filters }: Props) {
         const selection: RentalSelection | null = hasRange
             ? { pickupDate, returnDate, totalDays }
             : null;
+
+        // Save dates to localStorage for syncing with detail page
+        if (hasRange && pickupDate && returnDate) {
+            saveDates(pickupDate, returnDate);
+        }
 
         setRentalSelection(selection);
         visitCatalog({ page: 1 }, selection, hasRange);

@@ -25,6 +25,7 @@ import { home } from '@/routes';
 import { show as showProduct } from '@/routes/products';
 import { show as showPackage } from '@/routes/packages';
 import { cn } from '@/lib/utils';
+import { useRentalDates } from '@/hooks/use-rental-dates';
 
 type DetailCategory = {
     id: number;
@@ -83,6 +84,7 @@ export default function CatalogDetailPage({
     filters,
     related,
 }: Props) {
+    const { dates: storedDates, saveDates } = useRentalDates();
     const isBundle = detail.type === 'bundle';
     const bundle = detail.type === 'bundle' ? detail : null;
     const product = detail.type === 'alat' ? detail : null;
@@ -91,12 +93,12 @@ export default function CatalogDetailPage({
         () => ({
             pickup: filters.pickup_date
                 ? new Date(filters.pickup_date)
-                : undefined,
+                : storedDates?.pickupDate,
             ret: filters.return_date
                 ? new Date(filters.return_date)
-                : undefined,
+                : storedDates?.returnDate,
         }),
-        [filters.pickup_date, filters.return_date],
+        [filters.pickup_date, filters.return_date, storedDates],
     );
 
     const totalDays = useMemo(() => {
@@ -147,10 +149,21 @@ export default function CatalogDetailPage({
             return bundle.daily_price;
         }
 
-        return product?.variants[0]?.daily_price ?? 0;
+        // Get cheapest variant's daily price
+        if (product?.variants && product.variants.length > 0) {
+            const cheapest = cheapestVariantForDuration(product.variants, 1);
+            return cheapest?.unitPrice ?? product.variants[0]?.rental_price_per_day ?? 0;
+        }
+
+        return 0;
     }, [bundle, product]);
 
     const handleRangeChange = (params: RentalRangeParams) => {
+        // Save to localStorage for syncing
+        if (params.pickupDate && params.returnDate) {
+            saveDates(params.pickupDate, params.returnDate);
+        }
+
         router.get(
             routeDetail(detail),
             {
@@ -180,7 +193,7 @@ export default function CatalogDetailPage({
                             name={detail.name}
                         />
 
-                        <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_3fr] lg:gap-10">
+                        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-10">
                             {/* Section Kiri: Gambar */}
                             <div className="flex flex-col gap-6">
                                 <ImageGallery
@@ -208,20 +221,19 @@ export default function CatalogDetailPage({
                                             initialPickupDate={rentalDates.pickup}
                                             initialReturnDate={rentalDates.ret}
                                             onSearch={handleRangeChange}
+                                            hideButton
                                         />
                                     }
                                 />
-
-                                <DetailAccordion
-                                    description={detail.description}
-                                    items={detailItems(detail)}
-                                />
-
-                                <p className="text-xs leading-relaxed text-muted-foreground">
-                                    Kembali maksimal pukul {STORE_RETURN_TIME}. Stok ready kembali
-                                    setelah 1 hari buffer dari tanggal kembali.
-                                </p>
                             </div>
+                        </div>
+
+                        {/* Deskripsi - Full Width */}
+                        <div className="mt-6">
+                            <DetailAccordion
+                                description={detail.description}
+                                items={detailItems(detail)}
+                            />
                         </div>
 
                         {related.length > 0 && (

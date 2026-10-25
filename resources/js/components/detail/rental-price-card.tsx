@@ -26,50 +26,33 @@ export function RentalPriceCard({
     const isUnavailable = available === 0;
 
     return (
-        <div className="rounded-xl border border-border bg-card p-4 md:p-5">
+        <div className="rounded-2xl bg-card border border-border p-4 md:p-5">
             <div className="flex flex-col gap-4">
                 {rentalRangeComponent}
 
-                <div id="harga" className="flex flex-col gap-3">
+                {/* Harga & Deposit - 2 Kolom */}
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Harga Sewa */}
                     <div className="flex flex-col gap-1">
-                        {unitPrice !== null && totalDays !== null ? (
-                            <>
-                                <p className="text-xs text-muted-foreground">
-                                    Harga sewa {totalDays} hari
-                                </p>
-                                <p className="text-xl font-bold text-primary md:text-2xl">
-                                    {formatRupiah(unitPrice)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    per unit
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-xs text-muted-foreground">
-                                    Harga sewa per hari
-                                </p>
-                                <p className="text-xl font-bold text-primary md:text-2xl">
-                                    {formatRupiah(dailyPrice)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    per unit
-                                </p>
-                            </>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                            {unitPrice !== null && totalDays !== null
+                                ? `Sewa ${totalDays} hari`
+                                : 'Sewa per hari'}
+                        </p>
+                        <p className="text-lg font-semibold text-primary md:text-xl">
+                            {unitPrice !== null && totalDays !== null
+                                ? formatRupiah(unitPrice)
+                                : formatRupiah(dailyPrice)}
+                        </p>
                     </div>
 
-                    <div className="h-px bg-border" />
-
+                    {/* Deposit */}
                     <div className="flex flex-col gap-1">
                         <p className="text-xs text-muted-foreground">
-                            Deposit per unit
+                            Deposit
                         </p>
-                        <p className="text-base font-semibold text-foreground">
+                        <p className="text-lg font-semibold text-foreground md:text-xl">
                             {formatRupiah(depositPerUnit)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            Disetor saat ambil barang
                         </p>
                     </div>
                 </div>
@@ -82,8 +65,8 @@ export function RentalPriceCard({
                             <CalendarCheckIcon className="size-3.5 text-primary" />
                         )}
                         {isUnavailable
-                            ? 'Tidak tersedia pada rentang ini.'
-                            : `${available} unit tersedia.`}
+                            ? 'Tidak tersedia'
+                            : `${available} unit tersedia`}
                     </p>
                 )}
 
@@ -97,16 +80,14 @@ function IdentityRequiredBanner() {
     return (
         <div
             className={cn(
-                'flex items-start gap-3 rounded-xl bg-amber-100/70 px-4 py-3 text-amber-900',
+                'flex items-center gap-3 rounded-xl bg-card border border-border w-fit px-4 py-3 text-muted-foreground',
             )}
         >
             <IdCardIcon className="mt-0.5 size-5 shrink-0" />
             <p className="text-xs leading-relaxed">
                 <span className="font-semibold">
                     KTP / kartu identitas diperlukan.
-                </span>{' '}
-                Transaksi fisik (KTP & deposit) diserahkan di outlet saat
-                pengambilan barang.
+                </span>
             </p>
         </div>
     );

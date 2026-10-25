@@ -40,6 +40,7 @@ type RentalRangeProps = {
     initialReturnDate?: Date;
     className?: string;
     variant?: 'default' | 'compact';
+    hideButton?: boolean;
 };
 
 type DateRange = {
@@ -58,6 +59,7 @@ export function RentalRange({
     initialReturnDate,
     className,
     variant = 'default',
+    hideButton = false,
 }: RentalRangeProps) {
     const [pickupOpen, setPickupOpen] = useState(false);
     const [returnOpen, setReturnOpen] = useState(false);
@@ -94,13 +96,28 @@ export function RentalRange({
 
         const nextBillingStart = getBillingStartDate(date, STORE_PICKUP_TIME);
 
-        setRange({
+        const newRange = {
             from: date,
             to:
                 range?.to && range.to >= nextBillingStart
                     ? range.to
                     : undefined,
-        });
+        };
+
+        setRange(newRange);
+
+        // Auto search when hideButton is true and both dates are selected
+        if (hideButton && newRange.to) {
+            const billing = getBillingStartDate(date, STORE_PICKUP_TIME);
+            const days = getRentalDurationDays(billing, newRange.to);
+
+            onSearch?.({
+                pickupDate: date,
+                returnDate: newRange.to,
+                billingStartDate: billing,
+                totalDays: days,
+            });
+        }
     };
 
     const handleReturnSelect = (next?: PickedRange) => {
@@ -113,10 +130,25 @@ export function RentalRange({
             STORE_PICKUP_TIME,
         );
 
-        setRange({
+        const newRange = {
             from: next.from,
             to: next.to && next.to >= nextBillingStart ? next.to : undefined,
-        });
+        };
+
+        setRange(newRange);
+
+        // Auto search when hideButton is true and both dates are selected
+        if (hideButton && newRange.to) {
+            const billing = getBillingStartDate(next.from, STORE_PICKUP_TIME);
+            const days = getRentalDurationDays(billing, newRange.to);
+
+            onSearch?.({
+                pickupDate: next.from,
+                returnDate: newRange.to,
+                billingStartDate: billing,
+                totalDays: days,
+            });
+        }
     };
 
     const handleSearch = () => {
@@ -157,7 +189,7 @@ export function RentalRange({
             className={cn(
                 'relative gap-0 overflow-hidden bg-card',
                 variant === 'compact'
-                    ? 'rounded-lg border border-border p-2 shadow-none'
+                    ? 'rounded-lg p-2 shadow-none'
                     : 'rounded-xl border-none p-2 shadow-md md:rounded-2xl md:p-3 md:shadow-lg',
                 className,
             )}
@@ -165,9 +197,11 @@ export function RentalRange({
             <div
                 className={cn(
                     'grid gap-y-2',
-                    variant === 'compact'
-                        ? 'md:grid-cols-[1fr_1fr_auto] md:gap-y-2'
-                        : 'md:grid-cols-[1fr_1fr_auto] md:gap-y-3',
+                    hideButton
+                        ? 'md:grid-cols-2 md:gap-x-3 md:gap-y-2'
+                        : variant === 'compact'
+                            ? 'md:grid-cols-[1fr_1fr_auto] md:gap-y-2'
+                            : 'md:grid-cols-[1fr_1fr_auto] md:gap-y-3',
                 )}
             >
                 <div className="relative md:pr-3">
@@ -261,27 +295,30 @@ export function RentalRange({
                     />
                 </div>
 
-                <div className="flex items-center md:pl-2">
-                    <Button
-                        className={cn(
-                            'w-full rounded-full',
-                            variant === 'compact'
-                                ? 'h-9 text-xs md:h-10 md:w-auto md:min-w-24 md:px-4 md:text-sm'
-                                : 'h-11 text-sm md:h-14 md:w-auto md:min-w-32 md:px-6 md:text-base',
-                        )}
-                        onClick={handleSearch}
-                    >
-                        <SearchIcon
-                            className={variant === 'compact' ? 'size-3.5' : 'size-4'}
-                        />
-                        Cek
-                    </Button>
-                </div>
+                {!hideButton && (
+                    <div className="flex items-center md:pl-2">
+                        <Button
+                            className={cn(
+                                'w-full rounded-full',
+                                variant === 'compact'
+                                    ? 'h-9 text-xs md:h-10 md:w-auto md:min-w-24 md:px-4 md:text-sm'
+                                    : 'h-11 text-sm md:h-14 md:w-auto md:min-w-32 md:px-6 md:text-base',
+                            )}
+                            onClick={handleSearch}
+                        >
+                            <SearchIcon
+                                className={variant === 'compact' ? 'size-3.5' : 'size-4'}
+                            />
+                            Cek
+                        </Button>
+                    </div>
+                )}
 
                 {totalDays && billingStartDate && returnDate && (
                     <div
                         className={cn(
-                            'col-span-full flex flex-wrap items-center gap-2 rounded-lg bg-accent text-muted-foreground md:col-span-3',
+                            'flex flex-wrap items-center gap-2 rounded-lg bg-accent text-muted-foreground',
+                            hideButton ? 'col-span-full md:col-span-2' : 'col-span-full md:col-span-3',
                             variant === 'compact'
                                 ? 'px-2 py-1.5 text-[10px] md:px-2.5 md:py-2 md:text-xs'
                                 : 'px-2 py-2 text-xs md:px-3 md:py-3',

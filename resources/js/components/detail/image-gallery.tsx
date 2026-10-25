@@ -3,10 +3,11 @@ import ReactImageMagnify from 'react-image-magnify';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 import type { Swiper as SwiperClass } from 'swiper';
-import { PackageIcon } from 'lucide-react';
+import { PackageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 type ImageGalleryProps = {
     images: string[];
@@ -86,7 +87,21 @@ function Thumbnails({ images, name, activeIndex, onSelect }: ThumbnailsProps) {
     const [swiper, setSwiper] = useState<SwiperClass | null>(null);
 
     return (
-        <div className="relative">
+        <div className="group relative">
+            {/* Previous Button */}
+            {images.length > 5 && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute -left-3 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-border bg-background shadow-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
+                    onClick={() => swiper?.slidePrev()}
+                    aria-label="Previous images"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+            )}
+
             <Swiper
                 onSwiper={setSwiper}
                 modules={[Navigation]}
@@ -94,7 +109,6 @@ function Thumbnails({ images, name, activeIndex, onSelect }: ThumbnailsProps) {
                 spaceBetween={8}
                 watchSlidesProgress
                 className="px-1"
-                navigation
             >
                 {images.map((image, index) => (
                     <SwiperSlide key={image + index}>
@@ -110,6 +124,20 @@ function Thumbnails({ images, name, activeIndex, onSelect }: ThumbnailsProps) {
                     </SwiperSlide>
                 ))}
             </Swiper>
+
+            {/* Next Button */}
+            {images.length > 5 && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute -right-3 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-border bg-background shadow-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
+                    onClick={() => swiper?.slideNext()}
+                    aria-label="Next images"
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            )}
         </div>
     );
 }

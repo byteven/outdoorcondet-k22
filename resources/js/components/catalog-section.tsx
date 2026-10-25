@@ -193,7 +193,7 @@ export function CatalogSection({
 
     return (
         <div>
-            <div className="mt-8 flex w-fit items-center gap-1 rounded-full border border-border bg-background p-2">
+            <div className="mt-8 flex md:w-fit w-full items-center justify-evenly gap-1 rounded-full border border-border bg-background p-2">
                 <TabButton
                     active={filters.tab === 'alat'}
                     icon={<BoxIcon className="size-4" />}
@@ -633,7 +633,7 @@ function TabButton({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
+                'flex cursor-pointer w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
                 active
                     ? 'bg-primary text-background'
                     : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',

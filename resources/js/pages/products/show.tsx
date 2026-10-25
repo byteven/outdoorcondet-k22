@@ -266,12 +266,6 @@ function Breadcrumbs({
             >
                 Beranda
             </a>
-            {categoryName && (
-                <>
-                    <ChevronRightIcon className="size-3" />
-                    <span>{categoryName}</span>
-                </>
-            )}
             <ChevronRightIcon className="size-3" />
             <span className="font-medium text-foreground">{name}</span>
         </nav>

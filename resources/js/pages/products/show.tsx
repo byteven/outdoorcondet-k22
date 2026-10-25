@@ -195,9 +195,9 @@ export default function CatalogDetailPage({
                             name={detail.name}
                         />
 
-                        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-10">
+                        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
                             {/* Section Kiri: Gambar */}
-                            <div className="flex flex-col gap-6">
+                            <div className="flex min-w-0 flex-col gap-6">
                                 <ImageGallery
                                     images={galleryImages(detail)}
                                     name={detail.name}
@@ -205,7 +205,7 @@ export default function CatalogDetailPage({
                             </div>
 
                             {/* Section Kanan: Info Produk */}
-                            <div className="flex flex-col gap-6">
+                            <div className="flex min-w-0 flex-col gap-6">
                                 <DetailTitle
                                     detail={detail}
                                     availability={availability}
@@ -273,20 +273,6 @@ function DetailTitle({
                     <span className="text-xs text-muted-foreground">
                         {detailCategoryName(detail)}
                     </span>
-                )}
-                {availability !== null && (
-                    <Badge
-                        className={cn(
-                            'rounded-full px-2.5 py-1 text-xs font-medium',
-                            availability === 0
-                                ? 'bg-destructive/10 text-destructive'
-                                : 'bg-emerald-100 text-emerald-700',
-                        )}
-                    >
-                        {availability === 0
-                            ? 'Tidak tersedia'
-                            : `${availability} tersedia`}
-                    </Badge>
                 )}
             </div>
         </div>

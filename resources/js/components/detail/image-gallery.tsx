@@ -1,13 +1,17 @@
-import { useState } from 'react';
-import ReactImageMagnify from 'react-image-magnify';
+
+import { useEffect, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 import type { Swiper as SwiperClass } from 'swiper';
-import { PackageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+    PackageIcon,
+    ChevronLeft,
+    ChevronRight,
+    ImageIcon,
+} from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 
 type ImageGalleryProps = {
     images: string[];
@@ -15,8 +19,22 @@ type ImageGalleryProps = {
     className?: string;
 };
 
-export function ImageGallery({ images, name, className }: ImageGalleryProps) {
+const navButtonClass =
+    'absolute top-1/2 z-10 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-all hover:bg-black/70 active:scale-95';
+
+export function ImageGallery({
+    images,
+    name,
+    className,
+}: ImageGalleryProps) {
+    const [mounted, setMounted] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [mainSwiper, setMainSwiper] =
+        useState<SwiperClass | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     if (images.length === 0) {
         return (
@@ -34,42 +52,101 @@ export function ImageGallery({ images, name, className }: ImageGalleryProps) {
         );
     }
 
+    const hasMultiple = images.length > 1;
+
     return (
-        <div className={cn('flex flex-col gap-3', className)}>
-            <div className="w-full overflow-hidden rounded-2xl border border-border/20 bg-card">
-                <ReactImageMagnify
-                    key={images[activeIndex]}
-                    className="w-full"
-                    smallImage={{
-                        src: `/storage/${images[activeIndex]}`,
-                        isFluidWidth: true,
-                        alt: name,
-                    }}
-                    largeImage={{
-                        src: `/storage/${images[activeIndex]}`,
-                        alt: name,
-                    }}
-                    enlargedImageContainerStyle={{
-                        zIndex: 50,
-                        borderRadius: '0.75rem',
-                        backgroundColor: '#fff',
-                    }}
-                    enlargedImageContainerDimensions={{
-                        width: '150%',
-                        height: '150%',
-                    }}
-                    cursorStyle={{ cursor: 'zoom-in' }}
-                    shouldUsePositiveSpaceLens
-                    isHintEnabled={false}
-                />
+        <div
+            className={cn(
+                'flex min-w-0 flex-col gap-3',
+                className,
+            )}
+        >
+            {/* Main Image Viewer */}
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/20 bg-card">
+                {!mounted ? (
+                    <img
+                        src={`/storage/${images[0]}`}
+                        alt={`${name} - 1`}
+                        className="h-full w-full object-cover"
+                    />
+                ) : (
+                    <Swiper
+                        className="h-full w-full"
+                        onSwiper={setMainSwiper}
+                        modules={[Navigation]}
+                        spaceBetween={0}
+                        slidesPerView={1}
+                        loop={hasMultiple}
+                        speed={400}
+                        onSlideChange={(swiper) => {
+                            setActiveIndex(swiper.realIndex);
+                        }}
+                    >
+                        {images.map((image, index) => (
+                            <SwiperSlide
+                                key={image + index}
+                                className="!h-full"
+                            >
+                                <img
+                                    src={`/storage/${image}`}
+                                    alt={`${name} - ${index + 1}`}
+                                    className="h-full w-full object-cover"
+                                />
+                            </SwiperSlide>
+                        ))}
+                    </Swiper>
+                )}
+
+                {/* Navigation Buttons */}
+                {hasMultiple && (
+                    <>
+                        <button
+                            type="button"
+                            className={cn(navButtonClass, 'left-3')}
+                            onClick={() => mainSwiper?.slidePrev()}
+                            aria-label="Previous image"
+                        >
+                            <ChevronLeft className="size-5" />
+                        </button>
+
+                        <button
+                            type="button"
+                            className={cn(navButtonClass, 'right-3')}
+                            onClick={() => mainSwiper?.slideNext()}
+                            aria-label="Next image"
+                        >
+                            <ChevronRight className="size-5" />
+                        </button>
+
+                        {/* Image Counter */}
+                        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                            <ImageIcon className="size-3.5" />
+                            <span>
+                                {activeIndex + 1} / {images.length}
+                            </span>
+                        </div>
+                    </>
+                )}
             </div>
 
-            {images.length > 1 && (
+            {/* Thumbnails */}
+            {hasMultiple && (
                 <Thumbnails
+                    mounted={mounted}
                     images={images}
                     name={name}
                     activeIndex={activeIndex}
-                    onSelect={setActiveIndex}
+                    onSelect={(index) => {
+                        setActiveIndex(index);
+
+                        if (mainSwiper) {
+                            if (hasMultiple) {
+                                mainSwiper.slideToLoop(index);
+                            } else {
+                                mainSwiper.slideTo(index);
+                            }
+                        }
+                    }}
                 />
             )}
         </div>
@@ -77,68 +154,80 @@ export function ImageGallery({ images, name, className }: ImageGalleryProps) {
 }
 
 type ThumbnailsProps = {
+    mounted: boolean;
     images: string[];
     name: string;
     activeIndex: number;
     onSelect: (index: number) => void;
 };
 
-function Thumbnails({ images, name, activeIndex, onSelect }: ThumbnailsProps) {
-    const [swiper, setSwiper] = useState<SwiperClass | null>(null);
+function Thumbnails({
+    mounted,
+    images,
+    name,
+    activeIndex,
+    onSelect,
+}: ThumbnailsProps) {
+    const [thumbSwiper, setThumbSwiper] =
+        useState<SwiperClass | null>(null);
+
+    // Geser thumbnail agar gambar aktif tetap terlihat
+    useEffect(() => {
+        if (!thumbSwiper) return;
+
+        const slidesPerView =
+            typeof thumbSwiper.params.slidesPerView === 'number'
+                ? thumbSwiper.params.slidesPerView
+                : 4;
+
+        const targetIndex = Math.max(
+            0,
+            activeIndex - Math.floor(slidesPerView / 2),
+        );
+
+        thumbSwiper.slideTo(targetIndex);
+    }, [activeIndex, thumbSwiper]);
+
+    if (!mounted) {
+        return (
+            <div className="grid grid-cols-4 gap-2 overflow-hidden px-1 sm:grid-cols-5">
+                {images.slice(0, 5).map((image, index) => (
+                    <ThumbnailButton
+                        key={image + index}
+                        image={image}
+                        name={name}
+                        active={index === activeIndex}
+                        onClick={() => onSelect(index)}
+                    />
+                ))}
+            </div>
+        );
+    }
 
     return (
-        <div className="group relative">
-            {/* Previous Button */}
-            {images.length > 5 && (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute -left-3 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-border bg-background shadow-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-                    onClick={() => swiper?.slidePrev()}
-                    aria-label="Previous images"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-            )}
-
-            <Swiper
-                onSwiper={setSwiper}
-                modules={[Navigation]}
-                slidesPerView={5}
-                spaceBetween={8}
-                watchSlidesProgress
-                className="px-1"
-            >
-                {images.map((image, index) => (
-                    <SwiperSlide key={image + index}>
-                        <ThumbnailButton
-                            image={image}
-                            name={name}
-                            active={index === activeIndex}
-                            onClick={() => {
-                                onSelect(index);
-                                swiper?.slideTo(index);
-                            }}
-                        />
-                    </SwiperSlide>
-                ))}
-            </Swiper>
-
-            {/* Next Button */}
-            {images.length > 5 && (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute -right-3 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-border bg-background shadow-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-                    onClick={() => swiper?.slideNext()}
-                    aria-label="Next images"
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            )}
-        </div>
+        <Swiper
+            onSwiper={setThumbSwiper}
+            slidesPerView={4}
+            spaceBetween={8}
+            breakpoints={{
+                640: {
+                    slidesPerView: 5,
+                },
+            }}
+            watchSlidesProgress
+            className="w-full px-1"
+        >
+            {images.map((image, index) => (
+                <SwiperSlide key={image + index}>
+                    <ThumbnailButton
+                        image={image}
+                        name={name}
+                        active={index === activeIndex}
+                        onClick={() => onSelect(index)}
+                    />
+                </SwiperSlide>
+            ))}
+        </Swiper>
     );
 }
 

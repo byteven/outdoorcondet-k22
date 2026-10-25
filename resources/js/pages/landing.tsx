@@ -1,5 +1,5 @@
 import { Deferred, Head, router } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     CatalogSection,
     type CatalogData,
@@ -10,12 +10,13 @@ import { LandingHeader } from '@/components/landing/landing-header';
 import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
 import { SiteFooter } from '@/components/site-footer';
 import { home } from '@/routes';
-import { useRentalDates } from '@/hooks/use-rental-dates';
-
-type RentalSelection = Pick<
-    RentalRangeParams,
-    'pickupDate' | 'returnDate' | 'totalDays'
->;
+import {
+    buildRentalSelection,
+    syncRentalRangePersistence,
+    toRentalQueryDate,
+    useActiveRental,
+    type RentalDateSelection,
+} from '@/hooks/use-rental-dates';
 
 type Props = {
     catalog?: CatalogData;
@@ -25,21 +26,21 @@ type Props = {
 const CATALOG_SECTION_ID = 'katalog';
 
 export default function Landing({ catalog, filters }: Props) {
-    const [rentalSelection, setRentalSelection] =
-        useState<RentalSelection | null>(null);
     const [isCatalogLoading, setIsCatalogLoading] = useState(false);
     const latestFilters = useRef(filters);
-    const { saveDates } = useRentalDates();
+    const hasHydratedCatalog = useRef(false);
+    const { saveDates, clearDates, activeRental, selection } =
+        useActiveRental(filters);
     latestFilters.current = filters;
 
     const visitCatalog = (
         overrides: Partial<CatalogFilters> & { page?: number },
-        selection: RentalSelection | null,
+        rentalSelection: RentalDateSelection | null,
         shouldScrollToCatalog = true,
     ): void => {
         const nextFilters = { ...latestFilters.current, ...overrides };
 
-        router.get(home.url(), buildCatalogQuery(nextFilters, selection), {
+        router.get(home.url(), buildCatalogQuery(nextFilters, rentalSelection), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -55,10 +56,37 @@ export default function Landing({ catalog, filters }: Props) {
         });
     };
 
+    useEffect(() => {
+        if (!activeRental) {
+            return;
+        }
+
+        if (filters.pickup_date && filters.return_date) {
+            hasHydratedCatalog.current = true;
+
+            return;
+        }
+
+        if (hasHydratedCatalog.current) {
+            return;
+        }
+
+        hasHydratedCatalog.current = true;
+
+        visitCatalog(
+            { page: 1 },
+            buildRentalSelection(
+                activeRental.pickupDate,
+                activeRental.returnDate,
+            ),
+            false,
+        );
+    }, [activeRental, filters.pickup_date, filters.return_date]);
+
     const handleFilterChange = (
         params: Partial<CatalogFilters> & { page?: number },
     ) => {
-        visitCatalog(params, rentalSelection);
+        visitCatalog(params, selection);
     };
 
     const handleRentalSearch = ({
@@ -67,17 +95,23 @@ export default function Landing({ catalog, filters }: Props) {
         totalDays,
     }: RentalRangeParams) => {
         const hasRange = Boolean(pickupDate && returnDate);
-        const selection: RentalSelection | null = hasRange
-            ? { pickupDate, returnDate, totalDays }
+
+        syncRentalRangePersistence(
+            pickupDate,
+            returnDate,
+            saveDates,
+            clearDates,
+        );
+
+        const rentalSelection: RentalDateSelection | null = hasRange
+            ? {
+                  pickupDate: pickupDate!,
+                  returnDate: returnDate!,
+                  totalDays: totalDays ?? 0,
+              }
             : null;
 
-        // Save dates to localStorage for syncing with detail page
-        if (hasRange && pickupDate && returnDate) {
-            saveDates(pickupDate, returnDate);
-        }
-
-        setRentalSelection(selection);
-        visitCatalog({ page: 1 }, selection, hasRange);
+        visitCatalog({ page: 1 }, rentalSelection, hasRange);
     };
 
     return (
@@ -92,16 +126,8 @@ export default function Landing({ catalog, filters }: Props) {
 
                     <section className="relative z-10 mx-auto -mt-16 w-full max-w-5xl px-4 md:-mt-28">
                         <RentalRange
-                            initialPickupDate={
-                                filters.pickup_date
-                                    ? new Date(filters.pickup_date)
-                                    : undefined
-                            }
-                            initialReturnDate={
-                                filters.return_date
-                                    ? new Date(filters.return_date)
-                                    : undefined
-                            }
+                            initialPickupDate={activeRental?.pickupDate}
+                            initialReturnDate={activeRental?.returnDate}
                             onSearch={handleRentalSearch}
                         />
                     </section>
@@ -173,7 +199,7 @@ function DeferredCatalogFallback({ filters }: { filters: CatalogFilters }) {
 
 function buildCatalogQuery(
     filters: CatalogFilters,
-    selection: RentalSelection | null,
+    selection: RentalDateSelection | null,
 ): Record<string, string | number> {
     const query: Record<string, string | number> = {
         tab: filters.tab,
@@ -190,18 +216,14 @@ function buildCatalogQuery(
     }
 
     if (selection?.pickupDate) {
-        query.pickup_date = toQueryParamDate(selection.pickupDate);
+        query.pickup_date = toRentalQueryDate(selection.pickupDate);
     }
 
     if (selection?.returnDate) {
-        query.return_date = toQueryParamDate(selection.returnDate);
+        query.return_date = toRentalQueryDate(selection.returnDate);
     }
 
     return query;
-}
-
-function toQueryParamDate(date: Date): string {
-    return new Date(date).toLocaleDateString('en-CA');
 }
 
 function scrollCatalogSectionIntoView(): void {

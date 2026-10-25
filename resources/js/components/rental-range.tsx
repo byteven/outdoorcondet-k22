@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { startOfToday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -69,6 +69,19 @@ export function RentalRange({
             : undefined,
     );
     const [showError, setShowError] = useState(false);
+
+    useEffect(() => {
+        if (!initialPickupDate) {
+            setRange(undefined);
+
+            return;
+        }
+
+        setRange({ from: initialPickupDate, to: initialReturnDate });
+    }, [
+        dateKey(initialPickupDate),
+        dateKey(initialReturnDate),
+    ]);
 
     const pickupDate = range?.from;
     const returnDate = range?.to;
@@ -469,6 +482,10 @@ function RentalDateField({
             </Popover>
         </div>
     );
+}
+
+function dateKey(date?: Date): string | undefined {
+    return date?.toLocaleDateString('en-CA');
 }
 
 function ClearDateButton({

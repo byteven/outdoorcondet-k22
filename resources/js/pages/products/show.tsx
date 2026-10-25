@@ -1,7 +1,11 @@
 import { Head, router } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRightIcon, PackageIcon } from 'lucide-react';
 import { CatalogCard } from '@/components/catalog-card';
+import {
+    CatalogDetailPageSkeleton,
+    RelatedGridSkeleton,
+} from '@/components/detail/catalog-detail-skeleton';
 import { DetailAccordion } from '@/components/detail/detail-accordion';
 import { ImageGallery } from '@/components/detail/image-gallery';
 import { RentalPriceCard } from '@/components/detail/rental-price-card';
@@ -9,23 +13,20 @@ import { LandingHeader } from '@/components/landing/landing-header';
 import { SiteFooter } from '@/components/site-footer';
 import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
 import { Badge } from '@/components/ui/badge';
+import { useCatalogDetailPricing } from '@/hooks/use-catalog-detail-pricing';
+
 import {
-    getBillingStartDate,
-    getRentalDurationDays,
-    STORE_PICKUP_TIME,
-    STORE_RETURN_TIME,
-} from '@/lib/rental-date';
+    buildRentalRangeQuery,
+    syncRentalRangePersistence,
+    useActiveRental,
+} from '@/hooks/use-rental-dates';
 import {
-    cheapestVariantForDuration,
-    packageUnitPrice,
     type DurationPrice,
     type RentalVariant,
 } from '@/lib/rental-pricing';
 import { home } from '@/routes';
 import { show as showProduct } from '@/routes/products';
 import { show as showPackage } from '@/routes/packages';
-import { cn } from '@/lib/utils';
-import { useRentalDates } from '@/hooks/use-rental-dates';
 
 type DetailCategory = {
     id: number;
@@ -84,99 +85,65 @@ export default function CatalogDetailPage({
     filters,
     related,
 }: Props) {
-    const { dates: storedDates, saveDates, clearDates } = useRentalDates();
-    const isBundle = detail.type === 'bundle';
-    const bundle = detail.type === 'bundle' ? detail : null;
-    const product = detail.type === 'alat' ? detail : null;
+    const [isInitialLoading, setIsInitialLoading] = useState(false);
+    const [isRangeUpdating, setIsRangeUpdating] = useState(false);
+    const isRangeVisit = useRef(false);
 
-    const rentalDates = useMemo(
-        () => ({
-            pickup: filters.pickup_date
-                ? new Date(filters.pickup_date)
-                : storedDates?.pickupDate,
-            ret: filters.return_date
-                ? new Date(filters.return_date)
-                : storedDates?.returnDate,
-        }),
-        [filters.pickup_date, filters.return_date, storedDates],
-    );
+    useEffect(() => {
+        const removeStartListener = router.on('start', () => {
+            if (!isRangeVisit.current) {
+                setIsInitialLoading(true);
+            }
+        });
 
-    const totalDays = useMemo(() => {
-        if (!rentalDates.pickup || !rentalDates.ret) {
-            return null;
-        }
+        const removeFinishListener = router.on('finish', () => {
+            setIsInitialLoading(false);
+            isRangeVisit.current = false;
+        });
 
-        const billingStart = getBillingStartDate(
-            rentalDates.pickup,
-            STORE_PICKUP_TIME,
-        );
+        return () => {
+            removeStartListener();
+            removeFinishListener();
+        };
+    }, []);
 
-        return getRentalDurationDays(billingStart, rentalDates.ret);
-    }, [rentalDates]);
+    const isAvailabilityLoading = isRangeUpdating;
 
-    const unitPrice = useMemo(() => {
-        if (totalDays === null) {
-            return null;
-        }
+    const { saveDates, clearDates, activeRental } = useActiveRental(filters);
+    const {
+        pickupDate,
+        returnDate,
+        totalDays,
+        unitPrice,
+        depositPerUnit,
+        dailyPrice,
+    } = useCatalogDetailPricing(detail, activeRental);
 
-        if (bundle) {
-            return packageUnitPrice(
-                bundle.daily_price,
-                bundle.duration_prices,
-                totalDays,
-            );
-        }
 
-        return (
-            cheapestVariantForDuration(product?.variants ?? [], totalDays)
-                ?.unitPrice ?? null
-        );
-    }, [bundle, product, totalDays]);
-
-    const depositPerUnit = useMemo(() => {
-        if (bundle) {
-            return bundle.deposit_per_package;
-        }
-
-        return (
-            cheapestVariantForDuration(product?.variants ?? [], totalDays ?? 1)
-                ?.depositPerUnit ?? 0
-        );
-    }, [bundle, product, totalDays]);
-
-    const dailyPrice = useMemo(() => {
-        if (bundle) {
-            return bundle.daily_price;
-        }
-
-        // Get cheapest variant's daily price
-        if (product?.variants && product.variants.length > 0) {
-            const cheapest = cheapestVariantForDuration(product.variants, 1);
-            return cheapest?.unitPrice ?? product.variants[0]?.rental_price_per_day ?? 0;
-        }
-
-        return 0;
-    }, [bundle, product]);
 
     const handleRangeChange = (params: RentalRangeParams) => {
-        // Save to localStorage for syncing, or clear if dates removed
-        if (params.pickupDate && params.returnDate) {
-            saveDates(params.pickupDate, params.returnDate);
-        } else {
-            clearDates();
-        }
+        syncRentalRangePersistence(
+            params.pickupDate,
+            params.returnDate,
+            saveDates,
+            clearDates,
+        );
+
+        isRangeVisit.current = true;
+        setIsRangeUpdating(true);
 
         router.get(
             routeDetail(detail),
-            {
-                pickup_date: formDataDate(params.pickupDate),
-                return_date: formDataDate(params.returnDate),
-            },
+            buildRentalRangeQuery(params.pickupDate, params.returnDate),
             {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
                 only: ['availability', 'filters', 'related'],
+                onFinish: () => {
+                    setIsRangeUpdating(false);
+                    isRangeVisit.current = false;
+                },
             },
         );
     };
@@ -189,59 +156,67 @@ export default function CatalogDetailPage({
                 <LandingHeader />
 
                 <main className="bg-[#fbfbfc]">
-                    <section className="mx-auto w-full max-w-6xl px-4 pt-24 pb-16 md:px-6">
-                        <Breadcrumbs
-                            categoryName={detailCategoryName(detail)}
-                            name={detail.name}
-                        />
-
-                        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
-                            {/* Section Kiri: Gambar */}
-                            <div className="flex min-w-0 flex-col gap-6">
-                                <ImageGallery
-                                    images={galleryImages(detail)}
-                                    name={detail.name}
-                                />
-                            </div>
-
-                            {/* Section Kanan: Info Produk */}
-                            <div className="flex min-w-0 flex-col gap-6">
-                                <DetailTitle
-                                    detail={detail}
-                                    availability={availability}
-                                />
-
-                                <RentalPriceCard
-                                    unitPrice={unitPrice}
-                                    depositPerUnit={depositPerUnit}
-                                    totalDays={totalDays}
-                                    available={availability}
-                                    dailyPrice={dailyPrice}
-                                    rentalRangeComponent={
-                                        <RentalRange
-                                            variant="compact"
-                                            initialPickupDate={rentalDates.pickup}
-                                            initialReturnDate={rentalDates.ret}
-                                            onSearch={handleRangeChange}
-                                            hideButton
-                                        />
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        {/* Deskripsi - Full Width */}
-                        <div className="mt-6">
-                            <DetailAccordion
-                                description={detail.description}
-                                items={detailItems(detail)}
+                    {isInitialLoading ? (
+                        <CatalogDetailPageSkeleton />
+                    ) : (
+                        <section className="mx-auto w-full max-w-6xl px-4 pt-24 pb-16 md:px-6">
+                            <Breadcrumbs
+                                categoryName={detailCategoryName(detail)}
+                                name={detail.name}
                             />
-                        </div>
 
-                        {related.length > 0 && (
-                            <RelatedSection related={related} />
-                        )}
-                    </section>
+                            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
+                                <div className="flex min-w-0 flex-col gap-6">
+                                    <ImageGallery
+                                        images={galleryImages(detail)}
+                                        name={detail.name}
+                                    />
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-6">
+                                    <DetailTitle detail={detail} />
+
+                                    <RentalPriceCard
+                                        unitPrice={unitPrice}
+                                        depositPerUnit={depositPerUnit}
+                                        totalDays={totalDays}
+                                        available={availability}
+                                        dailyPrice={dailyPrice}
+                                        loading={isAvailabilityLoading}
+                                        rentalRangeComponent={
+                                            <RentalRange
+                                                variant="compact"
+                                                initialPickupDate={pickupDate}
+                                                initialReturnDate={returnDate}
+                                                onSearch={handleRangeChange}
+                                                hideButton
+                                            />
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-6">
+                                <DetailAccordion
+                                    description={detail.description}
+                                    items={detailItems(detail)}
+                                />
+                            </div>
+
+                            {isAvailabilityLoading ? (
+                                <section className="mt-12">
+                                    <h2 className="text-lg font-bold tracking-tight md:text-xl">
+                                        Peralatan Lainnya
+                                    </h2>
+                                    <RelatedGridSkeleton />
+                                </section>
+                            ) : (
+                                related.length > 0 && (
+                                    <RelatedSection related={related} />
+                                )
+                            )}
+                        </section>
+                    )}
                 </main>
 
                 <SiteFooter />
@@ -250,13 +225,7 @@ export default function CatalogDetailPage({
     );
 }
 
-function DetailTitle({
-    detail,
-    availability,
-}: {
-    detail: CatalogDetail;
-    availability: number | null;
-}) {
+function DetailTitle({ detail }: { detail: CatalogDetail }) {
     return (
         <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -345,10 +314,6 @@ function routeDetail(detail: CatalogDetail): string {
         : showPackage.url({ packageSlug: detail.slug });
 }
 
-function formDataDate(date?: Date): string {
-    return date ? date.toLocaleDateString('en-CA') : '';
-}
-
 function detailCategoryName(detail: CatalogDetail): string | null {
     return detail.type === 'alat' ? (detail.category?.name ?? null) : null;
 }
@@ -363,8 +328,4 @@ function galleryImages(detail: CatalogDetail): string[] {
 
 function detailItems(detail: CatalogDetail) {
     return detail.type === 'bundle' ? detail.items : undefined;
-}
-
-function quantityLabel(isBundle: boolean): string {
-    return isBundle ? 'Paket' : 'Unit';
 }

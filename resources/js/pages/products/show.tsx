@@ -8,6 +8,7 @@ import {
 } from '@/components/detail/catalog-detail-skeleton';
 import { DetailAccordion } from '@/components/detail/detail-accordion';
 import { ImageGallery } from '@/components/detail/image-gallery';
+import { CartAction } from '@/components/detail/cart-action';
 import { RentalPriceCard } from '@/components/detail/rental-price-card';
 import { LandingHeader } from '@/components/landing/landing-header';
 import { SiteFooter } from '@/components/site-footer';
@@ -76,6 +77,7 @@ type Props = {
     detail: CatalogDetail;
     availability: number | null;
     filters: { pickup_date?: string; return_date?: string };
+    in_cart: boolean;
     related: RelatedProduct[];
 };
 
@@ -83,6 +85,7 @@ export default function CatalogDetailPage({
     detail,
     availability,
     filters,
+    in_cart,
     related,
 }: Props) {
     const [isInitialLoading, setIsInitialLoading] = useState(false);
@@ -190,6 +193,17 @@ export default function CatalogDetailPage({
                                                 initialReturnDate={returnDate}
                                                 onSearch={handleRangeChange}
                                                 hideButton
+                                            />
+                                        }
+                                        footerAction={
+                                            <CartAction
+                                                detail={detail}
+                                                totalDays={totalDays}
+                                                pickupDate={pickupDate ?? null}
+                                                returnDate={returnDate ?? null}
+                                                inCart={in_cart}
+                                                availability={availability}
+                                                loading={isAvailabilityLoading}
                                             />
                                         }
                                     />

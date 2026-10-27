@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\RentalFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Rental extends Model
 {
+    /** @use HasFactory<RentalFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'rental_code',
         'customer_id',

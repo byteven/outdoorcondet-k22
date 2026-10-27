@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\BuildsCatalogPayloads;
+use App\Models\CartItem;
 use App\Models\Package;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\AvailabilityService;
+use App\UserRole;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -53,6 +56,11 @@ class CatalogDetailController extends Controller
                 $range['pickup'],
                 $range['return'],
             ),
+            'in_cart' => $this->inCart(
+                $request,
+                ProductVariant::class,
+                $product->variants->modelKeys(),
+            ),
             'related' => $this->relatedProducts($product, $range, $availability),
         ]);
     }
@@ -85,6 +93,7 @@ class CatalogDetailController extends Controller
                 $range['pickup'],
                 $range['return'],
             ),
+            'in_cart' => $this->inCart($request, Package::class, [$package->id]),
             'related' => $this->relatedProducts(null, $range, $availability),
         ]);
     }
@@ -97,6 +106,28 @@ class CatalogDetailController extends Controller
         return ($pickupDate && $returnDate)
             ? app(AvailabilityService::class)
             : null;
+    }
+
+    /**
+     * Apakah item ini (produk/paket) sudah ada di keranjang customer,
+     * dipakai untuk mengganti tombol "Tambah ke Keranjang" menjadi
+     * "Lihat Keranjang" di halaman detail.
+     *
+     * @param  array<int, int>  $rentableIds
+     */
+    private function inCart(Request $request, string $rentableType, array $rentableIds): bool
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== UserRole::Customer || $rentableIds === []) {
+            return false;
+        }
+
+        return CartItem::query()
+            ->where('user_id', $user->id)
+            ->where('rentable_type', $rentableType)
+            ->whereIn('rentable_id', $rentableIds)
+            ->exists();
     }
 
     /**

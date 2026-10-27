@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogDetailController;
 use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,14 @@ Route::get('paket/{packageSlug}', [CatalogDetailController::class, 'package'])->
 
 Route::inertia('kebijakan', 'legal/policy')->name('legal.policy');
 Route::inertia('privasi', 'legal/privacy')->name('legal.privacy');
+
+Route::middleware(['auth', 'can:access-customer'])->group(function () {
+    Route::get('cart', [CartController::class, 'index'])->name('cart.index');
+    Route::post('cart', [CartController::class, 'store'])->name('cart.store');
+    Route::put('cart/dates', [CartController::class, 'updateDates'])->name('cart.dates');
+    Route::patch('cart/items/{cartItem}', [CartController::class, 'update'])->name('cart.update');
+    Route::delete('cart/items/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/admin/dashboard');

@@ -10,6 +10,8 @@ type RentalPriceCardProps = {
     available: number | null;
     dailyPrice: number;
     rentalRangeComponent?: React.ReactNode;
+    /** Slot di bawah TOTAL, misalnya aksi keranjang. */
+    footerAction?: React.ReactNode;
     loading?: boolean;
 };
 
@@ -20,6 +22,7 @@ export function RentalPriceCard({
     available,
     dailyPrice,
     rentalRangeComponent,
+    footerAction,
     loading = false,
 }: RentalPriceCardProps) {
     const isUnavailable = available === 0;
@@ -115,6 +118,8 @@ export function RentalPriceCard({
                         </div>
                     )
                 )}
+
+                {footerAction}
 
                 <IdentityRequiredBanner />
             </div>

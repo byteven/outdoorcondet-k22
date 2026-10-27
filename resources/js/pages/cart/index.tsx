@@ -3,8 +3,6 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
     ArrowRightIcon,
-    CalendarArrowDownIcon,
-    CalendarArrowUpIcon,
     PackageIcon,
     Trash2Icon,
 } from 'lucide-react';
@@ -14,7 +12,6 @@ import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
 import { SiteFooter } from '@/components/site-footer';
 import { Button } from '@/components/ui/button';
 import { formatRupiah } from '@/components/product-shared';
-import { formatDateID } from '@/lib/rental-date';
 import { cn } from '@/lib/utils';
 import {
     syncRentalRangePersistence,
@@ -331,12 +328,6 @@ function CartItemRow({
                                     {item.name}
                                 </p>
                             )}
-
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                                {item.type === 'alat'
-                                    ? `Alat${item.sku ? ` - ${item.sku}` : ''}`
-                                    : 'Paket'}
-                            </p>
                         </div>
 
                         <Button
@@ -350,18 +341,6 @@ function CartItemRow({
                         >
                             <Trash2Icon className="size-4" />
                         </Button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                            <CalendarArrowDownIcon className="size-3.5 text-primary" />
-                            Ambil {formatDateID(parseDate(item.pickup_date))}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                            <CalendarArrowUpIcon className="size-3.5 text-primary" />
-                            Kembali {formatDateID(parseDate(item.return_date))}
-                        </span>
-                        <span>{item.total_days} hari</span>
                     </div>
 
                     <div className="mt-auto flex flex-wrap items-end justify-between gap-3">
@@ -518,3 +497,4 @@ function parseDate(value?: string): Date | undefined {
 
     return new Date(year, month - 1, day);
 }
+

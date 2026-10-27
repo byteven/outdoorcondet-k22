@@ -1,6 +1,6 @@
 import { Head, router } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
-import { ChevronRightIcon, PackageIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { CatalogCard } from "@/components/catalog-card";
 import {
     CatalogDetailPageSkeleton,
@@ -13,7 +13,6 @@ import { RentalPriceCard } from "@/components/detail/rental-price-card";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { SiteFooter } from "@/components/site-footer";
 import { RentalRange, type RentalRangeParams } from "@/components/rental-range";
-import { Badge } from "@/components/ui/badge";
 import { useCatalogDetailPricing } from "@/hooks/use-catalog-detail-pricing";
 
 import {
@@ -104,7 +103,13 @@ export default function CatalogDetailPage({
     const [isInitialLoading, setIsInitialLoading] = useState(false);
     const [isRangeUpdating, setIsRangeUpdating] = useState(false);
     const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
-        null,
+        () => {
+            if (detail.type !== 'alat' || detail.variants.length === 0) {
+                return null;
+            }
+
+            return cheapestDailyVariant(detail.variants)?.id ?? null;
+        },
     );
     const isRangeVisit = useRef(false);
 
@@ -140,7 +145,15 @@ export default function CatalogDetailPage({
 
         setSelectedVariantId((current) => {
             if (current === null) {
-                return null;
+                const availableVariants = detail.variants.filter(
+                    (variant) => variant.available !== 0,
+                );
+                const pool =
+                    availableVariants.length > 0
+                        ? availableVariants
+                        : detail.variants;
+
+                return cheapestDailyVariant(pool)?.id ?? null;
             }
 
             const currentVariant = detail.variants.find(
@@ -233,9 +246,8 @@ export default function CatalogDetailPage({
                                 </div>
 
                                 <div className="flex min-w-0 flex-col gap-6">
-                                    <DetailTitle detail={detail} />
-
                                     <RentalPriceCard
+                                        title={detail.name}
                                         unitPrice={unitPrice}
                                         depositPerUnit={depositPerUnit}
                                         totalDays={totalDays}
@@ -252,11 +264,7 @@ export default function CatalogDetailPage({
                                                     }
                                                     onSelect={(variantId) =>
                                                         setSelectedVariantId(
-                                                            (current) =>
-                                                                current ===
-                                                                variantId
-                                                                    ? null
-                                                                    : variantId,
+                                                            variantId,
                                                         )
                                                     }
                                                 />
@@ -326,19 +334,6 @@ function DetailTitle({ detail }: { detail: CatalogDetail }) {
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                 {detail.name}
             </h1>
-            <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                    variant="outline"
-                    className="rounded-full px-2.5 py-1 text-xs font-medium"
-                >
-                    {detail.type === "alat" ? "Alat" : "Paket"}
-                </Badge>
-                {detailCategoryName(detail) && (
-                    <span className="text-xs text-muted-foreground">
-                        {detailCategoryName(detail)}
-                    </span>
-                )}
-            </div>
         </div>
     );
 }
@@ -490,9 +485,6 @@ function VariantSelector({
                             onClick={() => onSelect(variant.id)}
                         >
                             {variantChipLabel(variant)}
-                            {isSelected && (
-                                <XIcon className="size-3.5" strokeWidth={2.5} />
-                            )}
                         </button>
                     );
                 })}

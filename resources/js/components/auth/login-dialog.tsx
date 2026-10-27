@@ -30,9 +30,9 @@ export function LoginDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Masuk dulu, yuk</DialogTitle>
+                    <DialogTitle>Masuk</DialogTitle>
                     <DialogDescription>
-                        Login untuk menambahkan alat ke keranjang sewa kamu.
+                        Masuk untuk menambahkan alat ke keranjang sewa kamu.
                     </DialogDescription>
                 </DialogHeader>
 

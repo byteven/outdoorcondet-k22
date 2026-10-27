@@ -60,7 +60,7 @@ function Accordion({ sections }: { sections: AccordionSection[] }) {
                         setOpenKey(open ? section.key : null)
                     }
                 >
-                    <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-4 text-left text-sm font-semibold transition-colors hover:text-primary">
+                    <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-4 text-left text-lg font-semibold transition-colors hover:text-primary">
                         {section.title}
                         <ChevronDownIcon
                             className={cn(

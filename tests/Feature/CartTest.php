@@ -11,6 +11,7 @@ use App\UserRole;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
@@ -170,7 +171,7 @@ test('adding an inactive variant is rejected', function () {
         ->assertRedirect()
         ->assertSessionHasErrors(['rentable_id']);
 
-    expect(CartiTem::count())->toBe(0);
+    expect(CartItem::count())->toBe(0);
 });
 
 test('invalid rental ranges are rejected', function (string $pickup, string $return) {
@@ -393,10 +394,17 @@ function createRentalFor(
     string $startDate,
     string $endDate,
 ): App\Models\Rental {
-    $rental = App\Models\Rental::factory()->create([
-        'status' => 'fully_paid',
+    $rental = App\Models\Rental::create([
+        'rental_code' => 'RNT-'.Str::uuid(),
         'start_date' => $startDate,
+        'billing_start_date' => Carbon\Carbon::parse($startDate)->addDay()->toDateString(),
         'end_date' => $endDate,
+        'return_due_at' => Carbon\Carbon::parse($endDate)->endOfDay(),
+        'total_days' => Carbon\Carbon::parse($endDate)->diffInDays(Carbon\Carbon::parse($startDate)->addDay()) + 1,
+        'rental_amount' => 0,
+        'grand_total' => 0,
+        'payment_deadline_at' => now()->addDay(),
+        'status' => 'fully_paid',
     ]);
 
     $rental->items()->create([
@@ -404,6 +412,8 @@ function createRentalFor(
         'rentable_id' => $variant->id,
         'quantity' => $quantity,
         'unit_price' => 20000,
+        'subtotal' => 20000 * $quantity,
+        'deposit_per_unit' => 0,
         'deposit_subtotal' => 0,
     ]);
 

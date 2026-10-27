@@ -6,28 +6,26 @@ use App\Models\CartItem;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Carbon;
 
 /**
  * @extends Factory<CartItem>
  */
 class CartItemFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = CartItem::class;
+
     public function definition(): array
     {
-        $pickup = today()->addDays(7);
+        $variant = ProductVariant::factory()->create();
 
         return [
             'user_id' => User::factory(),
             'rentable_type' => ProductVariant::class,
-            'rentable_id' => ProductVariant::factory(),
+            'rentable_id' => $variant->id,
             'quantity' => 1,
-            'pickup_date' => $pickup,
-            'return_date' => $pickup->copy()->addDays(2),
+            'pickup_date' => today()->addDay(),
+            'return_date' => today()->addDays(3),
         ];
     }
 }

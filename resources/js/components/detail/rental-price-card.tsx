@@ -1,9 +1,10 @@
-import { CalendarCheckIcon, CalendarXIcon, IdCardIcon } from "lucide-react";
+import { CalendarCheckIcon, CalendarXIcon } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/components/product-shared";
 
 type RentalPriceCardProps = {
+    title?: string;
     unitPrice: number | null;
     depositPerUnit: number;
     totalDays: number | null;
@@ -18,6 +19,7 @@ type RentalPriceCardProps = {
 };
 
 export function RentalPriceCard({
+    title,
     unitPrice,
     depositPerUnit,
     totalDays,
@@ -34,7 +36,12 @@ export function RentalPriceCard({
     return (
         <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
             <div className="flex flex-col gap-4">
-                {variantSelector}
+                {title && (
+                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                        {title}
+                    </h1>
+                )}
+
                 <div className="flex flex-col gap-3">
                     <div className="flex items-start gap-4">
                         <div className="flex flex-1 flex-col gap-1.5">
@@ -90,6 +97,8 @@ export function RentalPriceCard({
                     )}
                 </div>
 
+                {variantSelector}
+
                 {rentalRangeComponent}
 
                 {loading && hasDateSelection ? (
@@ -101,28 +110,12 @@ export function RentalPriceCard({
                 ) : (
                     hasDateSelection && (
                         <div className="flex flex-col gap-2 rounded-xl p-3">
-                            <div className="flex items-baseline justify-between gap-2">
-                                <span className="text-xs text-muted-foreground">
-                                    Sewa {totalDays} hari
-                                </span>
-                                <span className="text-sm font-semibold">
-                                    {formatRupiah(unitPrice)}
-                                </span>
-                            </div>
-                            <div className="flex items-baseline justify-between gap-2">
-                                <span className="text-xs text-muted-foreground">
-                                    Deposit
-                                </span>
-                                <span className="text-sm font-semibold">
-                                    {formatRupiah(depositPerUnit)}
-                                </span>
-                            </div>
                             <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-2">
                                 <span className="text-xs font-medium">
-                                    Total
+                                    Total Sewa
                                 </span>
                                 <span className="text-base font-semibold text-primary">
-                                    {formatRupiah(unitPrice! + depositPerUnit)}
+                                    {formatRupiah(unitPrice!)}
                                 </span>
                             </div>
                         </div>
@@ -130,26 +123,7 @@ export function RentalPriceCard({
                 )}
 
                 {footerAction}
-
-                <IdentityRequiredBanner />
             </div>
-        </div>
-    );
-}
-
-function IdentityRequiredBanner() {
-    return (
-        <div
-            className={cn(
-                "flex items-center gap-3 rounded-xl bg-card border border-border px-4 py-3 text-muted-foreground",
-            )}
-        >
-            <IdCardIcon className="mt-0.5 size-5 shrink-0" />
-            <p className="text-xs leading-relaxed">
-                <span className="font-semibold">
-                    KTP / kartu identitas diperlukan.
-                </span>
-            </p>
         </div>
     );
 }

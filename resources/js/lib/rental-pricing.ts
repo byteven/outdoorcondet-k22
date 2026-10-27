@@ -96,8 +96,8 @@ function smallestLargerTierPrice(
 }
 
 /**
- * Varian termurah untuk durasi tertentu; dipakai karena varian selection
- * belum berdiri sendiri pada halaman detail.
+ * Varian termurah untuk durasi tertentu; dipakai sebagai varian default
+ * saat user belum memilih varian pada halaman detail.
  */
 export function cheapestVariantForDuration(
     variants: RentalVariant[],
@@ -128,6 +128,41 @@ export function cheapestVariantForDuration(
     }
 
     return best;
+}
+
+/**
+ * Harga per unit untuk satu varian spesifik pada durasi tertentu.
+ */
+export function variantPricingForDuration(
+    variant: RentalVariant,
+    days: number,
+): RentalUnitPricing | null {
+    const unitPrice = unitPriceForDuration(
+        variant.rental_price_per_day,
+        variant.duration_prices,
+        days,
+    );
+
+    return unitPrice === null
+        ? null
+        : { unitPrice, depositPerUnit: variant.deposit_per_unit };
+}
+
+/**
+ * Varian default (harga harian termurah) untuk seleksi awal di halaman detail.
+ */
+export function cheapestDailyVariant(
+    variants: RentalVariant[],
+): RentalVariant | null {
+    if (variants.length === 0) {
+        return null;
+    }
+
+    return variants.reduce((best, variant) =>
+        variant.rental_price_per_day < best.rental_price_per_day
+            ? variant
+            : best,
+    );
 }
 
 export function packageUnitPrice(

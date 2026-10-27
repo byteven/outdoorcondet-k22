@@ -1,19 +1,19 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { ShoppingCartIcon } from 'lucide-react';
-import { LoginDialog } from '@/components/auth/login-dialog';
-import { Button } from '@/components/ui/button';
+import { Link, router, usePage } from "@inertiajs/react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { ShoppingCartIcon } from "lucide-react";
+import { LoginDialog } from "@/components/auth/login-dialog";
+import { Button } from "@/components/ui/button";
 import {
     cheapestVariantForDuration,
     type DurationPrice,
-} from '@/lib/rental-pricing';
-import { toRentalQueryDate } from '@/hooks/use-rental-dates';
-import { index as cartIndex, store as cartStore } from '@/routes/cart';
+} from "@/lib/rental-pricing";
+import { toRentalQueryDate } from "@/hooks/use-rental-dates";
+import { index as cartIndex, store as cartStore } from "@/routes/cart";
 
 type CartActionDetail =
     | {
-          type: 'alat';
+          type: "alat";
           id: number;
           variants: {
               id: number;
@@ -24,7 +24,7 @@ type CartActionDetail =
           }[];
       }
     | {
-          type: 'bundle';
+          type: "bundle";
           id: number;
       };
 
@@ -35,6 +35,7 @@ type CartActionProps = {
     returnDate: Date | null;
     inCart: boolean;
     availability: number | null;
+    selectedVariantId?: number | null;
     loading?: boolean;
 };
 
@@ -51,13 +52,14 @@ export function CartAction({
     returnDate,
     inCart,
     availability,
+    selectedVariantId = null,
     loading = false,
 }: CartActionProps) {
     const { auth } = usePage().props;
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    if (auth.user?.role === 'admin') {
+    if (auth.user?.role === "admin") {
         return null;
     }
 
@@ -74,7 +76,7 @@ export function CartAction({
             return;
         }
 
-        const rentable = resolveRentable(detail, totalDays);
+        const rentable = resolveRentable(detail, totalDays, selectedVariantId);
 
         if (!rentable) {
             return;
@@ -101,7 +103,7 @@ export function CartAction({
                         errors.return_date ??
                         Object.values(errors)[0];
 
-                    if (typeof message === 'string') {
+                    if (typeof message === "string") {
                         toast.error(message);
                     }
                 },
@@ -127,14 +129,14 @@ export function CartAction({
                 onClick={handleAddToCart}
             >
                 <ShoppingCartIcon />
-                {isSubmitting ? 'Menambahkan...' : 'Tambah ke Keranjang'}
+                {isSubmitting ? "Menambahkan..." : "Tambah ke Keranjang"}
             </Button>
 
             <LoginDialog
                 open={isLoginOpen}
                 onOpenChange={setIsLoginOpen}
                 redirectTo={
-                    typeof window !== 'undefined'
+                    typeof window !== "undefined"
                         ? window.location.pathname + window.location.search
                         : undefined
                 }
@@ -144,20 +146,28 @@ export function CartAction({
 }
 
 /**
- * Item keranjang mengikuti varian termurah untuk durasi terpilih —
- * konsisten dengan harga yang tampil di halaman detail. Harga tetap
- * dihitung ulang di server saat disimpan ke keranjang.
+ * Item keranjang mengikuti varian yang dipilih user pada halaman detail;
+ * fallback ke varian termurah untuk durasi terpilih bila belum ada
+ * pilihan. Harga tetap dihitung ulang di server saat disimpan.
  */
 function resolveRentable(
     detail: CartActionDetail,
     totalDays: number | null,
-): { type: 'variant' | 'package'; id: number } | null {
-    if (detail.type === 'bundle') {
-        return { type: 'package', id: detail.id };
+    selectedVariantId: number | null,
+): { type: "variant" | "package"; id: number } | null {
+    if (detail.type === "bundle") {
+        return { type: "package", id: detail.id };
     }
 
     if (totalDays === null) {
         return null;
+    }
+
+    if (
+        selectedVariantId !== null &&
+        detail.variants.some((variant) => variant.id === selectedVariantId)
+    ) {
+        return { type: "variant", id: selectedVariantId };
     }
 
     const cheapest = cheapestVariantForDuration(detail.variants, totalDays);
@@ -166,5 +176,5 @@ function resolveRentable(
         return null;
     }
 
-    return { type: 'variant', id: cheapest.variantId };
+    return { type: "variant", id: cheapest.variantId };
 }

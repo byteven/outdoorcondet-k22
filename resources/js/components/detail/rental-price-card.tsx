@@ -1,7 +1,7 @@
-import { CalendarCheckIcon, CalendarXIcon, IdCardIcon } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { formatRupiah } from '@/components/product-shared';
+import { CalendarCheckIcon, CalendarXIcon, IdCardIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { formatRupiah } from "@/components/product-shared";
 
 type RentalPriceCardProps = {
     unitPrice: number | null;
@@ -9,6 +9,8 @@ type RentalPriceCardProps = {
     totalDays: number | null;
     available: number | null;
     dailyPrice: number;
+    /** Bagian atas card, mis. pemilih varian. */
+    variantSelector?: React.ReactNode;
     rentalRangeComponent?: React.ReactNode;
     /** Slot di bawah TOTAL, misalnya aksi keranjang. */
     footerAction?: React.ReactNode;
@@ -21,6 +23,7 @@ export function RentalPriceCard({
     totalDays,
     available,
     dailyPrice,
+    variantSelector,
     rentalRangeComponent,
     footerAction,
     loading = false,
@@ -31,17 +34,20 @@ export function RentalPriceCard({
     return (
         <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
             <div className="flex flex-col gap-4">
+                {variantSelector}
                 <div className="flex flex-col gap-3">
                     <div className="flex items-start gap-4">
                         <div className="flex flex-1 flex-col gap-1.5">
-                            <p className="text-sm text-muted-foreground">Harga Sewa</p>
+                            <p className="text-sm text-muted-foreground">
+                                Harga Sewa
+                            </p>
                             {loading ? (
                                 <Skeleton className="h-7 w-28 bg-muted" />
                             ) : (
                                 <p className="text-xl font-semibold text-primary">
                                     {formatRupiah(dailyPrice)}
                                     <span className="text-sm font-normal text-muted-foreground">
-                                        {' '}
+                                        {" "}
                                         / hari
                                     </span>
                                 </p>
@@ -49,14 +55,16 @@ export function RentalPriceCard({
                         </div>
 
                         <div className="flex flex-1 flex-col gap-1.5">
-                            <p className="text-sm text-muted-foreground">Deposit</p>
+                            <p className="text-sm text-muted-foreground">
+                                Deposit
+                            </p>
                             {loading ? (
                                 <Skeleton className="h-7 w-24 bg-muted" />
                             ) : (
                                 <p className="text-xl font-semibold text-foreground">
                                     {formatRupiah(depositPerUnit)}
                                     <span className="text-sm font-normal text-muted-foreground">
-                                        {' '}
+                                        {" "}
                                         / qty
                                     </span>
                                 </p>
@@ -75,7 +83,7 @@ export function RentalPriceCard({
                                     <CalendarCheckIcon className="size-3.5 text-primary" />
                                 )}
                                 {isUnavailable
-                                    ? 'Tidak tersedia'
+                                    ? "Tidak tersedia"
                                     : `${available} unit tersedia`}
                             </p>
                         )
@@ -110,7 +118,9 @@ export function RentalPriceCard({
                                 </span>
                             </div>
                             <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-2">
-                                <span className="text-xs font-medium">Total</span>
+                                <span className="text-xs font-medium">
+                                    Total
+                                </span>
                                 <span className="text-base font-semibold text-primary">
                                     {formatRupiah(unitPrice! + depositPerUnit)}
                                 </span>
@@ -131,7 +141,7 @@ function IdentityRequiredBanner() {
     return (
         <div
             className={cn(
-                'flex items-center gap-3 rounded-xl bg-card border border-border px-4 py-3 text-muted-foreground',
+                "flex items-center gap-3 rounded-xl bg-card border border-border px-4 py-3 text-muted-foreground",
             )}
         >
             <IdCardIcon className="mt-0.5 size-5 shrink-0" />

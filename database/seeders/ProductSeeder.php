@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
@@ -36,6 +37,12 @@ class ProductSeeder extends Seeder
                 ],
             );
 
+            if (array_key_exists('variants', $row)) {
+                $this->seedVariants($product, $row['variants'], $attributes);
+
+                continue;
+            }
+
             $variant = ProductVariant::query()->updateOrCreate(
                 ['sku' => $row['sku']],
                 [
@@ -63,6 +70,48 @@ class ProductSeeder extends Seeder
                     ['attribute_id' => $attributeId],
                     ['value' => $value],
                 );
+            }
+        }
+    }
+
+    /**
+     * Seed a parent product whose variants differ by attribute values,
+     * contoh untuk produk dengan pemilihan varian di halaman detail.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @param  Collection<int, int>  $attributes
+     */
+    private function seedVariants(Product $product, array $rows, $attributes): void
+    {
+        foreach ($rows as $row) {
+            $variant = ProductVariant::query()->updateOrCreate(
+                ['sku' => $row['sku']],
+                [
+                    'product_id' => $product->id,
+                    'stock' => $row['stock'],
+                    'rental_price_per_day' => $row['daily_price'],
+                    'deposit_per_unit' => $row['deposit'],
+                    'weight_grams' => $row['weight'],
+                    'is_active' => true,
+                ],
+            );
+
+            foreach ($row['durations'] as $days => $price) {
+                $variant->durationPrices()->updateOrCreate(
+                    ['duration_days' => $days],
+                    ['price' => $price],
+                );
+            }
+
+            foreach ($row['values'] as [$attributeName, $value]) {
+                $attributeId = $attributes->get($attributeName);
+
+                if ($attributeId !== null) {
+                    $variant->values()->updateOrCreate(
+                        ['attribute_id' => $attributeId],
+                        ['value' => $value],
+                    );
+                }
             }
         }
     }
@@ -122,6 +171,40 @@ class ProductSeeder extends Seeder
                 'weight' => 1800,
                 'attribute' => ['Kapasitas', '60 Liter'],
                 'durations' => [3 => 40000, 7 => 85000],
+            ],
+            [
+                'name' => 'Carrier Expedition',
+                'category' => 'Tas & Carrier',
+                'description' => 'Carrier expedition internal frame yang tersedia dalam tiga kapasitas: 40, 60, dan 80 liter.',
+                'variants' => [
+                    [
+                        'sku' => 'OC-CRE-40L',
+                        'stock' => 3,
+                        'daily_price' => 12000,
+                        'deposit' => 30000,
+                        'weight' => 1400,
+                        'values' => [['Kapasitas', '40 Liter']],
+                        'durations' => [3 => 32000, 7 => 70000],
+                    ],
+                    [
+                        'sku' => 'OC-CRE-60L',
+                        'stock' => 5,
+                        'daily_price' => 16000,
+                        'deposit' => 35000,
+                        'weight' => 1900,
+                        'values' => [['Kapasitas', '60 Liter']],
+                        'durations' => [3 => 42000, 7 => 92000],
+                    ],
+                    [
+                        'sku' => 'OC-CRE-80L',
+                        'stock' => 2,
+                        'daily_price' => 20000,
+                        'deposit' => 40000,
+                        'weight' => 2300,
+                        'values' => [['Kapasitas', '80 Liter']],
+                        'durations' => [3 => 52000, 7 => 115000],
+                    ],
+                ],
             ],
             [
                 'name' => 'Sleeping Bag Artic',

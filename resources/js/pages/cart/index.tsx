@@ -56,7 +56,6 @@ type CartItemPayload = {
 type CartSummary = {
     rental_amount: number;
     deposit_amount: number;
-    grand_total: number;
 };
 
 type CartPayload = {
@@ -204,21 +203,15 @@ export default function CartPage({ cart }: Props) {
         <>
             <Head title="Keranjang" />
 
-                <div className="flex min-h-screen flex-col bg-background">
-                    <LandingHeader />
+            <div className="flex min-h-screen flex-col bg-background">
+                <LandingHeader />
 
-                    <main className="flex-1 bg-[#fbfbfc]">
+                <main className="flex-1 bg-[#fbfbfc]">
                     <section className="mx-auto w-full max-w-6xl px-4 pt-24 pb-16 md:px-6">
                         <div className="flex flex-col gap-1">
                             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                                 Keranjang Sewa
                             </h1>
-                            {hasItems && (
-                                <p className="text-sm text-muted-foreground">
-                                    {cart.count} item siap disewa. Perubahan
-                                    quantity langsung dihitung ulang.
-                                </p>
-                            )}
                         </div>
 
                         {hasItems ? (
@@ -305,8 +298,8 @@ function CartItemRow({
 }: CartItemRowProps) {
     const href = item.slug
         ? showProduct.url({
-              productSlug: item.slug,
-          })
+            productSlug: item.slug,
+        })
         : undefined;
 
     return (
@@ -461,38 +454,26 @@ function CartSummaryCard({ summary }: { summary: CartSummary }) {
             <h2 className="font-semibold tracking-tight">Ringkasan Harga</h2>
 
             <div className="mt-4 flex flex-col gap-2.5">
-                <SummaryRow
-                    label="Subtotal Sewa"
-                    value={formatRupiah(summary.rental_amount)}
-                />
-                <SummaryRow
-                    label="Total Deposit"
-                    value={formatRupiah(summary.deposit_amount)}
-                />
-
-                <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                    <span className="text-sm font-medium">Grand Total</span>
+                <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm font-medium">Total Sewa</span>
                     <span className="text-lg font-semibold text-primary">
-                        {formatRupiah(summary.grand_total)}
+                        {formatRupiah(summary.rental_amount)}
+                    </span>
+                </div>
+
+                <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
+                    <span className="text-sm text-muted-foreground">
+                        Total Deposit
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                        {formatRupiah(summary.deposit_amount)}
                     </span>
                 </div>
             </div>
 
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Deposit disetor di outlet saat ambil barang, tidak dibayar
-                online.
+                Deposit disetor saat ambil barang, dikembalikan saat pengembalian barang.
             </p>
-        </div>
-    );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="flex items-baseline justify-between gap-2">
-            <span className="text-sm text-muted-foreground">{label}</span>
-            <span className="text-sm font-semibold text-foreground">
-                {value}
-            </span>
         </div>
     );
 }

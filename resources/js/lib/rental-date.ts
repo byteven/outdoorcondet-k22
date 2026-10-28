@@ -73,6 +73,22 @@ export function formatDateIDLong(date?: Date | null): string {
     return format(date, 'EEEE, d MMMM yyyy', { locale: idLocale });
 }
 
+export function parseDateOnly(dateString?: string | null): Date | null {
+    if (!dateString) {
+        return null;
+    }
+
+    try {
+        const date = new Date(dateString);
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
+        return date;
+    } catch {
+        return null;
+    }
+}
+
 export const RENTAL_SEARCH_STORAGE_KEY = 'outdoorcondet:rental-search';
 
 export type RentalRange = {

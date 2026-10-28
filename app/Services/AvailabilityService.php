@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\Package;
 use App\Models\PackageItem;
 use App\Models\ProductVariant;
 use App\Models\Rental;
 use App\Models\RentalItem;
 use App\Models\VariantMaintenance;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Menghitung ketersediaan stok mempertimbangkan:
@@ -41,7 +40,7 @@ class AvailabilityService
      * @param  int  $variantId  ID dari product_variant
      * @param  CarbonInterface  $pickupDate  tanggal ambil (start_date)
      * @param  CarbonInterface  $returnDate  tanggal kembali (end_date, sebelum buffer)
-     * @return int  stok yang tersedia (0 or lebih)
+     * @return int stok yang tersedia (0 or lebih)
      */
     public function availableStock(
         int $variantId,
@@ -59,7 +58,7 @@ class AvailabilityService
      * @param  array<int>  $variantIds
      * @param  CarbonInterface  $pickupDate  tanggal ambil
      * @param  CarbonInterface  $returnDate  tanggal kembali
-     * @return array<int, int>  map variantId => availableQty
+     * @return array<int, int> map variantId => availableQty
      */
     public function batchAvailableStock(
         array $variantIds,
@@ -98,10 +97,7 @@ class AvailabilityService
     /**
      * Ketersediaan paket = min floor(available(variant) / qty_per_paket) dari semua items.
      *
-     * @param  int  $packageId
-     * @param  CarbonInterface  $pickupDate
-     * @param  CarbonInterface  $returnDate
-     * @return int  jumlah paket yang tersedia
+     * @return int jumlah paket yang tersedia
      */
     public function availablePackageStock(
         int $packageId,
@@ -195,7 +191,7 @@ class AvailabilityService
      *   AND rental.end_date + buffer >= A
      */
     private function applyOverlapScope(
-        \Illuminate\Database\Eloquent\Builder $query,
+        Builder $query,
         CarbonInterface $pickupDate,
         CarbonInterface $returnDate,
     ): void {
@@ -203,7 +199,6 @@ class AvailabilityService
         $now = now();
 
         $bufferedReturnDate = $returnDate->copy()->addDays($bufferDays)->toDateString();
-        $pickupDateStr = $pickupDate->toDateString();
 
         $query
             ->whereIn('status', self::BLOCKING_STATUSES)
@@ -223,7 +218,8 @@ class AvailabilityService
             // Overlap: rental.start_date <= returnDate + buffer
             ->whereDate('start_date', '<=', $bufferedReturnDate)
             // AND rental.end_date + buffer >= pickupDate
-            ->whereRaw('DATE_ADD(end_date, INTERVAL ? DAY) >= ?', [$bufferDays, $pickupDateStr]);
+            // (dihitung di PHP agar kompatibel MySQL dan SQLite)
+            ->where('end_date', '>=', $pickupDate->copy()->subDays($bufferDays)->toDateString());
     }
 
     /**

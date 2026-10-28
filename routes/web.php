@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogDetailController;
+use App\Http\Controllers\Customer\CheckoutController;
 use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,10 @@ Route::middleware(['auth', 'can:access-customer'])->group(function () {
     Route::patch('cart/items/{cartItem}', [CartController::class, 'update'])->name('cart.update');
     Route::patch('cart/items/{cartItem}/variant', [CartController::class, 'updateVariant'])->name('cart.variant');
     Route::delete('cart/items/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
+
+    Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::get('checkout/{rental}', [CheckoutController::class, 'show'])->name('checkout.show');
+    Route::post('checkout/{rental}/payment', [CheckoutController::class, 'storePayment'])->name('checkout.payment.store');
 });
 
 Route::middleware(['auth'])->group(function () {

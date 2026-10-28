@@ -1,4 +1,4 @@
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -29,8 +29,10 @@ import {
     update as cartUpdate,
     variant as cartVariant,
 } from "@/routes/cart";
+import { store as checkoutStoreRoute } from "@/routes/checkout";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
+import { CheckoutConfirmDialog } from "@/components/checkout/checkout-confirm-dialog";
 
 type CartItemType = "alat" | "bundle";
 
@@ -80,12 +82,17 @@ type CartPayload = {
     count: number;
 };
 
+type PaymentType = "full" | "down_payment";
+
 type Props = {
     cart: CartPayload;
 };
 
 export default function CartPage({ cart }: Props) {
     const [busyItemId, setBusyItemId] = useState<number | null>(null);
+    const [paymentType, setPaymentType] = useState<PaymentType>("full");
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
 
     const { items, summary, count } = cart;
     const hasItems = items.length > 0;
@@ -96,6 +103,28 @@ export default function CartPage({ cart }: Props) {
         serverPickupDate: serverPickupKey,
         serverReturnDate: serverReturnKey,
     });
+
+    const allItemsReady =
+        items.length > 0 &&
+        items.every(
+            (item) => item.is_rentable && !item.is_out_of_stock
+        );
+
+    const checkoutDisabled =
+        !allItemsReady || isCheckingOut || !hasItems;
+
+    const rentalAmount = summary.rental_amount;
+    const depositAmount = summary.deposit_amount;
+
+    // DP = 50% dari biaya sewa saja, dibulatkan ke atas ke kelipatan Rp1.000.
+    const downPaymentAmount =
+        paymentType === "down_payment"
+            ? Math.ceil((rentalAmount * 0.5) / 1000) * 1000
+            : 0;
+    const remainingBalance = Math.max(0, rentalAmount - downPaymentAmount);
+    const amountToPayNow =
+        paymentType === "down_payment" ? downPaymentAmount : rentalAmount;
+    const totalPrepareOutlet = remainingBalance + depositAmount;
 
     const handleQuantityChange = (item: CartItemPayload, quantity: number) => {
         setBusyItemId(item.id);
@@ -150,9 +179,59 @@ export default function CartPage({ cart }: Props) {
         );
     };
 
+    const handleCheckout = () => {
+        if (checkoutDisabled) {
+            return;
+        }
+
+        setIsCheckingOut(true);
+
+        router.post(
+            checkoutStoreRoute.url(),
+            {
+                payment_type: paymentType,
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsCheckingOut(false);
+                    setIsConfirmOpen(false);
+                },
+                onError: (errors) => {
+                    setIsCheckingOut(false);
+                    const message =
+                        errors.cart ??
+                        errors.customer ??
+                        Object.values(errors)[0];
+
+                    if (typeof message === "string") {
+                        toast.error(message);
+                    }
+                },
+            },
+        );
+    };
+
+    const flash = (usePage().props as { flash?: { toast?: unknown } }).flash;
+
+    if (flash?.toast) {
+        const { type, message } = flash.toast as {
+            type: string;
+            message: string;
+        };
+
+        if (type === "success") {
+            toast.success(message);
+        } else if (type === "warning") {
+            toast.warning(message);
+        } else if (type === "error") {
+            toast.error(message);
+        }
+    }
+
     return (
         <>
-            <Head title="Keranjang" />
+            <Head title="Keranjang Sewa" />
 
             <div className="flex min-h-screen flex-col bg-background">
                 <LandingHeader />
@@ -171,7 +250,7 @@ export default function CartPage({ cart }: Props) {
                         </div>
 
                         {hasItems ? (
-                            <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_20rem] lg:gap-8">
+                            <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_24rem] lg:gap-8">
                                 <div className="flex min-w-0 flex-col gap-4">
                                     <RentalRange
                                         variant="compact"
@@ -201,7 +280,19 @@ export default function CartPage({ cart }: Props) {
                                     />
                                 </div>
 
-                                <CartSummaryCard summary={summary} />
+                                <CheckoutSummaryCard
+                                    paymentType={paymentType}
+                                    onPaymentTypeChange={setPaymentType}
+                                    rentalAmount={rentalAmount}
+                                    depositAmount={depositAmount}
+                                    downPaymentAmount={downPaymentAmount}
+                                    allItemsReady={allItemsReady}
+                                    hasItems={hasItems}
+                                    checkoutDisabled={checkoutDisabled}
+                                    isCheckingOut={isCheckingOut}
+                                    onCheckout={handleCheckout}
+                                    onOpenConfirm={() => setIsConfirmOpen(true)}
+                                />
                             </div>
                         ) : (
                             <EmptyCart />
@@ -211,7 +302,202 @@ export default function CartPage({ cart }: Props) {
 
                 <SiteFooter />
             </div>
+
+            <CheckoutConfirmDialog
+                open={isConfirmOpen}
+                onOpenChange={setIsConfirmOpen}
+                onConfirm={handleCheckout}
+            />
         </>
+    );
+}
+
+type CheckoutSummaryCardProps = {
+    paymentType: PaymentType;
+    onPaymentTypeChange: (value: PaymentType) => void;
+    rentalAmount: number;
+    depositAmount: number;
+    downPaymentAmount: number;
+    allItemsReady: boolean;
+    hasItems: boolean;
+    checkoutDisabled: boolean;
+    isCheckingOut: boolean;
+    onCheckout: () => void;
+    onOpenConfirm: () => void;
+};
+
+function CheckoutSummaryCard({
+    paymentType,
+    onPaymentTypeChange,
+    rentalAmount,
+    depositAmount,
+    downPaymentAmount,
+    allItemsReady,
+    hasItems,
+    checkoutDisabled,
+    isCheckingOut,
+    onCheckout,
+    onOpenConfirm,
+}: CheckoutSummaryCardProps) {
+    const isDownPayment = paymentType === "down_payment";
+
+    return (
+        <div className="rounded-2xl border border-border bg-card p-4 md:sticky md:top-24 md:p-5">
+            <h2 className="font-semibold tracking-tight">Ringkasan Harga</h2>
+
+            <div className="mt-4 flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-2 pb-2 border-b border-border">
+                    <span className="text-sm font-medium">Total Sewa</span>
+                    <span className="text-lg font-semibold text-primary">
+                        {formatRupiah(rentalAmount)}
+                    </span>
+                </div>
+
+                {isDownPayment && (
+                    <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">
+                            DP 50%
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                            {formatRupiah(downPaymentAmount)}
+                        </span>
+                    </div>
+                )}
+
+                <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">
+                        Total Deposit
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                        {formatRupiah(depositAmount)}
+                    </span>
+                </div>
+            </div>
+
+        <div className="mt-6 space-y-3">
+            <div className="rounded-xl border border-input bg-background p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-muted-foreground">
+                        Metode pembayaran
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        QRIS
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <PaymentMethodCard
+                        value="full"
+                        checked={paymentType === "full"}
+                        label="Bayar Penuh"
+                        onChange={onPaymentTypeChange}
+                    />
+                    <PaymentMethodCard
+                        value="down_payment"
+                        checked={paymentType === "down_payment"}
+                        label="DP 50%"
+                        onChange={onPaymentTypeChange}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <Button
+                    type="button"
+                    className="w-full rounded-full transition-none"
+                    disabled={checkoutDisabled}
+                    onClick={onOpenConfirm}
+                >
+                    {isCheckingOut ? "Memproses..." : "Checkout Sekarang"}
+                </Button>
+
+                {!allItemsReady && hasItems && (
+                    <p className="mt-2 text-center text-xs text-destructive">
+                        Tidak bisa checkout: ada item yang tidak tersedia untuk
+                        tanggal ini.
+                    </p>
+                )}
+            </div>
+        </div>
+        </div>
+    );
+}
+
+type PaymentMethodCardProps = {
+    value: PaymentType;
+    checked: boolean;
+    label: string;
+    onChange: (value: PaymentType) => void;
+};
+
+function PaymentMethodCard({
+    value,
+    checked,
+    label,
+    onChange,
+}: PaymentMethodCardProps) {
+    return (
+       <label
+    className={cn(
+        "flex cursor-pointer select-none items-center gap-2.5 rounded-full border px-3 py-3 transition-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+        checked
+            ? "border-primary"
+            : "border-input bg-background hover:opacity-75",
+    )}
+>
+            <input
+                type="radio"
+                name="payment-type"
+                value={value}
+                checked={checked}
+                onChange={() => onChange(value)}
+                className="sr-only"
+            />
+            <span
+                className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2",
+                    checked ? "border-primary" : "border-muted-foreground/50",
+                )}
+            >
+                {checked && (
+                    <span className="h-2 w-2 rounded-full bg-primary" />
+                )}
+            </span>
+            <span
+                className={cn(
+                    "text-sm font-medium",
+                    checked ? "text-primary" : "text-foreground",
+                )}
+            >
+                {label}
+            </span>
+        </label>
+    );
+}
+function EmptyCart() {
+    return (
+        <div className="flex flex-col items-center gap-4 py-24 text-center">
+            <span className="flex size-20 items-center justify-center rounded-full bg-muted">
+                <PackageIcon
+                    className="size-9 text-muted-foreground/50"
+                    strokeWidth={1.5}
+                />
+            </span>
+
+            <div className="flex flex-col gap-1">
+                <p className="text-lg font-semibold">Keranjang masih kosong</p>
+                <p className="text-sm text-muted-foreground">
+                    Yuk, pilih alat outdoor favoritmu dulu.
+                </p>
+            </div>
+
+            <Button asChild className="rounded-full">
+                <Link href={home.url()}>
+                    Lihat Katalog
+                    <ArrowRightIcon />
+                </Link>
+            </Button>
+        </div>
     );
 }
 
@@ -529,63 +815,5 @@ function CartItemStock({ item }: { item: CartItemPayload }) {
             <CalendarCheckIcon className="size-3.5 shrink-0 text-primary" />
             {item.available} unit tersedia
         </p>
-    );
-}
-
-function CartSummaryCard({ summary }: { summary: CartSummary }) {
-    return (
-        <div className="rounded-2xl border border-border bg-card p-4 md:sticky md:top-24 md:p-5">
-            <h2 className="font-semibold tracking-tight">Ringkasan Harga</h2>
-
-            <div className="mt-4 flex flex-col gap-2.5">
-                <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-medium">Total Sewa</span>
-                    <span className="text-lg font-semibold text-primary">
-                        {formatRupiah(summary.rental_amount)}
-                    </span>
-                </div>
-
-                <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                    <span className="text-sm text-muted-foreground">
-                        Total Deposit
-                    </span>
-                    <span className="text-sm font-semibold text-foreground">
-                        {formatRupiah(summary.deposit_amount)}
-                    </span>
-                </div>
-            </div>
-
-            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Deposit disetor saat ambil barang, dikembalikan saat
-                pengembalian barang.
-            </p>
-        </div>
-    );
-}
-
-function EmptyCart() {
-    return (
-        <div className="flex flex-col items-center gap-4 py-24 text-center">
-            <span className="flex size-20 items-center justify-center rounded-full bg-muted">
-                <PackageIcon
-                    className="size-9 text-muted-foreground/50"
-                    strokeWidth={1.5}
-                />
-            </span>
-
-            <div className="flex flex-col gap-1">
-                <p className="text-lg font-semibold">Keranjang masih kosong</p>
-                <p className="text-sm text-muted-foreground">
-                    Yuk, pilih alat outdoor favoritmu dulu.
-                </p>
-            </div>
-
-            <Button asChild className="rounded-full">
-                <Link href={home.url()}>
-                    Lihat Katalog
-                    <ArrowRightIcon />
-                </Link>
-            </Button>
-        </div>
     );
 }

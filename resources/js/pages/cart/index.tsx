@@ -1,33 +1,27 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { Head, Link, router } from "@inertiajs/react";
+import { useState } from "react";
+import { toast } from "sonner";
 import {
     ArrowRightIcon,
+    CalendarCheckIcon,
+    CalendarXIcon,
     PackageIcon,
     Trash2Icon,
-} from 'lucide-react';
-import { QuantityStepper } from '@/components/quantity-stepper';
-import { LandingHeader } from '@/components/landing/landing-header';
-import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
-import { SiteFooter } from '@/components/site-footer';
-import { Button } from '@/components/ui/button';
-import { formatRupiah } from '@/components/product-shared';
-import { cn } from '@/lib/utils';
-import {
-    syncRentalRangePersistence,
-    toRentalQueryDate,
-    useActiveRental,
-} from '@/hooks/use-rental-dates';
-import {
-    dates as cartDates,
-    destroy as cartDestroy,
-    index as cartIndex,
-    update as cartUpdate,
-} from '@/routes/cart';
-import { home } from '@/routes';
-import { show as showProduct } from '@/routes/products';
+} from "lucide-react";
+import { QuantityStepper } from "@/components/quantity-stepper";
+import { LandingHeader } from "@/components/landing/landing-header";
+import { RentalRange } from "@/components/rental-range";
+import { SiteFooter } from "@/components/site-footer";
+import { Button } from "@/components/ui/button";
+import { formatRupiah } from "@/components/product-shared";
+import { cn } from "@/lib/utils";
+import { parseRentalQueryDate } from "@/hooks/use-rental-dates";
+import { useCartRentalDates } from "@/hooks/use-cart-rental-dates";
+import { destroy as cartDestroy, update as cartUpdate } from "@/routes/cart";
+import { home } from "@/routes";
+import { show as showProduct } from "@/routes/products";
 
-type CartItemType = 'alat' | 'bundle';
+type CartItemType = "alat" | "bundle";
 
 type CartItemPayload = {
     id: number;
@@ -68,60 +62,15 @@ type Props = {
 export default function CartPage({ cart }: Props) {
     const [busyItemId, setBusyItemId] = useState<number | null>(null);
 
-    const { items, summary } = cart;
+    const { items, summary, count } = cart;
     const hasItems = items.length > 0;
     const serverPickupKey = items[0]?.pickup_date;
     const serverReturnKey = items[0]?.return_date;
 
-    const { saveDates, clearDates, activeRental } = useActiveRental({});
-
-    // Semua item keranjang memakai SATU rentang tanggal yang sama dengan
-    // rentang sewa aktif di landing/detail produk. Saat masuk halaman:
-    // - rentang aktif ada   -> tanggal server disesuaikan ke rentang aktif;
-    // - rentang aktif kosong-> rentang dari item server dipakai sebagai
-    //                          rentang aktif bersama.
-    useEffect(() => {
-        if (!activeRental) {
-            const pickup = parseDate(serverPickupKey);
-            const returnDate = parseDate(serverReturnKey);
-
-            if (pickup && returnDate) {
-                saveDates(pickup, returnDate);
-            }
-
-            return;
-        }
-
-        const pickupKey = toRentalQueryDate(activeRental.pickupDate);
-        const returnKey = toRentalQueryDate(activeRental.returnDate);
-
-        if (!serverPickupKey || !serverReturnKey) {
-            return;
-        }
-
-        if (pickupKey === serverPickupKey && returnKey === serverReturnKey) {
-            return;
-        }
-
-        router.put(
-            cartDates.url(),
-            { pickup_date: pickupKey, return_date: returnKey },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                onError: (errors) => {
-                    const message =
-                        errors.pickup_date ??
-                        errors.return_date ??
-                        Object.values(errors)[0];
-
-                    if (typeof message === 'string') {
-                        toast.error(message);
-                    }
-                },
-            },
-        );
-    }, [activeRental, serverPickupKey, serverReturnKey, saveDates, clearDates]);
+    const { activeRental, handleRangeChange } = useCartRentalDates({
+        serverPickupDate: serverPickupKey,
+        serverReturnDate: serverReturnKey,
+    });
 
     const handleQuantityChange = (item: CartItemPayload, quantity: number) => {
         setBusyItemId(item.id);
@@ -136,7 +85,7 @@ export default function CartPage({ cart }: Props) {
                 onError: (errors) => {
                     const message = errors.quantity ?? Object.values(errors)[0];
 
-                    if (typeof message === 'string') {
+                    if (typeof message === "string") {
                         toast.error(message);
                     }
                 },
@@ -154,48 +103,6 @@ export default function CartPage({ cart }: Props) {
         });
     };
 
-    // Tanpa tombol "Cek": begitu kedua tanggal terpilih, rentang aktif
-    // bersama diperbarui dan semua item di server ikut disesuaikan.
-    // Rentang tidak boleh dikosongkan di keranjang (item wajib punya
-    // tanggal sewa), jadi clear diabaikan sampai tanggal baru dipilih.
-    const handleRangeChange = ({
-        pickupDate,
-        returnDate,
-    }: RentalRangeParams) => {
-        if (!pickupDate || !returnDate) {
-            return;
-        }
-
-        syncRentalRangePersistence(
-            pickupDate,
-            returnDate,
-            saveDates,
-            clearDates,
-        );
-
-        router.put(
-            cartDates.url(),
-            {
-                pickup_date: toRentalQueryDate(pickupDate),
-                return_date: toRentalQueryDate(returnDate),
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                onError: (errors) => {
-                    const message =
-                        errors.pickup_date ??
-                        errors.return_date ??
-                        Object.values(errors)[0];
-
-                    if (typeof message === 'string') {
-                        toast.error(message);
-                    }
-                },
-            },
-        );
-    };
-
     return (
         <>
             <Head title="Keranjang" />
@@ -209,6 +116,11 @@ export default function CartPage({ cart }: Props) {
                             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                                 Keranjang Sewa
                             </h1>
+                            {hasItems && (
+                                <p className="text-sm text-muted-foreground">
+                                    {count} barang disewa
+                                </p>
+                            )}
                         </div>
 
                         {hasItems ? (
@@ -219,11 +131,15 @@ export default function CartPage({ cart }: Props) {
                                         className="rounded-2xl border border-border bg-card p-3"
                                         initialPickupDate={
                                             activeRental?.pickupDate ??
-                                            parseDate(serverPickupKey)
+                                            parseRentalQueryDate(
+                                                serverPickupKey,
+                                            )
                                         }
                                         initialReturnDate={
                                             activeRental?.returnDate ??
-                                            parseDate(serverReturnKey)
+                                            parseRentalQueryDate(
+                                                serverReturnKey,
+                                            )
                                         }
                                         hideButton
                                         onSearch={handleRangeChange}
@@ -295,15 +211,15 @@ function CartItemRow({
 }: CartItemRowProps) {
     const href = item.slug
         ? showProduct.url({
-            productSlug: item.slug,
-        })
+              productSlug: item.slug,
+          })
         : undefined;
 
     return (
         <div
             className={cn(
-                'rounded-2xl border border-border bg-card p-4',
-                !item.is_rentable && 'opacity-80',
+                "rounded-2xl border border-border bg-card p-4",
+                !item.is_rentable && "opacity-80",
             )}
         >
             <div className="flex gap-4">
@@ -313,21 +229,25 @@ function CartItemRow({
                     href={href}
                 />
 
-                <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            {href ? (
-                                <Link
-                                    href={href}
-                                    className="block truncate font-semibold text-foreground transition-colors hover:text-primary"
-                                >
-                                    {item.name}
-                                </Link>
-                            ) : (
-                                <p className="truncate font-semibold">
-                                    {item.name}
-                                </p>
-                            )}
+                        <div className="flex min-w-0 flex-col gap-1">
+                            <div className="min-w-0">
+                                {href ? (
+                                    <Link
+                                        href={href}
+                                        className="block truncate font-semibold text-foreground transition-colors hover:text-primary"
+                                    >
+                                        {item.name}
+                                    </Link>
+                                ) : (
+                                    <p className="truncate font-semibold">
+                                        {item.name}
+                                    </p>
+                                )}
+                            </div>
+
+                            <CartItemStock item={item} />
                         </div>
 
                         <Button
@@ -343,7 +263,15 @@ function CartItemRow({
                         </Button>
                     </div>
 
-                    <div className="mt-auto flex flex-wrap items-end justify-between gap-3">
+                    <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+                        <div className="text-left">
+                            <p className="text-sm font-semibold text-foreground">
+                                {formatRupiah(item.rental_subtotal)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Deposit {formatRupiah(item.deposit_subtotal)}
+                            </p>
+                        </div>
                         <QuantityStepper
                             value={item.quantity}
                             min={1}
@@ -354,18 +282,7 @@ function CartItemRow({
                             }
                             ariaLabel={`Jumlah ${item.name}`}
                         />
-
-                        <div className="text-right">
-                            <p className="text-sm font-semibold text-foreground">
-                                {formatRupiah(item.rental_subtotal)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Deposit {formatRupiah(item.deposit_subtotal)}
-                            </p>
-                        </div>
                     </div>
-
-                    <CartItemWarnings item={item} />
                 </div>
             </div>
         </div>
@@ -408,21 +325,29 @@ function ItemThumbnail({
     );
 }
 
-function CartItemWarnings({ item }: { item: CartItemPayload }) {
-    if (item.is_rentable && !item.is_out_of_stock) {
-        return null;
+function CartItemStock({ item }: { item: CartItemPayload }) {
+    if (!item.is_rentable) {
+        return (
+            <p className="flex items-center gap-1.5 text-xs text-destructive">
+                <CalendarXIcon className="size-3.5 shrink-0" />
+                Tidak tersedia
+            </p>
+        );
+    }
+
+    if (item.is_out_of_stock) {
+        return (
+            <p className="flex items-center gap-1.5 text-xs text-amber-600">
+                <CalendarXIcon className="size-3.5 shrink-0" />
+                Stok tersedia hanya {item.available} unit untuk tanggal ini
+            </p>
+        );
     }
 
     return (
-        <p
-            className={cn(
-                'text-xs',
-                item.is_rentable ? 'text-amber-600' : 'text-destructive',
-            )}
-        >
-            {!item.is_rentable
-                ? 'Item tidak lagi tersedia. Hapus dari keranjang untuk melanjutkan sewa.'
-                : `Stok tersedia hanya ${item.available} unit untuk tanggal ini.`}
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarCheckIcon className="size-3.5 shrink-0 text-primary" />
+            {item.available} unit tersedia
         </p>
     );
 }
@@ -451,7 +376,8 @@ function CartSummaryCard({ summary }: { summary: CartSummary }) {
             </div>
 
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Deposit disetor saat ambil barang, dikembalikan saat pengembalian barang.
+                Deposit disetor saat ambil barang, dikembalikan saat
+                pengembalian barang.
             </p>
         </div>
     );
@@ -483,18 +409,3 @@ function EmptyCart() {
         </div>
     );
 }
-
-function parseDate(value?: string): Date | undefined {
-    if (!value) {
-        return undefined;
-    }
-
-    const [year, month, day] = value.split('-').map(Number);
-
-    if (!year || !month || !day) {
-        return undefined;
-    }
-
-    return new Date(year, month - 1, day);
-}
-

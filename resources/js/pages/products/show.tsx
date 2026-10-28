@@ -10,6 +10,11 @@ import { DetailAccordion } from "@/components/detail/detail-accordion";
 import { ImageGallery } from "@/components/detail/image-gallery";
 import { CartAction } from "@/components/detail/cart-action";
 import { RentalPriceCard } from "@/components/detail/rental-price-card";
+import {
+    VariantSelector,
+    type DetailVariant,
+    type DetailVariantValue,
+} from "@/components/detail/variant-selector";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { SiteFooter } from "@/components/site-footer";
 import { RentalRange, type RentalRangeParams } from "@/components/rental-range";
@@ -20,31 +25,15 @@ import {
     syncRentalRangePersistence,
     useActiveRental,
 } from "@/hooks/use-rental-dates";
-import {
-    type DurationPrice,
-    cheapestDailyVariant,
-    type RentalVariant,
-} from "@/lib/rental-pricing";
+import { type DurationPrice, cheapestDailyVariant } from "@/lib/rental-pricing";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
 import { show as showPackage } from "@/routes/packages";
-import { cn } from "@/lib/utils";
 
 type DetailCategory = {
     id: number;
     name: string;
     slug: string;
-};
-
-type DetailVariantValue = {
-    attribute: string | null;
-    value: string;
-};
-
-type DetailVariant = RentalVariant & {
-    sku: string;
-    available: number | null;
-    values: DetailVariantValue[];
 };
 
 type ProductDetail = {
@@ -104,7 +93,7 @@ export default function CatalogDetailPage({
     const [isRangeUpdating, setIsRangeUpdating] = useState(false);
     const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
         () => {
-            if (detail.type !== 'alat' || detail.variants.length === 0) {
+            if (detail.type !== "alat" || detail.variants.length === 0) {
                 return null;
             }
 
@@ -328,16 +317,6 @@ export default function CatalogDetailPage({
     );
 }
 
-function DetailTitle({ detail }: { detail: CatalogDetail }) {
-    return (
-        <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                {detail.name}
-            </h1>
-        </div>
-    );
-}
-
 function Breadcrumbs({
     categoryName,
     name,
@@ -412,83 +391,4 @@ function galleryImages(detail: CatalogDetail): string[] {
 
 function detailItems(detail: CatalogDetail) {
     return detail.type === "bundle" ? detail.items : undefined;
-}
-
-/**
- * Label grup varian: nama atribut tunggal jika semua varian memakai
- * atribut yang sama (mis. "Kapasitas"), selain itu "Varian".
- */
-function variantGroupLabel(variants: DetailVariant[]): string {
-    const attributeNames = new Set(
-        variants.flatMap((variant) =>
-            variant.values
-                .map((value) => value.attribute)
-                .filter((name): name is string => name !== null),
-        ),
-    );
-
-    if (attributeNames.size === 1) {
-        const [attributeName] = attributeNames;
-
-        return attributeName ?? "Varian";
-    }
-
-    return "Varian";
-}
-
-function variantChipLabel(variant: DetailVariant): string {
-    const label = variant.values
-        .map((value) => value.value)
-        .join(" / ")
-        .trim();
-
-    return label || variant.sku;
-}
-
-function VariantSelector({
-    variants,
-    selectedId,
-    onSelect,
-}: {
-    variants: DetailVariant[];
-    selectedId: number | null;
-    onSelect: (id: number) => void;
-}) {
-    return (
-        <div className="flex flex-col gap-2.5">
-            <p className="text-sm font-medium">{variantGroupLabel(variants)}</p>
-            <div className="flex flex-wrap gap-2" role="group">
-                {variants.map((variant) => {
-                    const isSelected = variant.id === selectedId;
-                    const isSoldOut = variant.available === 0;
-
-                    return (
-                        <button
-                            key={variant.id}
-                            type="button"
-                            disabled={isSoldOut}
-                            aria-pressed={isSelected}
-                            data-active={isSelected}
-                            title={
-                                isSoldOut
-                                    ? "Stok varian ini tidak tersedia untuk tanggal terpilih"
-                                    : undefined
-                            }
-                            className={cn(
-                                "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium",
-                                isSelected
-                                    ? "border-primary bg-primary text-white"
-                                    : "text-muted-foreground hover:border-primary/40 hover:text-primary",
-                                isSoldOut &&
-                                    "cursor-not-allowed line-through opacity-50",
-                            )}
-                            onClick={() => onSelect(variant.id)}
-                        >
-                            {variantChipLabel(variant)}
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    );
 }

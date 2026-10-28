@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
     getBillingStartDate,
     getRentalDurationDays,
     STORE_PICKUP_TIME,
-} from '@/lib/rental-date';
+} from "@/lib/rental-date";
 
-const STORAGE_KEY = 'rental_dates';
-const RENTAL_DATES_CHANGED = 'outdoorcondet:rental-dates-changed';
+const STORAGE_KEY = "rental_dates";
+const RENTAL_DATES_CHANGED = "outdoorcondet:rental-dates-changed";
 
 export type RentalDates = {
     pickupDate: Date;
@@ -18,7 +18,7 @@ export type RentalDateSelection = RentalDates & {
 };
 
 function readStoredDates(): RentalDates | null {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
         return null;
     }
 
@@ -74,7 +74,7 @@ function writeStoredDates(dates: RentalDates | null): void {
 }
 
 export function toRentalQueryDate(date: Date): string {
-    return date.toLocaleDateString('en-CA');
+    return date.toLocaleDateString("en-CA");
 }
 
 export function parseRentalQueryDate(value?: string): Date | undefined {
@@ -82,9 +82,13 @@ export function parseRentalQueryDate(value?: string): Date | undefined {
         return undefined;
     }
 
-    const parsed = new Date(value);
+    const [year, month, day] = value.split("-").map(Number);
 
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+    if (!year || !month || !day) {
+        return undefined;
+    }
+
+    return new Date(year, month - 1, day);
 }
 
 export function buildRentalSelection(
@@ -128,11 +132,11 @@ export function useRentalDates() {
         };
 
         window.addEventListener(RENTAL_DATES_CHANGED, syncFromStorage);
-        window.addEventListener('storage', syncFromStorage);
+        window.addEventListener("storage", syncFromStorage);
 
         return () => {
             window.removeEventListener(RENTAL_DATES_CHANGED, syncFromStorage);
-            window.removeEventListener('storage', syncFromStorage);
+            window.removeEventListener("storage", syncFromStorage);
         };
     }, []);
 
@@ -173,8 +177,8 @@ export function buildRentalRangeQuery(
     returnDate: Date | undefined,
 ): { pickup_date: string; return_date: string } {
     return {
-        pickup_date: pickupDate ? toRentalQueryDate(pickupDate) : '',
-        return_date: returnDate ? toRentalQueryDate(returnDate) : '',
+        pickup_date: pickupDate ? toRentalQueryDate(pickupDate) : "",
+        return_date: returnDate ? toRentalQueryDate(returnDate) : "",
     };
 }
 

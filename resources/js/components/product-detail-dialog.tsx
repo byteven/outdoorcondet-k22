@@ -324,10 +324,10 @@ export function ProductDetailDialog({
                                             {totalStock(product)} unit · Dibuat{' '}
                                             {product.created_at
                                                 ? dateFormatter.format(
-                                                      new Date(
-                                                          product.created_at,
-                                                      ),
-                                                  )
+                                                    new Date(
+                                                        product.created_at,
+                                                    ),
+                                                )
                                                 : '-'}
                                         </p>
                                     </div>
@@ -366,16 +366,16 @@ export function ProductDetailDialog({
                                                     </p>
                                                     {Number(
                                                         variant.deposit_per_unit ||
-                                                            0,
+                                                        0,
                                                     ) > 0 && (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Deposit:{' '}
-                                                            {formatRupiah(
-                                                                variant.deposit_per_unit,
-                                                            )}
-                                                            /unit
-                                                        </p>
-                                                    )}
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Deposit:{' '}
+                                                                {formatRupiah(
+                                                                    variant.deposit_per_unit,
+                                                                )}
+                                                                /unit
+                                                            </p>
+                                                        )}
                                                     {variant.duration_prices &&
                                                         variant.duration_prices
                                                             .length > 0 && (
@@ -501,10 +501,10 @@ export function ProductDetailDialog({
                                                 value={
                                                     watch('category_id')
                                                         ? String(
-                                                              watch(
-                                                                  'category_id',
-                                                              ),
-                                                          )
+                                                            watch(
+                                                                'category_id',
+                                                            ),
+                                                        )
                                                         : ''
                                                 }
                                                 onValueChange={(v) =>
@@ -687,7 +687,7 @@ export function ProductDetailDialog({
                                                                 ?.sku
                                                                 ?.message ??
                                                             serverErrors[
-                                                                `variants.${i}.sku`
+                                                            `variants.${i}.sku`
                                                             ]
                                                         }
                                                     />
@@ -797,6 +797,8 @@ export function ProductDetailDialog({
                                                 variantIndex={i}
                                                 attributes={attributes}
                                                 processing={processing}
+                                                errors={errors}
+                                                serverErrors={serverErrors}
                                             />
                                             <EditVariantDurationPricesInput
                                                 control={control}
@@ -868,10 +870,10 @@ export function ProductDetailDialog({
                                                             setPrimary((p) =>
                                                                 p >= next.length
                                                                     ? Math.max(
-                                                                          next.length -
-                                                                              1,
-                                                                          0,
-                                                                      )
+                                                                        next.length -
+                                                                        1,
+                                                                        0,
+                                                                    )
                                                                     : p,
                                                             );
 
@@ -1065,6 +1067,8 @@ function EditVariantValuesInput({
     variantIndex,
     attributes,
     processing,
+    errors,
+    serverErrors,
 }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     control: any;
@@ -1075,6 +1079,9 @@ function EditVariantValuesInput({
     variantIndex: number;
     attributes: AttributeOption[];
     processing: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    errors: any;
+    serverErrors: Record<string, string>;
 }) {
     const { fields, append, remove } = useFieldArray({
         control,
@@ -1084,63 +1091,95 @@ function EditVariantValuesInput({
     return (
         <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3">
             <p className="text-xs font-medium text-muted-foreground">
-                Atribut varian
+                Atribut varian{' '}
+                <span className="text-destructive">*</span>
             </p>
             {fields.map((field, j) => (
-                <div
-                    key={field.id}
-                    className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
-                >
-                    <div className="grid gap-1">
-                        <Label className="text-xs">Atribut</Label>
-                        <Select
-                            defaultValue={String(
-                                (field as unknown as { attribute_id?: number })
-                                    .attribute_id ?? '',
-                            )}
-                            onValueChange={(v) =>
-                                setValue(
-                                    `variants.${variantIndex}.values.${j}.attribute_id`,
-                                    Number(v),
-                                    {
-                                        shouldDirty: true,
-                                        shouldValidate: true,
-                                    },
-                                )
+                <div key={field.id} className="flex flex-col gap-2">
+                    <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                        <div className="grid gap-1">
+                            <Label className="text-xs">Atribut</Label>
+                            <Select
+                                defaultValue={String(
+                                    (
+                                        field as unknown as {
+                                            attribute_id?: number;
+                                        }
+                                    ).attribute_id ?? '',
+                                )}
+                                onValueChange={(v) =>
+                                    setValue(
+                                        `variants.${variantIndex}.values.${j}.attribute_id`,
+                                        Number(v),
+                                        {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                        },
+                                    )
+                                }
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Pilih" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {attributes.map((a) => (
+                                        <SelectItem
+                                            key={a.id}
+                                            value={String(a.id)}
+                                        >
+                                            {a.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-1">
+                            <Label className="text-xs">Nilai</Label>
+                            <Input
+                                placeholder="Merah, XL, 4 Orang..."
+                                disabled={processing}
+                                {...register(
+                                    `variants.${variantIndex}.values.${j}.value`,
+                                )}
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => remove(j)}
+                            disabled={fields.length <= 1}
+                            title={
+                                fields.length <= 1
+                                    ? 'Minimal satu atribut wajib diisi'
+                                    : 'Hapus atribut'
                             }
                         >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Pilih" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {attributes.map((a) => (
-                                    <SelectItem key={a.id} value={String(a.id)}>
-                                        {a.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            <Trash2 />
+                        </Button>
                     </div>
-                    <div className="grid gap-1">
-                        <Label className="text-xs">Nilai</Label>
-                        <Input
-                            placeholder="Merah, XL, 4 Orang..."
-                            disabled={processing}
-                            {...register(
-                                `variants.${variantIndex}.values.${j}.value`,
-                            )}
-                        />
-                    </div>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(j)}
-                    >
-                        <Trash2 />
-                    </Button>
+                    <InputError
+                        message={
+                            errors.variants?.[variantIndex]?.values?.[j]
+                                ?.attribute_id?.message ??
+                            errors.variants?.[variantIndex]?.values?.[j]?.value
+                                ?.message ??
+                            serverErrors[
+                            `variants.${variantIndex}.values.${j}.attribute_id`
+                            ] ??
+                            serverErrors[
+                            `variants.${variantIndex}.values.${j}.value`
+                            ]
+                        }
+                    />
                 </div>
             ))}
+            <InputError
+                message={
+                    errors.variants?.[variantIndex]?.values?.message ??
+                    serverErrors[`variants.${variantIndex}.values`]
+                }
+            />
             {attributes.length > 0 && (
                 <div>
                     <Button

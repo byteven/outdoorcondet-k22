@@ -83,6 +83,26 @@ class CartController extends Controller
     }
 
     /**
+     * Ganti varian satu item keranjang ke varian lain pada produk yang sama.
+     */
+    public function updateVariant(Request $request, CartItem $cartItem): RedirectResponse
+    {
+        $this->authorizeOwner($request, $cartItem);
+
+        $validated = $request->validate([
+            'variant_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $this->cartService->updateItemVariant(
+            $request->user(),
+            $cartItem,
+            (int) $validated['variant_id'],
+        );
+
+        return redirect()->route('cart.index');
+    }
+
+    /**
      * Ubah rentang tanggal sewa untuk semua item keranjang.
      */
     public function updateDates(Request $request): RedirectResponse

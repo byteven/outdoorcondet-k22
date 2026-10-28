@@ -21,6 +21,7 @@ Route::middleware(['auth', 'can:access-customer'])->group(function () {
     Route::post('cart', [CartController::class, 'store'])->name('cart.store');
     Route::put('cart/dates', [CartController::class, 'updateDates'])->name('cart.dates');
     Route::patch('cart/items/{cartItem}', [CartController::class, 'update'])->name('cart.update');
+    Route::patch('cart/items/{cartItem}/variant', [CartController::class, 'updateVariant'])->name('cart.variant');
     Route::delete('cart/items/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 });
 

@@ -64,7 +64,7 @@ class CatalogDetailController extends Controller
                 $range['pickup'],
                 $range['return'],
             ),
-            'in_cart' => $this->inCart(
+            'in_cart_ids' => $this->inCartIds(
                 $request,
                 ProductVariant::class,
                 $product->variants->modelKeys(),
@@ -101,7 +101,7 @@ class CatalogDetailController extends Controller
                 $range['pickup'],
                 $range['return'],
             ),
-            'in_cart' => $this->inCart($request, Package::class, [$package->id]),
+            'in_cart_ids' => $this->inCartIds($request, Package::class, [$package->id]),
             'related' => $this->relatedProducts(null, $range, $availability),
         ]);
     }
@@ -117,25 +117,28 @@ class CatalogDetailController extends Controller
     }
 
     /**
-     * Apakah item ini (produk/paket) sudah ada di keranjang customer,
-     * dipakai untuk mengganti tombol "Tambah ke Keranjang" menjadi
-     * "Lihat Keranjang" di halaman detail.
+     * Id rentable milik customer yang sudah ada di keranjang. Granularitas
+     * keranjang adalah per varian/paket, bukan per produk, sehingga tombol
+     * "Lihat Keranjang" hanya berlaku untuk varian yang benar-benar ada
+     * di keranjang.
      *
      * @param  array<int, int>  $rentableIds
+     * @return array<int, int>
      */
-    private function inCart(Request $request, string $rentableType, array $rentableIds): bool
+    private function inCartIds(Request $request, string $rentableType, array $rentableIds): array
     {
         $user = $request->user();
 
         if (! $user || $user->role !== UserRole::Customer || $rentableIds === []) {
-            return false;
+            return [];
         }
 
         return CartItem::query()
             ->where('user_id', $user->id)
             ->where('rentable_type', $rentableType)
             ->whereIn('rentable_id', $rentableIds)
-            ->exists();
+            ->pluck('rentable_id')
+            ->all();
     }
 
     /**

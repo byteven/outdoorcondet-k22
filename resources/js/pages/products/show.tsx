@@ -78,7 +78,7 @@ type Props = {
     detail: CatalogDetail;
     availability: number | null;
     filters: { pickup_date?: string; return_date?: string };
-    in_cart: boolean;
+    in_cart_ids: number[];
     related: RelatedProduct[];
 };
 
@@ -86,7 +86,7 @@ export default function CatalogDetailPage({
     detail,
     availability,
     filters,
-    in_cart,
+    in_cart_ids,
     related,
 }: Props) {
     const [isInitialLoading, setIsInitialLoading] = useState(false);
@@ -172,6 +172,10 @@ export default function CatalogDetailPage({
               ) ?? null)
             : null;
     const displayAvailability = selectedVariant?.available ?? availability;
+    const isInCartForSelection =
+        detail.type === "alat" && selectedVariantId !== null
+            ? in_cart_ids.includes(selectedVariantId)
+            : in_cart_ids.length > 0;
 
     const {
         pickupDate,
@@ -245,7 +249,7 @@ export default function CatalogDetailPage({
                                         loading={isAvailabilityLoading}
                                         variantSelector={
                                             detail.type === "alat" &&
-                                            detail.variants.length > 1 ? (
+                                            detail.variants.length > 0 ? (
                                                 <VariantSelector
                                                     variants={detail.variants}
                                                     selectedId={
@@ -274,7 +278,7 @@ export default function CatalogDetailPage({
                                                 totalDays={totalDays}
                                                 pickupDate={pickupDate ?? null}
                                                 returnDate={returnDate ?? null}
-                                                inCart={in_cart}
+                                                inCart={isInCartForSelection}
                                                 availability={
                                                     displayAvailability
                                                 }

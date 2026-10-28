@@ -13,15 +13,37 @@ import { LandingHeader } from "@/components/landing/landing-header";
 import { RentalRange } from "@/components/rental-range";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { formatRupiah } from "@/components/product-shared";
 import { cn } from "@/lib/utils";
 import { parseRentalQueryDate } from "@/hooks/use-rental-dates";
 import { useCartRentalDates } from "@/hooks/use-cart-rental-dates";
-import { destroy as cartDestroy, update as cartUpdate } from "@/routes/cart";
+import {
+    destroy as cartDestroy,
+    update as cartUpdate,
+    variant as cartVariant,
+} from "@/routes/cart";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
 
 type CartItemType = "alat" | "bundle";
+
+type CartItemVariantValue = {
+    attribute: string | null;
+    value: string;
+};
+
+type CartItemVariantOption = {
+    id: number;
+    available: number;
+    values: CartItemVariantValue[];
+};
 
 type CartItemPayload = {
     id: number;
@@ -30,6 +52,9 @@ type CartItemPayload = {
     sku: string | null;
     slug: string | null;
     image: string | null;
+    product_id: number | null;
+    variant_id: number | null;
+    variant_options: CartItemVariantOption[];
     quantity: number;
     max_quantity: number;
     available: number;
@@ -103,6 +128,28 @@ export default function CartPage({ cart }: Props) {
         });
     };
 
+    const handleVariantChange = (item: CartItemPayload, variantId: number) => {
+        setBusyItemId(item.id);
+
+        router.patch(
+            cartVariant.url({ cartItem: item.id }),
+            { variant_id: variantId },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => setBusyItemId(null),
+                onError: (errors) => {
+                    const message =
+                        errors.variant_id ?? Object.values(errors)[0];
+
+                    if (typeof message === "string") {
+                        toast.error(message);
+                    }
+                },
+            },
+        );
+    };
+
     return (
         <>
             <Head title="Keranjang" />
@@ -149,6 +196,7 @@ export default function CartPage({ cart }: Props) {
                                         items={items}
                                         busyItemId={busyItemId}
                                         onQuantityChange={handleQuantityChange}
+                                        onVariantChange={handleVariantChange}
                                         onRemove={handleRemoveItem}
                                     />
                                 </div>
@@ -167,10 +215,47 @@ export default function CartPage({ cart }: Props) {
     );
 }
 
+type CartItemGroup = {
+    key: string;
+    name: string;
+    slug: string | null;
+    image: string | null;
+    items: CartItemPayload[];
+};
+
+function groupCartItems(items: CartItemPayload[]): CartItemGroup[] {
+    const groups = new Map<string, CartItemGroup>();
+
+    for (const item of items) {
+        const key =
+            item.type === "alat" && item.product_id !== null
+                ? `alat-${item.product_id}`
+                : `item-${item.id}`;
+        const existing = groups.get(key);
+
+        if (existing) {
+            existing.items.push(item);
+
+            continue;
+        }
+
+        groups.set(key, {
+            key,
+            name: item.name,
+            slug: item.slug,
+            image: item.image,
+            items: [item],
+        });
+    }
+
+    return [...groups.values()];
+}
+
 type CartItemListProps = {
     items: CartItemPayload[];
     busyItemId: number | null;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
+    onVariantChange: (item: CartItemPayload, variantId: number) => void;
     onRemove: (item: CartItemPayload) => void;
 };
 
@@ -178,16 +263,18 @@ function CartItemList({
     items,
     busyItemId,
     onQuantityChange,
+    onVariantChange,
     onRemove,
 }: CartItemListProps) {
     return (
         <ul className="flex flex-col gap-4">
-            {items.map((item) => (
-                <li key={item.id}>
-                    <CartItemRow
-                        item={item}
-                        busy={busyItemId === item.id}
+            {groupCartItems(items).map((group) => (
+                <li key={group.key}>
+                    <CartItemCard
+                        group={group}
+                        busyItemId={busyItemId}
                         onQuantityChange={onQuantityChange}
+                        onVariantChange={onVariantChange}
                         onRemove={onRemove}
                     />
                 </li>
@@ -196,94 +283,132 @@ function CartItemList({
     );
 }
 
-type CartItemRowProps = {
-    item: CartItemPayload;
-    busy: boolean;
+type CartItemCardProps = {
+    group: CartItemGroup;
+    busyItemId: number | null;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
+    onVariantChange: (item: CartItemPayload, variantId: number) => void;
     onRemove: (item: CartItemPayload) => void;
 };
 
-function CartItemRow({
-    item,
-    busy,
+function CartItemCard({
+    group,
+    busyItemId,
     onQuantityChange,
+    onVariantChange,
     onRemove,
-}: CartItemRowProps) {
-    const href = item.slug
+}: CartItemCardProps) {
+    const href = group.slug
         ? showProduct.url({
-              productSlug: item.slug,
+              productSlug: group.slug,
           })
         : undefined;
 
     return (
-        <div
-            className={cn(
-                "rounded-2xl border border-border bg-card p-4",
-                !item.is_rentable && "opacity-80",
-            )}
-        >
+        <div className="rounded-2xl border border-border bg-card p-4">
             <div className="flex gap-4">
                 <ItemThumbnail
-                    image={item.image}
-                    name={item.name}
+                    image={group.image}
+                    name={group.name}
                     href={href}
                 />
 
                 <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 flex-col gap-1">
-                            <div className="min-w-0">
-                                {href ? (
-                                    <Link
-                                        href={href}
-                                        className="block truncate font-semibold text-foreground transition-colors hover:text-primary"
-                                    >
-                                        {item.name}
-                                    </Link>
-                                ) : (
-                                    <p className="truncate font-semibold">
-                                        {item.name}
-                                    </p>
-                                )}
-                            </div>
-
-                            <CartItemStock item={item} />
-                        </div>
-
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                            disabled={busy}
-                            onClick={() => onRemove(item)}
-                            aria-label={`Hapus ${item.name} dari keranjang`}
-                        >
-                            <Trash2Icon className="size-4" />
-                        </Button>
+                    <div className="min-w-0">
+                        {href ? (
+                            <Link
+                                href={href}
+                                className="block truncate font-semibold text-foreground transition-colors hover:text-primary"
+                            >
+                                {group.name}
+                            </Link>
+                        ) : (
+                            <p className="truncate font-semibold">
+                                {group.name}
+                            </p>
+                        )}
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-                        <div className="text-left">
-                            <p className="text-sm font-semibold text-foreground">
-                                {formatRupiah(item.rental_subtotal)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Deposit {formatRupiah(item.deposit_subtotal)}
-                            </p>
-                        </div>
-                        <QuantityStepper
-                            value={item.quantity}
-                            min={1}
-                            max={item.max_quantity}
-                            disabled={busy || !item.is_rentable}
-                            onChange={(quantity) =>
-                                onQuantityChange(item, quantity)
-                            }
-                            ariaLabel={`Jumlah ${item.name}`}
-                        />
+                    <div className="mt-1.5 flex flex-col divide-y divide-border">
+                        {group.items.map((item) => (
+                            <CartItemVariantRow
+                                key={item.id}
+                                item={item}
+                                busy={busyItemId === item.id}
+                                onQuantityChange={onQuantityChange}
+                                onVariantChange={onVariantChange}
+                                onRemove={onRemove}
+                            />
+                        ))}
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+type CartItemVariantRowProps = {
+    item: CartItemPayload;
+    busy: boolean;
+    onQuantityChange: (item: CartItemPayload, quantity: number) => void;
+    onVariantChange: (item: CartItemPayload, variantId: number) => void;
+    onRemove: (item: CartItemPayload) => void;
+};
+
+function CartItemVariantRow({
+    item,
+    busy,
+    onQuantityChange,
+    onVariantChange,
+    onRemove,
+}: CartItemVariantRowProps) {
+    return (
+        <div
+            className={cn(
+                "flex flex-col gap-2 py-3 first:pt-0 last:pb-0",
+                !item.is_rentable && "opacity-80",
+            )}
+        >
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                    <CartItemVariant
+                        item={item}
+                        busy={busy}
+                        onVariantChange={onVariantChange}
+                    />
+                    <CartItemStock item={item} />
+                </div>
+
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    disabled={busy}
+                    onClick={() => onRemove(item)}
+                    aria-label={`Hapus ${item.name} dari keranjang`}
+                >
+                    <Trash2Icon className="size-4" />
+                </Button>
+            </div>
+
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="text-left">
+                    <p className="text-sm font-semibold text-foreground">
+                        {formatRupiah(item.rental_subtotal)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        Deposit {formatRupiah(item.deposit_subtotal)}
+                    </p>
+                </div>
+                <QuantityStepper
+                    value={item.quantity}
+                    min={1}
+                    max={item.max_quantity}
+                    disabled={busy || !item.is_rentable}
+                    onChange={(quantity) => onQuantityChange(item, quantity)}
+                    ariaLabel={`Jumlah ${item.name}`}
+                />
             </div>
         </div>
     );
@@ -322,6 +447,61 @@ function ItemThumbnail({
         <Link href={href} tabIndex={-1} aria-hidden="true" className="shrink-0">
             {content}
         </Link>
+    );
+}
+
+function CartItemVariant({
+    item,
+    busy,
+    onVariantChange,
+}: {
+    item: CartItemPayload;
+    busy: boolean;
+    onVariantChange: (item: CartItemPayload, variantId: number) => void;
+}) {
+    if (item.variant_options.length === 0) {
+        return null;
+    }
+
+    return (
+        <Select
+            value={
+                item.variant_id !== null ? String(item.variant_id) : undefined
+            }
+            disabled={busy || !item.is_rentable}
+            onValueChange={(value) => onVariantChange(item, Number(value))}
+        >
+            <SelectTrigger
+                size="sm"
+                className="w-fit max-w-full text-xs"
+                aria-label={`Varian ${item.name}`}
+            >
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                {item.variant_options.map((option) => {
+                    const label =
+                        option.values.map((value) => value.value).join(" / ") ||
+                        "Varian";
+                    const isUnavailable = option.available < item.quantity;
+
+                    return (
+                        <SelectItem
+                            key={option.id}
+                            value={String(option.id)}
+                            disabled={isUnavailable}
+                            title={
+                                isUnavailable
+                                    ? "Stok varian ini tidak cukup untuk quantity keranjang"
+                                    : undefined
+                            }
+                        >
+                            {label}
+                        </SelectItem>
+                    );
+                })}
+            </SelectContent>
+        </Select>
     );
 }
 

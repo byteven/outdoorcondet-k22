@@ -321,7 +321,7 @@ test('product detail page marks products already in the cart', function () {
     $this->get(route('products.show', ['productSlug' => 'tenda-dome-4p']))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('in_cart', false));
+            ->where('in_cart_ids', []));
 
     CartItem::factory()->create([
         'user_id' => $customer->id,
@@ -335,7 +335,124 @@ test('product detail page marks products already in the cart', function () {
     $this->get(route('products.show', ['productSlug' => 'tenda-dome-4p']))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('in_cart', true));
+            ->where('in_cart_ids', [$variant->id]));
+});
+
+// -------------------------------------------------------------------------
+// Cart item: switch variant
+// -------------------------------------------------------------------------
+
+test('customer can switch a cart item to another variant of the same product', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $product = Product::factory()->create([
+        'category_id' => $category->id,
+        'is_active' => true,
+    ]);
+    $variantA = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 5,
+    ]);
+    $variantB = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 3,
+    ]);
+
+    $item = CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => ProductVariant::class,
+        'rentable_id' => $variantA->id,
+        'quantity' => 2,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-03',
+    ]);
+
+    $this->patch(route('cart.variant', ['cartItem' => $item->id]), [
+        'variant_id' => $variantB->id,
+    ])->assertRedirect(route('cart.index'));
+
+    expect(CartItem::query()->find($item->id)->rentable_id)->toBe($variantB->id);
+});
+
+test('switching to a variant already in the cart merges the quantities', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $product = Product::factory()->create([
+        'category_id' => $category->id,
+        'is_active' => true,
+    ]);
+    $variantA = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 5,
+    ]);
+    $variantB = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 5,
+    ]);
+
+    $itemA = CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => ProductVariant::class,
+        'rentable_id' => $variantA->id,
+        'quantity' => 2,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-03',
+    ]);
+    $itemB = CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => ProductVariant::class,
+        'rentable_id' => $variantB->id,
+        'quantity' => 1,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-03',
+    ]);
+
+    $this->patch(route('cart.variant', ['cartItem' => $itemA->id]), [
+        'variant_id' => $variantB->id,
+    ])->assertRedirect(route('cart.index'));
+
+    expect(CartItem::query()->find($itemB->id)->quantity)->toBe(3)
+        ->and(CartItem::query()->find($itemA->id))->toBeNull();
+});
+
+test('cart page exposes sibling variants as switch options', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $product = Product::factory()->create([
+        'category_id' => $category->id,
+        'is_active' => true,
+    ]);
+    $variantA = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 5,
+    ]);
+    $variantB = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 3,
+    ]);
+
+    CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => ProductVariant::class,
+        'rentable_id' => $variantA->id,
+        'quantity' => 1,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-03',
+    ]);
+
+    $this->get(route('cart.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('cart.items.0.variant_id', $variantA->id)
+            ->where('cart.items.0.product_id', $product->id)
+            ->has('cart.items.0.variant_options', 2)
+        );
 });
 
 // -------------------------------------------------------------------------

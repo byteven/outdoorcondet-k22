@@ -6,6 +6,7 @@ use App\Models\CartItem;
 use App\Models\Package;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\ProductVariantValue;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -71,7 +72,12 @@ class CartService
                         ProductVariant::class => [
                             'product:id,name,slug,is_active',
                             'product.images:id,product_id,image_path,is_primary',
+                            'product.variants:id,product_id,sku,is_active',
+                            'product.variants.values:id,product_variant_id,attribute_id,value',
+                            'product.variants.values.attribute:id,name',
                             'durationPrices:id,product_variant_id,duration_days,price',
+                            'values:id,product_variant_id,attribute_id,value',
+                            'values.attribute:id,name',
                         ],
                         Package::class => [
                             'durationPrices:id,package_id,duration_days,price',
@@ -249,6 +255,69 @@ class CartService
     }
 
     /**
+     * Ubah varian satu item keranjang ke varian lain pada produk yang sama.
+     * Varian target harus aktif; jika varian target sudah ada barisnya di
+     * keranjang, quantity digabung (dibatasi stok tersedia).
+     */
+    public function updateItemVariant(User $user, CartItem $cartItem, int $variantId): void
+    {
+        DB::transaction(function () use ($user, $cartItem, $variantId): void {
+            $cartItem = $this->lockedItemFor($user, $cartItem->id);
+
+            if ($cartItem->rentable_type !== ProductVariant::class) {
+                throw ValidationException::withMessages([
+                    'variant_id' => 'Item ini tidak memiliki varian.',
+                ]);
+            }
+
+            $target = ProductVariant::query()
+                ->where('product_id', $cartItem->rentable->product_id)
+                ->where('is_active', true)
+                ->find($variantId);
+
+            if ($target === null) {
+                throw ValidationException::withMessages([
+                    'variant_id' => 'Varian tidak tersedia.',
+                ]);
+            }
+
+            if ($target->id === $cartItem->rentable_id) {
+                return;
+            }
+
+            $available = $this->availableStock(
+                $target,
+                $cartItem->pickup_date,
+                $cartItem->return_date,
+            );
+
+            if ($cartItem->quantity > $available) {
+                throw ValidationException::withMessages([
+                    'variant_id' => $this->stockMessage($available),
+                ]);
+            }
+
+            $existing = CartItem::query()
+                ->where('user_id', $user->id)
+                ->where('rentable_type', ProductVariant::class)
+                ->where('rentable_id', $target->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing === null) {
+                $cartItem->rentable_id = $target->id;
+                $cartItem->save();
+
+                return;
+            }
+
+            $existing->quantity = min($available, $existing->quantity + $cartItem->quantity);
+            $existing->save();
+            $cartItem->delete();
+        });
+    }
+
+    /**
      * Hapus satu item keranjang.
      */
     public function removeItem(User $user, CartItem $cartItem): void
@@ -293,7 +362,46 @@ class CartService
             image: $this->primaryImagePath($product),
             depositPerUnit: (float) $variant->deposit_per_unit,
             isRentable: $variant->is_active && ($product?->is_active ?? false),
+            productId: $variant->product?->id,
+            variantOptions: $this->variantOptionsPayload($variant, $cartItem),
         );
+    }
+
+    /**
+     * Varian lain pada produk yang sama, lengkap dengan stok tersedia untuk
+     * rentang tanggal baris keranjang, sebagai opsi dropdown ganti varian.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function variantOptionsPayload(ProductVariant $variant, CartItem $cartItem): array
+    {
+        $siblings = $variant->product?->variants
+            ?->where('is_active', true)
+            ->sortBy('id')
+            ->values();
+
+        if ($siblings === null || $siblings->isEmpty()) {
+            return [];
+        }
+
+        $availabilityByVariant = $this->availability->batchAvailableStock(
+            $siblings->modelKeys(),
+            $cartItem->pickup_date,
+            $cartItem->return_date,
+        );
+
+        return $siblings
+            ->map(fn (ProductVariant $option): array => [
+                'id' => $option->id,
+                'available' => (int) ($availabilityByVariant[$option->id] ?? 0),
+                'values' => $option->values
+                    ->map(fn (ProductVariantValue $value): array => [
+                        'attribute' => $value->attribute?->name,
+                        'value' => $value->value,
+                    ])
+                    ->all(),
+            ])
+            ->all();
     }
 
     /**
@@ -343,6 +451,8 @@ class CartService
         ?string $image,
         float $depositPerUnit,
         bool $isRentable,
+        ?int $productId = null,
+        array $variantOptions = [],
     ): array {
         $pickupDate = $cartItem->pickup_date;
         $returnDate = $cartItem->return_date;
@@ -362,6 +472,9 @@ class CartService
             'sku' => $sku,
             'slug' => $slug,
             'image' => $image,
+            'product_id' => $productId,
+            'variant_id' => $type === 'alat' ? $cartItem->rentable_id : null,
+            'variant_options' => $variantOptions,
             'quantity' => $quantity,
             'max_quantity' => max($quantity, $available),
             'available' => $available,
@@ -391,6 +504,9 @@ class CartService
             'sku' => null,
             'slug' => null,
             'image' => null,
+            'product_id' => null,
+            'variant_id' => null,
+            'variant_options' => [],
             'quantity' => $cartItem->quantity,
             'max_quantity' => 0,
             'available' => 0,

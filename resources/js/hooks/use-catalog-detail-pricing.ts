@@ -79,6 +79,22 @@ export function useCatalogDetailPricing(
         return variantPricingForDuration(variant, totalDays)?.unitPrice ?? null;
     }, [detail, variant, totalDays]);
 
+    /**
+     * Harga normal tanpa promo: harga harian × jumlah hari.
+     * Dipakai untuk menampilkan harga coret saat ada penghematan dari tier.
+     */
+    const normalPrice = useMemo(() => {
+        if (totalDays === null) {
+            return null;
+        }
+
+        if (detail.type === "bundle") {
+            return detail.daily_price * totalDays;
+        }
+
+        return variant ? variant.rental_price_per_day * totalDays : null;
+    }, [detail, variant, totalDays]);
+
     const depositPerUnit = useMemo(() => {
         if (detail.type === "bundle") {
             return detail.deposit_per_package;
@@ -100,6 +116,7 @@ export function useCatalogDetailPricing(
         returnDate,
         totalDays,
         unitPrice,
+        normalPrice,
         depositPerUnit,
         dailyPrice,
     };

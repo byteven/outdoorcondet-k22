@@ -185,6 +185,7 @@ export default function CatalogDetailPage({
         returnDate,
         totalDays,
         unitPrice,
+        normalPrice,
         depositPerUnit,
         dailyPrice,
     } = useCatalogDetailPricing(detail, activeRental, selectedVariantId);
@@ -321,6 +322,7 @@ export default function CatalogDetailPage({
                                     <RentalPriceCard
                                         title={detail.name}
                                         unitPrice={unitPrice}
+                                        normalPrice={normalPrice}
                                         depositPerUnit={depositPerUnit}
                                         totalDays={totalDays}
                                         available={displayAvailability}

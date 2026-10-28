@@ -96,6 +96,7 @@ class CartService
                 // Rentable sudah terhapus dari master data; tetap tampil
                 // agar customer bisa menghapusnya dari keranjang.
                 $payloadItems[] = $this->orphanPayload($item);
+
                 continue;
             }
 
@@ -500,7 +501,7 @@ class CartService
         return [
             'id' => $cartItem->id,
             'type' => 'alat',
-            'name' => 'Item tidak ditemukan',
+            'name' => 'Produk tidak tersedia',
             'sku' => null,
             'slug' => null,
             'image' => null,
@@ -610,7 +611,7 @@ class CartService
 
         if ($rentable === null) {
             throw ValidationException::withMessages([
-                'rentable_id' => 'Item tidak ditemukan.',
+                'rentable_id' => 'Produk tidak tersedia.',
             ]);
         }
 

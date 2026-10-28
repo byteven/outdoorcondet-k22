@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Attribute;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -13,14 +14,20 @@ use Illuminate\Support\Str;
 class ProductSeeder extends Seeder
 {
     /**
-     * Seed products with their variants and duration prices.
+     * Folder relatif (dari storage/app/public) tempat gambar seed disimpan.
+     * Tambahkan file: produk-01.png, produk-02.png, … dst di folder ini.
+     */
+    private const IMAGE_FOLDER = 'seed/products';
+
+    /**
+     * Seed products with their variants, duration prices, and placeholder images.
      */
     public function run(): void
     {
         $categories = Category::query()->pluck('id', 'slug');
         $attributes = Attribute::query()->pluck('id', 'name');
 
-        foreach ($this->products() as $row) {
+        foreach ($this->products() as $index => $row) {
             $categoryId = $categories->get(Str::slug($row['category']));
 
             if ($categoryId === null) {
@@ -37,12 +44,16 @@ class ProductSeeder extends Seeder
                 ],
             );
 
+            // Bind gambar seed — file: storage/app/public/seed/products/produk-XX.png
+            $this->seedImage($product, $index + 1);
+
             if (array_key_exists('variants', $row)) {
                 $this->seedVariants($product, $row['variants'], $attributes);
 
                 continue;
             }
 
+            // Produk dengan satu varian tunggal
             $variant = ProductVariant::query()->updateOrCreate(
                 ['sku' => $row['sku']],
                 [
@@ -75,13 +86,27 @@ class ProductSeeder extends Seeder
     }
 
     /**
-     * Seed a parent product whose variants differ by attribute values,
-     * contoh untuk produk dengan pemilihan varian di halaman detail.
+     * Sisipkan satu gambar primary per produk.
+     * Path mengacu ke file yang harus diletakkan user di folder seed.
+     */
+    private function seedImage(Product $product, int $number): void
+    {
+        $filename = sprintf('produk-%02d.webp', $number);
+        $imagePath = self::IMAGE_FOLDER.'/'.$filename;
+
+        ProductImage::query()->updateOrCreate(
+            ['product_id' => $product->id, 'image_path' => $imagePath],
+            ['is_primary' => true],
+        );
+    }
+
+    /**
+     * Seed produk yang punya beberapa varian (mis. kapasitas / warna berbeda).
      *
      * @param  array<int, array<string, mixed>>  $rows
      * @param  Collection<int, int>  $attributes
      */
-    private function seedVariants(Product $product, array $rows, $attributes): void
+    private function seedVariants(Product $product, array $rows, Collection $attributes): void
     {
         foreach ($rows as $row) {
             $variant = ProductVariant::query()->updateOrCreate(
@@ -117,166 +142,329 @@ class ProductSeeder extends Seeder
     }
 
     /**
-     * Catalog seed data.
+     * Data produk catalog (15 produk).
+     *
+     * Aturan penamaan:
+     * - Nama produk = nama generik (tanpa kapasitas/ukuran di nama).
+     * - Kapasitas / ukuran dimasukkan sebagai atribut varian.
+     *
+     * Produk ke-15 (Tenda Dome) sengaja dipakai di RentalTestSeeder
+     * untuk simulasi rental tanggal 20-23 November 2026.
      *
      * @return array<int, array<string, mixed>>
      */
     private function products(): array
     {
         return [
+            // ── 1. Tenda Dome (MULTI-VARIAN: 2P / 4P) ─────────────────────────
             [
-                'name' => 'Tenda Dome 4P',
+                'name' => 'Tenda Dome',
                 'category' => 'Tenda & Shelter',
-                'description' => 'Tenda dome double layer berkapasitas 4 orang, cocok untuk camping keluarga.',
-                'sku' => 'OC-TND-4P',
-                'stock' => 6,
-                'daily_price' => 20000,
-                'deposit' => 50000,
-                'weight' => 3200,
-                'attribute' => ['Kapasitas', '4 Orang'],
-                'durations' => [3 => 50000, 7 => 100000],
-            ],
-            [
-                'name' => 'Tenda Dome 2P',
-                'category' => 'Tenda & Shelter',
-                'description' => 'Tenda ringkas untuk dua orang dengan frame ringan dan mudah dipasang.',
-                'sku' => 'OC-TND-2P',
-                'stock' => 8,
-                'daily_price' => 18000,
-                'deposit' => 40000,
-                'weight' => 2400,
-                'attribute' => ['Kapasitas', '2 Orang'],
-                'durations' => [3 => 45000, 7 => 90000],
-            ],
-            [
-                'name' => 'Flysheet 3x3',
-                'category' => 'Tenda & Shelter',
-                'description' => 'Flysheet kedap air untuk melindungi area duduk dari hujan dan terik matahari.',
-                'sku' => 'OC-FLY-3X3',
-                'stock' => 5,
-                'daily_price' => 12000,
-                'deposit' => 25000,
-                'weight' => 1100,
-                'attribute' => ['Ukuran', '3 x 3 Meter'],
-                'durations' => [3 => 30000, 7 => 65000],
-            ],
-            [
-                'name' => 'Carrier 60L',
-                'category' => 'Tas & Carrier',
-                'description' => 'Carrier 60 liter dengan rangka punggung yang nyaman untuk pendakian 3-5 hari.',
-                'sku' => 'OC-CRR-60L',
-                'stock' => 4,
-                'daily_price' => 15000,
-                'deposit' => 30000,
-                'weight' => 1800,
-                'attribute' => ['Kapasitas', '60 Liter'],
-                'durations' => [3 => 40000, 7 => 85000],
-            ],
-            [
-                'name' => 'Carrier Expedition',
-                'category' => 'Tas & Carrier',
-                'description' => 'Carrier expedition internal frame yang tersedia dalam tiga kapasitas: 40, 60, dan 80 liter.',
+                'description' => 'Tenda dome double layer dengan frame fiberglass ringan. Tersedia dalam kapasitas 2 orang dan 4 orang.',
                 'variants' => [
                     [
-                        'sku' => 'OC-CRE-40L',
-                        'stock' => 3,
+                        'sku' => 'OC-TND-2P',
+                        'stock' => 8,
+                        'daily_price' => 18000,
+                        'deposit' => 40000,
+                        'weight' => 2400,
+                        'values' => [['Kapasitas', '2 Orang']],
+                        'durations' => [3 => 45000, 7 => 90000],
+                    ],
+                    [
+                        'sku' => 'OC-TND-4P',
+                        'stock' => 6,
+                        'daily_price' => 22000,
+                        'deposit' => 55000,
+                        'weight' => 3200,
+                        'values' => [['Kapasitas', '4 Orang']],
+                        'durations' => [3 => 55000, 7 => 110000],
+                    ],
+                ],
+            ],
+
+            // ── 2. Flysheet (MULTI-VARIAN: 3x3 / 4x6) ────────────────────────
+            [
+                'name' => 'Flysheet',
+                'category' => 'Tenda & Shelter',
+                'description' => 'Flysheet kedap air ringan untuk berlindung dari hujan dan sinar matahari. Tersedia ukuran 3×3 dan 4×6 meter.',
+                'variants' => [
+                    [
+                        'sku' => 'OC-FLY-3X3',
+                        'stock' => 7,
+                        'daily_price' => 10000,
+                        'deposit' => 20000,
+                        'weight' => 900,
+                        'values' => [['Ukuran', '3×3 Meter']],
+                        'durations' => [3 => 25000, 7 => 55000],
+                    ],
+                    [
+                        'sku' => 'OC-FLY-4X6',
+                        'stock' => 4,
+                        'daily_price' => 15000,
+                        'deposit' => 30000,
+                        'weight' => 1600,
+                        'values' => [['Ukuran', '4×6 Meter']],
+                        'durations' => [3 => 38000, 7 => 80000],
+                    ],
+                ],
+            ],
+
+            // ── 3. Bivak Ultralight (1 varian) ────────────────────────────────
+            [
+                'name' => 'Bivak Ultralight',
+                'category' => 'Tenda & Shelter',
+                'description' => 'Bivak satu lapisan ultralight untuk shelter darurat saat pendakian solo atau dua orang.',
+                'sku' => 'OC-BVK-UL1',
+                'stock' => 5,
+                'daily_price' => 8000,
+                'deposit' => 15000,
+                'weight' => 450,
+                'attribute' => ['Kapasitas', '2 Orang'],
+                'durations' => [3 => 20000, 7 => 40000],
+            ],
+
+            // ── 4. Carrier (MULTI-VARIAN: 40L / 60L / 80L) ───────────────────
+            [
+                'name' => 'Carrier',
+                'category' => 'Tas & Carrier',
+                'description' => 'Carrier ransel gunung dengan internal frame ergonomis dan tali pinggang empuk. Tersedia 40, 60, dan 80 liter.',
+                'variants' => [
+                    [
+                        'sku' => 'OC-CRR-40L',
+                        'stock' => 4,
                         'daily_price' => 12000,
                         'deposit' => 30000,
                         'weight' => 1400,
                         'values' => [['Kapasitas', '40 Liter']],
-                        'durations' => [3 => 32000, 7 => 70000],
+                        'durations' => [3 => 30000, 7 => 65000],
                     ],
                     [
-                        'sku' => 'OC-CRE-60L',
-                        'stock' => 5,
-                        'daily_price' => 16000,
+                        'sku' => 'OC-CRR-60L',
+                        'stock' => 6,
+                        'daily_price' => 15000,
                         'deposit' => 35000,
-                        'weight' => 1900,
+                        'weight' => 1800,
                         'values' => [['Kapasitas', '60 Liter']],
-                        'durations' => [3 => 42000, 7 => 92000],
+                        'durations' => [3 => 38000, 7 => 80000],
                     ],
                     [
-                        'sku' => 'OC-CRE-80L',
-                        'stock' => 2,
+                        'sku' => 'OC-CRR-80L',
+                        'stock' => 3,
                         'daily_price' => 20000,
-                        'deposit' => 40000,
+                        'deposit' => 45000,
                         'weight' => 2300,
                         'values' => [['Kapasitas', '80 Liter']],
-                        'durations' => [3 => 52000, 7 => 115000],
+                        'durations' => [3 => 50000, 7 => 105000],
                     ],
                 ],
             ],
+
+            // ── 5. Daypack (1 varian) ──────────────────────────────────────────
             [
-                'name' => 'Sleeping Bag Artic',
-                'category' => 'Sleeping Bag & Matras',
-                'description' => 'Sleeping bag hangat dengan bahan polar, nyaman untuk suhu dingin pegunungan.',
-                'sku' => 'OC-SBG-ART',
-                'stock' => 12,
-                'daily_price' => 10000,
-                'deposit' => 20000,
-                'weight' => 1300,
-                'attribute' => ['Bahan Material', 'Polar'],
-                'durations' => [3 => 25000, 7 => 55000],
-            ],
-            [
-                'name' => 'Matras Inflatable',
-                'category' => 'Sleeping Bag & Matras',
-                'description' => 'Matras tiup dengan permukaan empuk agar tidur di tenda lebih nyaman.',
-                'sku' => 'OC-MTR-INFL',
+                'name' => 'Daypack',
+                'category' => 'Tas & Carrier',
+                'description' => 'Tas harian ringan untuk day hike atau pendakian santai dengan kapasitas 25 liter.',
+                'sku' => 'OC-DPK-25L',
                 'stock' => 10,
-                'daily_price' => 8000,
+                'daily_price' => 7000,
                 'deposit' => 15000,
-                'weight' => 900,
-                'attribute' => ['Ukuran', '190 x 60 cm'],
-                'durations' => [3 => 20000, 7 => 45000],
+                'weight' => 700,
+                'attribute' => ['Kapasitas', '25 Liter'],
+                'durations' => [3 => 18000, 7 => 38000],
             ],
+
+            // ── 6. Sleeping Bag (MULTI-VARIAN: Polar / Dacron) ────────────────
+            [
+                'name' => 'Sleeping Bag',
+                'category' => 'Sleeping Bag & Matras',
+                'description' => 'Sleeping bag hangat untuk camping di pegunungan. Tersedia bahan polar (lebih hangat) dan dacron (lebih ringan).',
+                'variants' => [
+                    [
+                        'sku' => 'OC-SBG-POL',
+                        'stock' => 12,
+                        'daily_price' => 10000,
+                        'deposit' => 20000,
+                        'weight' => 1300,
+                        'values' => [['Bahan Material', 'Polar']],
+                        'durations' => [3 => 25000, 7 => 55000],
+                    ],
+                    [
+                        'sku' => 'OC-SBG-DCR',
+                        'stock' => 8,
+                        'daily_price' => 8000,
+                        'deposit' => 15000,
+                        'weight' => 900,
+                        'values' => [['Bahan Material', 'Dacron']],
+                        'durations' => [3 => 20000, 7 => 42000],
+                    ],
+                ],
+            ],
+
+            // ── 7. Matras Sleeping (MULTI-VARIAN: Foam / Inflatable) ──────────
+            [
+                'name' => 'Matras Sleeping',
+                'category' => 'Sleeping Bag & Matras',
+                'description' => 'Matras tidur untuk tenda, tersedia tipe foam lipat dan inflatable tiup.',
+                'variants' => [
+                    [
+                        'sku' => 'OC-MTR-FOAM',
+                        'stock' => 12,
+                        'daily_price' => 5000,
+                        'deposit' => 10000,
+                        'weight' => 600,
+                        'values' => [['Bahan Material', 'Foam Lipat']],
+                        'durations' => [3 => 12000, 7 => 25000],
+                    ],
+                    [
+                        'sku' => 'OC-MTR-INF',
+                        'stock' => 8,
+                        'daily_price' => 8000,
+                        'deposit' => 15000,
+                        'weight' => 900,
+                        'values' => [['Bahan Material', 'Inflatable']],
+                        'durations' => [3 => 20000, 7 => 42000],
+                    ],
+                ],
+            ],
+
+            // ── 8. Kompor Portable (1 varian) ────────────────────────────────
             [
                 'name' => 'Kompor Portable',
                 'category' => 'Peralatan Masak Camping',
-                'description' => 'Kompor gas portabel ringkas untuk memasak cepat saat camping.',
-                'sku' => 'OC-KMP-PRT',
+                'description' => 'Kompor gas portabel stainless steel ringkas, cocok untuk memasak cepat di alam terbuka.',
+                'sku' => 'OC-KMP-SS',
                 'stock' => 9,
                 'daily_price' => 7000,
                 'deposit' => 15000,
                 'weight' => 700,
                 'attribute' => ['Bahan Material', 'Stainless Steel'],
-                'durations' => [3 => 18000, 7 => 40000],
+                'durations' => [3 => 17000, 7 => 38000],
             ],
+
+            // ── 9. Nesting Cookset (1 varian) ────────────────────────────────
             [
-                'name' => 'Lampu Tenda LED',
+                'name' => 'Nesting Cookset',
+                'category' => 'Peralatan Masak Camping',
+                'description' => 'Set peralatan masak serbaguna: panci, wajan, piring, dan sendok yang bisa ditumpuk kompak.',
+                'sku' => 'OC-NST-ALU',
+                'stock' => 7,
+                'daily_price' => 8000,
+                'deposit' => 15000,
+                'weight' => 500,
+                'attribute' => ['Bahan Material', 'Aluminium'],
+                'durations' => [3 => 20000, 7 => 42000],
+            ],
+
+            // ── 10. Lampu Tenda (MULTI-VARIAN: LED Mini / Lentern) ───────────
+            [
+                'name' => 'Lampu Tenda',
                 'category' => 'Penerangan & Elektronik',
-                'description' => 'Lampu LED hemat daya dengan pengait, menerangi tenda sepanjang malam.',
-                'sku' => 'OC-LMP-LED',
-                'stock' => 15,
+                'description' => 'Lampu penerangan tenda hemat daya. Tersedia LED mini dengan pengait dan lentera lipat yang lebih terang.',
+                'variants' => [
+                    [
+                        'sku' => 'OC-LMP-LED',
+                        'stock' => 15,
+                        'daily_price' => 5000,
+                        'deposit' => 10000,
+                        'weight' => 250,
+                        'values' => [['Daya Listrik', '5 Watt LED']],
+                        'durations' => [3 => 12000, 7 => 25000],
+                    ],
+                    [
+                        'sku' => 'OC-LMP-LNT',
+                        'stock' => 8,
+                        'daily_price' => 8000,
+                        'deposit' => 15000,
+                        'weight' => 500,
+                        'values' => [['Daya Listrik', '15 Watt Lentern']],
+                        'durations' => [3 => 20000, 7 => 42000],
+                    ],
+                ],
+            ],
+
+            // ── 11. Headlamp (1 varian) ───────────────────────────────────────
+            [
+                'name' => 'Headlamp',
+                'category' => 'Penerangan & Elektronik',
+                'description' => 'Senter kepala tahan air dengan tali elastis, bebas tangan saat pendakian malam hari.',
+                'sku' => 'OC-HLP-200',
+                'stock' => 10,
                 'daily_price' => 5000,
                 'deposit' => 10000,
-                'weight' => 250,
-                'attribute' => ['Daya Listrik', '5 Watt'],
-                'durations' => [3 => 12000, 7 => 28000],
+                'weight' => 150,
+                'attribute' => ['Daya Listrik', '200 Lumen'],
+                'durations' => [3 => 12000, 7 => 25000],
             ],
+
+            // ── 12. Meja Lipat (1 varian) ─────────────────────────────────────
             [
                 'name' => 'Meja Lipat',
                 'category' => 'Meja & Kursi Lipat',
-                'description' => 'Meja lipat aluminium yang ringan dan kokoh untuk area makan di outdoor.',
-                'sku' => 'OC-MJA-LPT',
+                'description' => 'Meja lipat aluminium ringan dan kokoh untuk area makan atau memasak di luar ruangan.',
+                'sku' => 'OC-MJA-ALU',
                 'stock' => 4,
                 'daily_price' => 10000,
                 'deposit' => 20000,
                 'weight' => 2100,
-                'attribute' => ['Ukuran', '70 x 70 cm'],
-                'durations' => [3 => 25000, 7 => 55000],
+                'attribute' => ['Ukuran', '70×70 cm'],
+                'durations' => [3 => 25000, 7 => 52000],
             ],
+
+            // ── 13. Kursi Lipat (1 varian) ────────────────────────────────────
             [
                 'name' => 'Kursi Lipat',
                 'category' => 'Meja & Kursi Lipat',
-                'description' => 'Kursi lipat dengan rangka besi dan sandaran nyaman untuk bersantai.',
-                'sku' => 'OC-KRS-LPT',
+                'description' => 'Kursi lipat ringan dengan sandaran dan pipa besi kokoh, nyaman untuk bersantai di camp.',
+                'sku' => 'OC-KRS-PDG',
                 'stock' => 8,
                 'daily_price' => 7000,
                 'deposit' => 12000,
                 'weight' => 1600,
                 'attribute' => ['Bahan Material', 'Besi Ringan'],
-                'durations' => [3 => 18000, 7 => 40000],
+                'durations' => [3 => 17000, 7 => 38000],
+            ],
+
+            // ── 14. Trekking Pole (MULTI-VARIAN: 1 pcs / 2 pcs) ─────────────
+            [
+                'name' => 'Trekking Pole',
+                'category' => 'Perlengkapan Survival & Navigasi',
+                'description' => 'Tongkat trekking aluminium adjustable untuk keseimbangan di medan berbatu. Tersedia satuan dan sepasang.',
+                'variants' => [
+                    [
+                        'sku' => 'OC-TRP-1PC',
+                        'stock' => 8,
+                        'daily_price' => 5000,
+                        'deposit' => 10000,
+                        'weight' => 280,
+                        'values' => [['Kapasitas', '1 Batang']],
+                        'durations' => [3 => 12000, 7 => 25000],
+                    ],
+                    [
+                        'sku' => 'OC-TRP-2PC',
+                        'stock' => 6,
+                        'daily_price' => 9000,
+                        'deposit' => 18000,
+                        'weight' => 560,
+                        'values' => [['Kapasitas', '2 Batang (Sepasang)']],
+                        'durations' => [3 => 22000, 7 => 48000],
+                    ],
+                ],
+            ],
+
+            // ── 15. Tenda Tunnel ─ RESERVED untuk RentalTestSeeder ──────────
+            // SKU varian: OC-TND-TUN (dipakai di RentalTestSeeder Nov 20-23)
+            [
+                'name' => 'Tenda Tunnel',
+                'category' => 'Tenda & Shelter',
+                'description' => 'Tenda tunnel 3-season dengan dua pintu dan luas interior yang lebih besar dari dome standar.',
+                'sku' => 'OC-TND-TUN',
+                'stock' => 4,
+                'daily_price' => 25000,
+                'deposit' => 60000,
+                'weight' => 3800,
+                'attribute' => ['Kapasitas', '3 Orang'],
+                'durations' => [3 => 62000, 7 => 130000],
             ],
         ];
     }

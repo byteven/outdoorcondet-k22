@@ -1,32 +1,37 @@
-import { Head, router } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
-import { ChevronRightIcon, PackageIcon } from 'lucide-react';
-import { CatalogCard } from '@/components/catalog-card';
+import { Head, router } from "@inertiajs/react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { ChevronRightIcon, PackageIcon } from "lucide-react";
+import { CatalogCard } from "@/components/catalog-card";
 import {
     CatalogDetailPageSkeleton,
     RelatedGridSkeleton,
-} from '@/components/detail/catalog-detail-skeleton';
-import { DetailAccordion } from '@/components/detail/detail-accordion';
-import { ImageGallery } from '@/components/detail/image-gallery';
-import { RentalPriceCard } from '@/components/detail/rental-price-card';
-import { LandingHeader } from '@/components/landing/landing-header';
-import { SiteFooter } from '@/components/site-footer';
-import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
-import { Badge } from '@/components/ui/badge';
-import { useCatalogDetailPricing } from '@/hooks/use-catalog-detail-pricing';
+} from "@/components/detail/catalog-detail-skeleton";
+import { DetailAccordion } from "@/components/detail/detail-accordion";
+import { ImageGallery } from "@/components/detail/image-gallery";
+import { CartAction } from "@/components/detail/cart-action";
+import { RentalPriceCard } from "@/components/detail/rental-price-card";
+import {
+    VariantSelector,
+    type DetailVariant,
+    type DetailVariantValue,
+} from "@/components/detail/variant-selector";
+import { LandingHeader } from "@/components/landing/landing-header";
+import { SiteFooter } from "@/components/site-footer";
+import { RentalRange, type RentalRangeParams } from "@/components/rental-range";
+import { useCatalogDetailPricing } from "@/hooks/use-catalog-detail-pricing";
 
 import {
     buildRentalRangeQuery,
     syncRentalRangePersistence,
+    toRentalQueryDate,
     useActiveRental,
-} from '@/hooks/use-rental-dates';
-import {
-    type DurationPrice,
-    type RentalVariant,
-} from '@/lib/rental-pricing';
-import { home } from '@/routes';
-import { show as showProduct } from '@/routes/products';
-import { show as showPackage } from '@/routes/packages';
+} from "@/hooks/use-rental-dates";
+import { formatDateID } from "@/lib/rental-date";
+import { type DurationPrice, cheapestDailyVariant } from "@/lib/rental-pricing";
+import { home } from "@/routes";
+import { show as showProduct } from "@/routes/products";
+import { show as showPackage } from "@/routes/packages";
 
 type DetailCategory = {
     id: number;
@@ -35,18 +40,18 @@ type DetailCategory = {
 };
 
 type ProductDetail = {
-    type: 'alat';
+    type: "alat";
     id: number;
     name: string;
     slug: string;
     description: string | null;
     category: DetailCategory | null;
     images: string[];
-    variants: RentalVariant[];
+    variants: DetailVariant[];
 };
 
 type PackageDetail = {
-    type: 'bundle';
+    type: "bundle";
     id: number;
     name: string;
     slug: string;
@@ -76,6 +81,7 @@ type Props = {
     detail: CatalogDetail;
     availability: number | null;
     filters: { pickup_date?: string; return_date?: string };
+    in_cart_ids: number[];
     related: RelatedProduct[];
 };
 
@@ -83,20 +89,30 @@ export default function CatalogDetailPage({
     detail,
     availability,
     filters,
+    in_cart_ids,
     related,
 }: Props) {
     const [isInitialLoading, setIsInitialLoading] = useState(false);
     const [isRangeUpdating, setIsRangeUpdating] = useState(false);
+    const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
+        () => {
+            if (detail.type !== "alat" || detail.variants.length === 0) {
+                return null;
+            }
+
+            return cheapestDailyVariant(detail.variants)?.id ?? null;
+        },
+    );
     const isRangeVisit = useRef(false);
 
     useEffect(() => {
-        const removeStartListener = router.on('start', () => {
+        const removeStartListener = router.on("start", () => {
             if (!isRangeVisit.current) {
                 setIsInitialLoading(true);
             }
         });
 
-        const removeFinishListener = router.on('finish', () => {
+        const removeFinishListener = router.on("finish", () => {
             setIsInitialLoading(false);
             isRangeVisit.current = false;
         });
@@ -110,16 +126,69 @@ export default function CatalogDetailPage({
     const isAvailabilityLoading = isRangeUpdating;
 
     const { saveDates, clearDates, activeRental } = useActiveRental(filters);
+
+    // Jaga agar varian terpilih selalu valid: jika pilihan user hilang
+    // dari daftar atau habis stoknya, kembali ke varian termurah yang
+    // tersedia. null berarti default (varian termurah) — boleh dipertahankan.
+    useEffect(() => {
+        if (detail.type !== "alat") {
+            return;
+        }
+
+        setSelectedVariantId((current) => {
+            if (current === null) {
+                const availableVariants = detail.variants.filter(
+                    (variant) => variant.available !== 0,
+                );
+                const pool =
+                    availableVariants.length > 0
+                        ? availableVariants
+                        : detail.variants;
+
+                return cheapestDailyVariant(pool)?.id ?? null;
+            }
+
+            const currentVariant = detail.variants.find(
+                (variant) => variant.id === current,
+            );
+
+            if (currentVariant && currentVariant.available !== 0) {
+                return currentVariant.id;
+            }
+
+            const availableVariants = detail.variants.filter(
+                (variant) => variant.available !== 0,
+            );
+            const pool =
+                availableVariants.length > 0
+                    ? availableVariants
+                    : detail.variants;
+
+            return cheapestDailyVariant(pool)?.id ?? null;
+        });
+    }, [detail]);
+
+    const selectedVariant =
+        detail.type === "alat"
+            ? (detail.variants.find(
+                  (variant) => variant.id === selectedVariantId,
+              ) ?? null)
+            : null;
+    const displayAvailability = selectedVariant?.available ?? availability;
+    const isInCartForSelection =
+        detail.type === "alat" && selectedVariantId !== null
+            ? in_cart_ids.includes(selectedVariantId)
+            : in_cart_ids.length > 0;
+
     const {
         pickupDate,
         returnDate,
         totalDays,
         unitPrice,
+        normalPrice,
         depositPerUnit,
         dailyPrice,
-    } = useCatalogDetailPricing(detail, activeRental);
-
-
+    } = useCatalogDetailPricing(detail, activeRental, selectedVariantId);
 
     const handleRangeChange = (params: RentalRangeParams) => {
         syncRentalRangePersistence(
@@ -139,7 +208,7 @@ export default function CatalogDetailPage({
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-                only: ['availability', 'filters', 'related'],
+                only: ["availability", "detail", "filters", "related"],
                 onFinish: () => {
                     setIsRangeUpdating(false);
                     isRangeVisit.current = false;
@@ -147,6 +216,82 @@ export default function CatalogDetailPage({
             },
         );
     };
+
+    // Tanggal bisa datang dari localStorage (mis. dipilih di landing
+    // tanpa klik "Cek") tanpa query di URL, sehingga availability belum
+    // dihitung server. Sinkronkan sekali per rentang agar stok tampil
+    // dan tombol keranjang bisa disable dengan benar.
+    const availabilitySyncKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!pickupDate || !returnDate) {
+            availabilitySyncKey.current = null;
+
+            return;
+        }
+
+        if (availability !== null || isRangeVisit.current) {
+            return;
+        }
+
+        const key = `${toRentalQueryDate(pickupDate)}-${toRentalQueryDate(returnDate)}`;
+
+        if (availabilitySyncKey.current === key) {
+            return;
+        }
+
+        availabilitySyncKey.current = key;
+
+        router.get(
+            routeDetail(detail),
+            buildRentalRangeQuery(pickupDate, returnDate),
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["availability", "detail", "filters", "related"],
+            },
+        );
+    }, [availability, detail, pickupDate, returnDate]);
+
+    const unavailableNoticeKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!pickupDate || !returnDate) {
+            unavailableNoticeKey.current = null;
+
+            return;
+        }
+
+        if (isAvailabilityLoading || displayAvailability === null) {
+            return;
+        }
+
+        const key = `${selectedVariantId ?? "product"}-${toRentalQueryDate(pickupDate)}-${toRentalQueryDate(returnDate)}`;
+
+        if (displayAvailability > 0) {
+            unavailableNoticeKey.current = null;
+
+            return;
+        }
+
+        if (unavailableNoticeKey.current === key) {
+            return;
+        }
+
+        unavailableNoticeKey.current = key;
+
+        toast.error(
+            `${detail.name} tidak tersedia untuk tanggal ${formatDateID(pickupDate)} - ${formatDateID(returnDate)}.`,
+        );
+    }, [
+        detail.name,
+        displayAvailability,
+        isAvailabilityLoading,
+        pickupDate,
+        returnDate,
+        selectedVariantId,
+    ]);
 
     return (
         <>
@@ -174,15 +319,31 @@ export default function CatalogDetailPage({
                                 </div>
 
                                 <div className="flex min-w-0 flex-col gap-6">
-                                    <DetailTitle detail={detail} />
-
                                     <RentalPriceCard
+                                        title={detail.name}
                                         unitPrice={unitPrice}
+                                        normalPrice={normalPrice}
                                         depositPerUnit={depositPerUnit}
                                         totalDays={totalDays}
-                                        available={availability}
+                                        available={displayAvailability}
                                         dailyPrice={dailyPrice}
                                         loading={isAvailabilityLoading}
+                                        variantSelector={
+                                            detail.type === "alat" &&
+                                            detail.variants.length > 0 ? (
+                                                <VariantSelector
+                                                    variants={detail.variants}
+                                                    selectedId={
+                                                        selectedVariantId
+                                                    }
+                                                    onSelect={(variantId) =>
+                                                        setSelectedVariantId(
+                                                            variantId,
+                                                        )
+                                                    }
+                                                />
+                                            ) : undefined
+                                        }
                                         rentalRangeComponent={
                                             <RentalRange
                                                 variant="compact"
@@ -190,6 +351,22 @@ export default function CatalogDetailPage({
                                                 initialReturnDate={returnDate}
                                                 onSearch={handleRangeChange}
                                                 hideButton
+                                            />
+                                        }
+                                        footerAction={
+                                            <CartAction
+                                                detail={detail}
+                                                totalDays={totalDays}
+                                                pickupDate={pickupDate ?? null}
+                                                returnDate={returnDate ?? null}
+                                                inCart={isInCartForSelection}
+                                                availability={
+                                                    displayAvailability
+                                                }
+                                                selectedVariantId={
+                                                    selectedVariantId
+                                                }
+                                                loading={isAvailabilityLoading}
                                             />
                                         }
                                     />
@@ -222,29 +399,6 @@ export default function CatalogDetailPage({
                 <SiteFooter />
             </div>
         </>
-    );
-}
-
-function DetailTitle({ detail }: { detail: CatalogDetail }) {
-    return (
-        <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                {detail.name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                    variant="outline"
-                    className="rounded-full px-2.5 py-1 text-xs font-medium"
-                >
-                    {detail.type === 'alat' ? 'Alat' : 'Paket'}
-                </Badge>
-                {detailCategoryName(detail) && (
-                    <span className="text-xs text-muted-foreground">
-                        {detailCategoryName(detail)}
-                    </span>
-                )}
-            </div>
-        </div>
     );
 }
 
@@ -303,17 +457,17 @@ function RelatedSection({ related }: { related: RelatedProduct[] }) {
 }
 
 function routeDetail(detail: CatalogDetail): string {
-    return detail.type === 'alat'
+    return detail.type === "alat"
         ? showProduct.url({ productSlug: detail.slug })
         : showPackage.url({ packageSlug: detail.slug });
 }
 
 function detailCategoryName(detail: CatalogDetail): string | null {
-    return detail.type === 'alat' ? (detail.category?.name ?? null) : null;
+    return detail.type === "alat" ? (detail.category?.name ?? null) : null;
 }
 
 function galleryImages(detail: CatalogDetail): string[] {
-    return detail.type === 'bundle'
+    return detail.type === "bundle"
         ? detail.image
             ? [detail.image]
             : []
@@ -321,5 +475,5 @@ function galleryImages(detail: CatalogDetail): string[] {
 }
 
 function detailItems(detail: CatalogDetail) {
-    return detail.type === 'bundle' ? detail.items : undefined;
+    return detail.type === "bundle" ? detail.items : undefined;
 }

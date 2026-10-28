@@ -108,6 +108,7 @@ const variantSchema = z.object({
     is_active: z.boolean(),
     values: z
         .array(variantValueSchema)
+        .min(1, 'Minimal satu atribut wajib diisi untuk setiap varian.')
         .max(10, 'Maksimal 10 atribut per varian.'),
     duration_prices: z
         .array(durationPriceSchema)

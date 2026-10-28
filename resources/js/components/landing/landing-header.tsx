@@ -1,7 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { MenuIcon, ShoppingCartIcon, UserRoundIcon } from 'lucide-react';
-import { useCartCount } from '@/hooks/use-cart-count';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +21,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { login, register } from '@/routes';
 import { dashboard } from '@/routes/admin';
+import { index as cartIndex } from '@/routes/cart';
 import { edit as editProfile } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -87,25 +87,29 @@ function UserActions({ user }: { user: User }) {
 }
 
 function CartButton() {
-    const count = useCartCount();
+    const { cart } = usePage().props;
+    const count = (cart as { count?: number } | null)?.count ?? 0;
 
     return (
         <Button
+            asChild
             variant="ghost"
             size="icon"
             className="relative size-10 rounded-full"
             aria-label="Keranjang"
             title="Keranjang"
         >
-            <ShoppingCartIcon className="size-5" />
-            {count > 0 && (
-                <span
-                    className="absolute -top-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white"
-                    aria-label={`${count} item di keranjang`}
-                >
-                    {count > 9 ? '9+' : count}
-                </span>
-            )}
+            <Link href={cartIndex.url()}>
+                <ShoppingCartIcon className="size-5" />
+                {count > 0 && (
+                    <span
+                        className="absolute -top-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white"
+                        aria-label={`${count} item di keranjang`}
+                    >
+                        {count > 9 ? '9+' : count}
+                    </span>
+                )}
+            </Link>
         </Button>
     );
 }

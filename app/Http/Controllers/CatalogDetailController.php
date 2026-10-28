@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\BuildsCatalogPayloads;
+use App\Models\CartItem;
 use App\Models\Package;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\AvailabilityService;
+use App\UserRole;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -38,20 +41,33 @@ class CatalogDetailController extends Controller
                     'deposit_per_unit',
                 ]),
                 'variants.durationPrices:id,product_variant_id,duration_days,price',
+                'variants.values:id,product_variant_id,attribute_id,value',
+                'variants.values.attribute:id,name',
             ])
             ->firstOrFail();
 
         $range = $this->resolveRentalRange($request);
         $availability = $this->resolveAvailability($range['pickup'], $range['return']);
 
+        $availabilityByVariant = $availability?->batchAvailableStock(
+            $product->variants->modelKeys(),
+            $range['pickup'],
+            $range['return'],
+        );
+
         return Inertia::render('products/show', [
             'filters' => $this->filterDates($range['pickup'], $range['return']),
-            'detail' => $this->productPayload($product),
+            'detail' => $this->productPayload($product, $availabilityByVariant),
             'availability' => $this->availableForProduct(
                 $product,
                 $availability,
                 $range['pickup'],
                 $range['return'],
+            ),
+            'in_cart_ids' => $this->inCartIds(
+                $request,
+                ProductVariant::class,
+                $product->variants->modelKeys(),
             ),
             'related' => $this->relatedProducts($product, $range, $availability),
         ]);
@@ -85,6 +101,7 @@ class CatalogDetailController extends Controller
                 $range['pickup'],
                 $range['return'],
             ),
+            'in_cart_ids' => $this->inCartIds($request, Package::class, [$package->id]),
             'related' => $this->relatedProducts(null, $range, $availability),
         ]);
     }
@@ -100,11 +117,37 @@ class CatalogDetailController extends Controller
     }
 
     /**
+     * Id rentable milik customer yang sudah ada di keranjang. Granularitas
+     * keranjang adalah per varian/paket, bukan per produk, sehingga tombol
+     * "Lihat Keranjang" hanya berlaku untuk varian yang benar-benar ada
+     * di keranjang.
+     *
+     * @param  array<int, int>  $rentableIds
+     * @return array<int, int>
+     */
+    private function inCartIds(Request $request, string $rentableType, array $rentableIds): array
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== UserRole::Customer || $rentableIds === []) {
+            return [];
+        }
+
+        return CartItem::query()
+            ->where('user_id', $user->id)
+            ->where('rentable_type', $rentableType)
+            ->whereIn('rentable_id', $rentableIds)
+            ->pluck('rentable_id')
+            ->all();
+    }
+
+    /**
      * Build the full product payload consumed by the detail page.
      *
+     * @param  array<int, int>|null  $availabilityByVariant  stok tersedia per variant id
      * @return array<string, mixed>
      */
-    private function productPayload(Product $product): array
+    private function productPayload(Product $product, ?array $availabilityByVariant = null): array
     {
         return [
             'type' => 'alat',
@@ -125,8 +168,17 @@ class CatalogDetailController extends Controller
                     'id' => $variant->id,
                     'sku' => $variant->sku,
                     'stock' => (int) $variant->stock,
+                    'available' => $availabilityByVariant === null
+                        ? null
+                        : (int) ($availabilityByVariant[$variant->id] ?? 0),
                     'rental_price_per_day' => (float) $variant->rental_price_per_day,
                     'deposit_per_unit' => (float) $variant->deposit_per_unit,
+                    'values' => $variant->values
+                        ->map(fn ($value): array => [
+                            'attribute' => $value->attribute?->name,
+                            'value' => $value->value,
+                        ])
+                        ->all(),
                     'duration_prices' => $variant->durationPrices
                         ->sortBy('duration_days')
                         ->values()

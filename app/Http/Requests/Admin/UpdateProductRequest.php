@@ -81,7 +81,7 @@ class UpdateProductRequest extends FormRequest
             'variants.*.duration_prices.*.price' => ['required', 'numeric', 'min:0', 'max:100000000'],
             'variants.*.weight_grams' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'variants.*.is_active' => ['nullable', 'boolean'],
-            'variants.*.values' => ['nullable', 'array', 'max:10'],
+            'variants.*.values' => ['required', 'array', 'min:1', 'max:10'],
             'variants.*.values.*.attribute_id' => ['required', 'integer', 'exists:attributes,id'],
             'variants.*.values.*.value' => ['required', 'string', 'max:100'],
         ];
@@ -112,6 +112,8 @@ class UpdateProductRequest extends FormRequest
             'variants.*.sku.unique' => 'SKU sudah digunakan oleh varian lain.',
             'variants.*.stock.required' => 'Stok varian wajib diisi.',
             'variants.*.rental_price_per_day.required' => 'Harga sewa per hari wajib diisi.',
+            'variants.*.values.required' => 'Atribut varian wajib diisi.',
+            'variants.*.values.min' => 'Minimal satu atribut wajib diisi untuk setiap varian.',
             'variants.*.values.*.attribute_id.exists' => 'Atribut tidak ditemukan.',
             'variants.*.values.*.value.required' => 'Nilai atribut wajib diisi.',
         ];

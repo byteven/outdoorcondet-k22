@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\CatalogDetailController;
 use App\Http\Controllers\LandingController;
@@ -40,6 +41,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+        Route::get('packages', [PackageController::class, 'index'])->name('packages.index');
+        Route::post('packages', [PackageController::class, 'store'])->name('packages.store');
+        Route::put('packages/{package}', [PackageController::class, 'update'])->name('packages.update');
+        Route::delete('packages/{package}', [PackageController::class, 'destroy'])->name('packages.destroy');
     });
 });
 

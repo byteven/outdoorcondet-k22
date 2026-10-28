@@ -109,6 +109,24 @@ test('storing a product requires a name, category, and at least one variant', fu
         ->assertSessionHasErrors(['name', 'category_id', 'variants']);
 });
 
+test('storing a product requires at least one attribute value per variant', function () {
+    $payload = validProductPayload();
+    $payload['variants'][0]['values'] = [];
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.products.store'), $payload)
+        ->assertSessionHasErrors(['variants.0.values']);
+});
+
+test('storing a product rejects a zero rental price', function () {
+    $payload = validProductPayload();
+    $payload['variants'][0]['rental_price_per_day'] = 0;
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.products.store'), $payload)
+        ->assertSessionHasErrors(['variants.0.rental_price_per_day']);
+});
+
 test('storing a product fails if slug or sku is already taken', function () {
     $existing = validProductPayload();
     unset($existing['images']);

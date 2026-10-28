@@ -76,7 +76,7 @@ const durationPriceSchema = z.object({
         .max(365, 'Durasi hari maksimal 365 hari.'),
     price: z
         .number({ error: 'Harga durasi wajib diisi.' })
-        .min(0, 'Harga minimal 0.')
+        .gt(0, 'Harga durasi harus lebih dari 0.')
         .max(100000000, 'Harga terlalu besar.'),
 });
 
@@ -94,7 +94,7 @@ const variantSchema = z.object({
         .max(10000, 'Stok maksimal 10000.'),
     rental_price_per_day: z
         .number({ error: 'Harga sewa wajib diisi.' })
-        .min(0, 'Harga minimal 0.')
+        .gt(0, 'Harga sewa per hari harus lebih dari 0.')
         .max(100000000, 'Harga terlalu besar.'),
     deposit_per_unit: z
         .number({ error: 'Harga deposit wajib diisi.' })
@@ -108,6 +108,7 @@ const variantSchema = z.object({
     is_active: z.boolean(),
     values: z
         .array(variantValueSchema)
+        .min(1, 'Minimal satu atribut varian wajib diisi.')
         .max(10, 'Maksimal 10 atribut per varian.'),
     duration_prices: z
         .array(durationPriceSchema)

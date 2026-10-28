@@ -67,7 +67,8 @@ class CatalogDetailController extends Controller
             ->where('is_active', true)
             ->with([
                 'durationPrices:id,package_id,duration_days,price',
-                'items:id,package_id,product_variant_id,quantity',
+                'items:id,package_id,product_id,product_variant_id,allow_variant_selection,quantity',
+                'items.product:id,name',
                 'items.variant:id,product_id,sku',
                 'items.variant.product:id,name',
             ])
@@ -166,8 +167,13 @@ class CatalogDetailController extends Controller
                 ->all(),
             'items' => $package->items
                 ->map(fn ($item): array => [
-                    'name' => $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
+                    'product_id' => (int) $item->product_id,
+                    'name' => $item->product?->name ?? $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
                     'quantity' => (int) $item->quantity,
+                    'allow_variant_selection' => (bool) $item->allow_variant_selection,
+                    'variant_name' => $item->allow_variant_selection
+                        ? null
+                        : $item->variant?->sku,
                 ])
                 ->values()
                 ->all(),

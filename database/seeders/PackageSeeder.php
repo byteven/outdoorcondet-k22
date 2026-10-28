@@ -14,7 +14,9 @@ class PackageSeeder extends Seeder
      */
     public function run(): void
     {
-        $variants = ProductVariant::query()->pluck('id', 'sku');
+        $variants = ProductVariant::query()
+            ->get(['id', 'product_id', 'sku'])
+            ->keyBy('sku');
 
         foreach ($this->packages() as $row) {
             $package = Package::query()->updateOrCreate(
@@ -31,14 +33,15 @@ class PackageSeeder extends Seeder
             $package->items()->delete();
 
             foreach ($row['items'] as $sku => $quantity) {
-                $variantId = $variants->get($sku);
+                $variant = $variants->get($sku);
 
-                if ($variantId === null) {
+                if ($variant === null) {
                     continue;
                 }
 
                 $package->items()->create([
-                    'product_variant_id' => $variantId,
+                    'product_id' => $variant->product_id,
+                    'product_variant_id' => $variant->id,
                     'quantity' => $quantity,
                 ]);
             }

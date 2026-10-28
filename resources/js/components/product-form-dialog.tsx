@@ -566,6 +566,17 @@ export function ProductFormDialog({
                                         variantIndex={i}
                                         attributes={attributes}
                                         processing={processing}
+                                        errors={errors}
+                                        serverErrors={serverErrors}
+                                    />
+                                    <InputError
+                                        message={
+                                            errors.variants?.[i]?.values
+                                                ?.message ??
+                                            errors.variants?.[i]?.values?.root
+                                                ?.message ??
+                                            serverErrors[`variants.${i}.values`]
+                                        }
                                     />
                                     <VariantDurationPricesInput
                                         control={control}
@@ -746,6 +757,8 @@ function VariantValuesInput({
     variantIndex,
     attributes,
     processing,
+    errors,
+    serverErrors,
 }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     control: any;
@@ -753,6 +766,9 @@ function VariantValuesInput({
     register: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setValue: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    errors: any;
+    serverErrors: Record<string, string>;
     variantIndex: number;
     attributes: AttributeOption[];
     processing: boolean;
@@ -802,6 +818,15 @@ function VariantValuesInput({
                                 ))}
                             </SelectContent>
                         </Select>
+                        <InputError
+                            message={
+                                errors.variants?.[variantIndex]?.values?.[j]
+                                    ?.attribute_id?.message ??
+                                serverErrors[
+                                    `variants.${variantIndex}.values.${j}.attribute_id`
+                                ]
+                            }
+                        />
                     </div>
                     <div className="grid gap-1">
                         <Label className="text-xs">Nilai</Label>
@@ -811,6 +836,15 @@ function VariantValuesInput({
                             {...register(
                                 `variants.${variantIndex}.values.${j}.value`,
                             )}
+                        />
+                        <InputError
+                            message={
+                                errors.variants?.[variantIndex]?.values?.[j]
+                                    ?.value?.message ??
+                                serverErrors[
+                                    `variants.${variantIndex}.values.${j}.value`
+                                ]
+                            }
                         />
                     </div>
                     <Button

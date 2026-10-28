@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\Package;
 use App\Models\PackageItem;
 use App\Models\ProductVariant;
 use App\Models\Rental;
 use App\Models\RentalItem;
 use App\Models\VariantMaintenance;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Menghitung ketersediaan stok mempertimbangkan:
@@ -41,7 +40,7 @@ class AvailabilityService
      * @param  int  $variantId  ID dari product_variant
      * @param  CarbonInterface  $pickupDate  tanggal ambil (start_date)
      * @param  CarbonInterface  $returnDate  tanggal kembali (end_date, sebelum buffer)
-     * @return int  stok yang tersedia (0 or lebih)
+     * @return int stok yang tersedia (0 or lebih)
      */
     public function availableStock(
         int $variantId,
@@ -59,7 +58,7 @@ class AvailabilityService
      * @param  array<int>  $variantIds
      * @param  CarbonInterface  $pickupDate  tanggal ambil
      * @param  CarbonInterface  $returnDate  tanggal kembali
-     * @return array<int, int>  map variantId => availableQty
+     * @return array<int, int> map variantId => availableQty
      */
     public function batchAvailableStock(
         array $variantIds,
@@ -98,41 +97,86 @@ class AvailabilityService
     /**
      * Ketersediaan paket = min floor(available(variant) / qty_per_paket) dari semua items.
      *
-     * @param  int  $packageId
-     * @param  CarbonInterface  $pickupDate
-     * @param  CarbonInterface  $returnDate
-     * @return int  jumlah paket yang tersedia
+     * Item dengan allow_variant_selection tanpa varian terpilih memakai total
+     * kapasitas semua varian aktif produknya. Pemanggil dapat mengirim varian
+     * pilihan customer lewat $selectedVariantIds (key = package_item id).
+     *
+     * @param  array<int, int>  $selectedVariantIds
+     * @return int jumlah paket yang tersedia
      */
     public function availablePackageStock(
         int $packageId,
         CarbonInterface $pickupDate,
         CarbonInterface $returnDate,
+        array $selectedVariantIds = [],
     ): int {
-        $items = PackageItem::where('package_id', $packageId)->get();
+        $items = PackageItem::where('package_id', $packageId)->get([
+            'id',
+            'product_id',
+            'product_variant_id',
+            'allow_variant_selection',
+            'quantity',
+        ]);
 
         if ($items->isEmpty()) {
             return 0;
         }
 
-        $variantIds = $items
-            ->where('product_variant_id', '!=', null)
+        $fixedVariantIds = $items
+            ->where('allow_variant_selection', false)
             ->pluck('product_variant_id')
+            ->filter()
             ->all();
 
-        if (empty($variantIds)) {
-            return 0;
-        }
+        $selectableProductIds = $items
+            ->where('allow_variant_selection', true)
+            ->pluck('product_id')
+            ->filter()
+            ->unique()
+            ->all();
+
+        $selectableVariants = $selectableProductIds === []
+            ? collect()
+            : ProductVariant::query()
+                ->whereIn('product_id', $selectableProductIds)
+                ->where('is_active', true)
+                ->get(['id', 'product_id']);
+
+        $variantIds = array_values(array_unique([
+            ...$fixedVariantIds,
+            ...$selectableVariants->pluck('id')->all(),
+            ...array_values(array_filter($selectedVariantIds)),
+        ]));
 
         $availability = $this->batchAvailableStock($variantIds, $pickupDate, $returnDate);
+        $variantsByProduct = $selectableVariants->groupBy('product_id');
 
-        return $items->reduce(function (mixed $carry, PackageItem $item) use ($availability): int {
-            /** @var int $carry */
-            if ($item->product_variant_id === null) {
-                return $carry; // Skip jika variant tidak fixed
+        return $items->reduce(function (int $carry, PackageItem $item) use (
+            $availability,
+            $selectedVariantIds,
+            $variantsByProduct,
+        ): int {
+            if ($item->quantity < 1) {
+                return 0;
             }
 
-            $variantAvail = $availability[$item->product_variant_id] ?? 0;
-            $canFit = $item->quantity > 0 ? (int) floor($variantAvail / $item->quantity) : 0;
+            if ($item->allow_variant_selection) {
+                $selectedVariantId = $selectedVariantIds[$item->id] ?? null;
+
+                $canFit = $selectedVariantId !== null
+                    ? intdiv($availability[$selectedVariantId] ?? 0, $item->quantity)
+                    : (int) $variantsByProduct
+                        ->get($item->product_id, collect())
+                        ->sum(fn (ProductVariant $variant): int => intdiv(
+                            $availability[$variant->id] ?? 0,
+                            $item->quantity,
+                        ));
+            } else {
+                $canFit = intdiv(
+                    $availability[$item->product_variant_id] ?? 0,
+                    $item->quantity,
+                );
+            }
 
             return min($carry, $canFit);
         }, PHP_INT_MAX);
@@ -195,7 +239,7 @@ class AvailabilityService
      *   AND rental.end_date + buffer >= A
      */
     private function applyOverlapScope(
-        \Illuminate\Database\Eloquent\Builder $query,
+        Builder $query,
         CarbonInterface $pickupDate,
         CarbonInterface $returnDate,
     ): void {
@@ -203,7 +247,7 @@ class AvailabilityService
         $now = now();
 
         $bufferedReturnDate = $returnDate->copy()->addDays($bufferDays)->toDateString();
-        $pickupDateStr = $pickupDate->toDateString();
+        $bufferedPickupDate = $pickupDate->copy()->subDays($bufferDays)->toDateString();
 
         $query
             ->whereIn('status', self::BLOCKING_STATUSES)
@@ -223,7 +267,7 @@ class AvailabilityService
             // Overlap: rental.start_date <= returnDate + buffer
             ->whereDate('start_date', '<=', $bufferedReturnDate)
             // AND rental.end_date + buffer >= pickupDate
-            ->whereRaw('DATE_ADD(end_date, INTERVAL ? DAY) >= ?', [$bufferDays, $pickupDateStr]);
+            ->whereDate('end_date', '>=', $bufferedPickupDate);
     }
 
     /**

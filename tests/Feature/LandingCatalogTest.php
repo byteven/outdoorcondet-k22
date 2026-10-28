@@ -38,6 +38,7 @@ test('landing page exposes the deferred rental catalog', function () {
     ]);
 
     $package->items()->create([
+        'product_id' => $variant->product_id,
         'product_variant_id' => $variant->id,
         'quantity' => 2,
     ]);

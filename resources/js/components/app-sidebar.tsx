@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import {
+    Boxes,
     House,
     FolderTree,
     LayoutGrid,
@@ -24,6 +25,7 @@ import { dashboard } from '@/routes/admin';
 import { index as attributesIndex } from '@/routes/admin/attributes';
 import { index as categoriesIndex } from '@/routes/admin/categories';
 import { index as customersIndex } from '@/routes/admin/customers';
+import { index as packagesIndex } from '@/routes/admin/packages';
 import { index as productsIndex } from '@/routes/admin/products';
 import { home } from '@/routes';
 import type { NavItem } from '@/types';
@@ -56,6 +58,11 @@ const manageNavItems: NavItem[] = [
         title: 'Produk',
         href: productsIndex(),
         icon: Package,
+    },
+    {
+        title: 'Paket',
+        href: packagesIndex(),
+        icon: Boxes,
     },
 ];
 

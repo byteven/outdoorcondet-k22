@@ -20,10 +20,7 @@ import {
     syncRentalRangePersistence,
     useActiveRental,
 } from '@/hooks/use-rental-dates';
-import {
-    type DurationPrice,
-    type RentalVariant,
-} from '@/lib/rental-pricing';
+import { type DurationPrice, type RentalVariant } from '@/lib/rental-pricing';
 import { home } from '@/routes';
 import { show as showProduct } from '@/routes/products';
 import { show as showPackage } from '@/routes/packages';
@@ -55,7 +52,13 @@ type PackageDetail = {
     daily_price: number;
     deposit_per_package: number;
     duration_prices: DurationPrice[];
-    items: { name: string; quantity: number }[];
+    items: {
+        product_id: number;
+        name: string;
+        quantity: number;
+        allow_variant_selection: boolean;
+        variant_name: string | null;
+    }[];
 };
 
 type CatalogDetail = ProductDetail | PackageDetail;
@@ -118,8 +121,6 @@ export default function CatalogDetailPage({
         depositPerUnit,
         dailyPrice,
     } = useCatalogDetailPricing(detail, activeRental);
-
-
 
     const handleRangeChange = (params: RentalRangeParams) => {
         syncRentalRangePersistence(

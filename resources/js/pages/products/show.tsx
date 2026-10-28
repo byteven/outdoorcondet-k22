@@ -1,5 +1,6 @@
 import { Head, router } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { CatalogCard } from "@/components/catalog-card";
 import {
@@ -23,8 +24,10 @@ import { useCatalogDetailPricing } from "@/hooks/use-catalog-detail-pricing";
 import {
     buildRentalRangeQuery,
     syncRentalRangePersistence,
+    toRentalQueryDate,
     useActiveRental,
 } from "@/hooks/use-rental-dates";
+import { formatDateID } from "@/lib/rental-date";
 import { type DurationPrice, cheapestDailyVariant } from "@/lib/rental-pricing";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
@@ -212,6 +215,82 @@ export default function CatalogDetailPage({
             },
         );
     };
+
+    // Tanggal bisa datang dari localStorage (mis. dipilih di landing
+    // tanpa klik "Cek") tanpa query di URL, sehingga availability belum
+    // dihitung server. Sinkronkan sekali per rentang agar stok tampil
+    // dan tombol keranjang bisa disable dengan benar.
+    const availabilitySyncKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!pickupDate || !returnDate) {
+            availabilitySyncKey.current = null;
+
+            return;
+        }
+
+        if (availability !== null || isRangeVisit.current) {
+            return;
+        }
+
+        const key = `${toRentalQueryDate(pickupDate)}-${toRentalQueryDate(returnDate)}`;
+
+        if (availabilitySyncKey.current === key) {
+            return;
+        }
+
+        availabilitySyncKey.current = key;
+
+        router.get(
+            routeDetail(detail),
+            buildRentalRangeQuery(pickupDate, returnDate),
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["availability", "detail", "filters", "related"],
+            },
+        );
+    }, [availability, detail, pickupDate, returnDate]);
+
+    const unavailableNoticeKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!pickupDate || !returnDate) {
+            unavailableNoticeKey.current = null;
+
+            return;
+        }
+
+        if (isAvailabilityLoading || displayAvailability === null) {
+            return;
+        }
+
+        const key = `${selectedVariantId ?? "product"}-${toRentalQueryDate(pickupDate)}-${toRentalQueryDate(returnDate)}`;
+
+        if (displayAvailability > 0) {
+            unavailableNoticeKey.current = null;
+
+            return;
+        }
+
+        if (unavailableNoticeKey.current === key) {
+            return;
+        }
+
+        unavailableNoticeKey.current = key;
+
+        toast.error(
+            `${detail.name} tidak tersedia untuk tanggal ${formatDateID(pickupDate)} - ${formatDateID(returnDate)}.`,
+        );
+    }, [
+        detail.name,
+        displayAvailability,
+        isAvailabilityLoading,
+        pickupDate,
+        returnDate,
+        selectedVariantId,
+    ]);
 
     return (
         <>

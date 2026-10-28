@@ -1,29 +1,29 @@
-import { Deferred, Head, router } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { Deferred, Head, router } from "@inertiajs/react";
+import { useEffect, useRef, useState } from "react";
 import {
     CatalogSection,
     type CatalogData,
     type CatalogFilters,
-} from '@/components/catalog-section';
-import { HeroSection } from '@/components/landing/hero-section';
-import { LandingHeader } from '@/components/landing/landing-header';
-import { RentalRange, type RentalRangeParams } from '@/components/rental-range';
-import { SiteFooter } from '@/components/site-footer';
-import { home } from '@/routes';
+} from "@/components/catalog-section";
+import { HeroSection } from "@/components/landing/hero-section";
+import { LandingHeader } from "@/components/landing/landing-header";
+import { RentalRange, type RentalRangeParams } from "@/components/rental-range";
+import { SiteFooter } from "@/components/site-footer";
+import { home } from "@/routes";
 import {
     buildRentalSelection,
     syncRentalRangePersistence,
     toRentalQueryDate,
     useActiveRental,
     type RentalDateSelection,
-} from '@/hooks/use-rental-dates';
+} from "@/hooks/use-rental-dates";
 
 type Props = {
     catalog?: CatalogData;
     filters: CatalogFilters;
 };
 
-const CATALOG_SECTION_ID = 'katalog';
+const CATALOG_SECTION_ID = "katalog";
 
 export default function Landing({ catalog, filters }: Props) {
     const [isCatalogLoading, setIsCatalogLoading] = useState(false);
@@ -40,20 +40,24 @@ export default function Landing({ catalog, filters }: Props) {
     ): void => {
         const nextFilters = { ...latestFilters.current, ...overrides };
 
-        router.get(home.url(), buildCatalogQuery(nextFilters, rentalSelection), {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            only: ['catalog', 'filters'],
-            onStart: () => setIsCatalogLoading(true),
-            onFinish: () => {
-                setIsCatalogLoading(false);
+        router.get(
+            home.url(),
+            buildCatalogQuery(nextFilters, rentalSelection),
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["catalog", "filters"],
+                onStart: () => setIsCatalogLoading(true),
+                onFinish: () => {
+                    setIsCatalogLoading(false);
 
-                if (shouldScrollToCatalog) {
-                    scrollCatalogSectionIntoView();
-                }
+                    if (shouldScrollToCatalog) {
+                        scrollCatalogSectionIntoView();
+                    }
+                },
             },
-        });
+        );
     };
 
     useEffect(() => {
@@ -93,6 +97,7 @@ export default function Landing({ catalog, filters }: Props) {
         pickupDate,
         returnDate,
         totalDays,
+        origin,
     }: RentalRangeParams) => {
         const hasRange = Boolean(pickupDate && returnDate);
 
@@ -111,7 +116,11 @@ export default function Landing({ catalog, filters }: Props) {
               }
             : null;
 
-        visitCatalog({ page: 1 }, rentalSelection, hasRange);
+        visitCatalog(
+            { page: 1 },
+            rentalSelection,
+            origin === "button" && hasRange,
+        );
     };
 
     return (
@@ -230,6 +239,6 @@ function scrollCatalogSectionIntoView(): void {
     requestAnimationFrame(() => {
         document
             .getElementById(CATALOG_SECTION_ID)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 }

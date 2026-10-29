@@ -3,6 +3,7 @@
 use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\Package;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -345,4 +346,76 @@ test('detail transaksi tetap tampil saat produk dihapus admin', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('checkout/show')
             ->where('rental.items.0.name', 'Alat ini telah dihapus oleh admin'));
+});
+
+test('checkout ditolak jika total kebutuhan varian melebihi stok tersedia', function () {
+    $variant = checkoutVariant(stock: 4);
+    $variant->durationPrices()->create(['duration_days' => 3, 'price' => 50000]);
+
+    $package = Package::query()->create([
+        'name' => 'Paket Tenda',
+        'slug' => 'paket-tenda',
+        'daily_price' => 50000,
+        'deposit_per_package' => 100000,
+        'is_active' => true,
+    ]);
+    $package->items()->create(['product_variant_id' => $variant->id, 'quantity' => 2]);
+
+    // 4 unit individual + paket butuh 2 unit = total 6 > stok 4.
+    $this->post(route('cart.store'), [
+        'rentable_type' => 'variant',
+        'rentable_id' => $variant->id,
+        'quantity' => 4,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-04',
+    ])->assertRedirect();
+
+    $this->post(route('cart.store'), [
+        'rentable_type' => 'package',
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-04',
+    ])->assertRedirect();
+
+    $this->post(route('checkout.store'), ['payment_type' => 'full'])
+        ->assertSessionHasErrors(['cart']);
+
+    expect(Rental::query()->count())->toBe(0);
+});
+
+test('checkout lolos jika total kebutuhan varian tepat memenuhi stok', function () {
+    $variant = checkoutVariant(stock: 4);
+    $variant->durationPrices()->create(['duration_days' => 3, 'price' => 50000]);
+
+    $package = Package::query()->create([
+        'name' => 'Paket Tenda',
+        'slug' => 'paket-tenda',
+        'daily_price' => 50000,
+        'deposit_per_package' => 100000,
+        'is_active' => true,
+    ]);
+    $package->items()->create(['product_variant_id' => $variant->id, 'quantity' => 2]);
+
+    // 2 unit individual + paket butuh 2 unit = total 4 = stok 4.
+    $this->post(route('cart.store'), [
+        'rentable_type' => 'variant',
+        'rentable_id' => $variant->id,
+        'quantity' => 2,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-04',
+    ])->assertRedirect();
+
+    $this->post(route('cart.store'), [
+        'rentable_type' => 'package',
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-04',
+    ])->assertRedirect();
+
+    $this->post(route('checkout.store'), ['payment_type' => 'full'])->assertRedirect();
+
+    expect(Rental::query()->count())->toBe(1)
+        ->and(Rental::query()->first()->items)->toHaveCount(2);
 });

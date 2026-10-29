@@ -26,6 +26,33 @@ class CheckoutController extends Controller
     ) {}
 
     /**
+     * Halaman riwayat pesanan customer: daftar semua rental milik customer.
+     */
+    public function index(Request $request): Response
+    {
+        $customer = $request->user()->customer;
+
+        abort_if($customer === null, 404);
+
+        $rentals = Rental::where('customer_id', $customer->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return Inertia::render('checkout/index', [
+            'rentals' => $rentals->map(fn (Rental $rental): array => [
+                'rental_code' => $rental->rental_code,
+                'status' => $rental->status,
+                'start_date' => $rental->start_date?->format('Y-m-d'),
+                'end_date' => $rental->end_date?->format('Y-m-d'),
+                'total_days' => $rental->total_days,
+                'grand_total' => (float) $rental->grand_total,
+                'payment_type' => $rental->payment_type,
+                'created_at' => $rental->created_at?->toISOString(),
+            ])->all(),
+        ]);
+    }
+
+    /**
      * Buat rental dari keranjang lalu arahkan ke halaman detail transaksi.
      */
     public function store(Request $request): RedirectResponse
@@ -35,6 +62,11 @@ class CheckoutController extends Controller
         ]);
 
         $rental = $this->checkoutService->checkout($request->user(), $validated['payment_type']);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Pesanan berhasil dibuat. Silakan selesaikan pembayaran.',
+        ]);
 
         return redirect()->route('checkout.show', ['rental' => $rental->rental_code]);
     }
@@ -69,12 +101,12 @@ class CheckoutController extends Controller
 
         $this->checkoutService->recordPayment($rental, $path);
 
-        return back()->with([
-            'toast' => [
-                'type' => 'success',
-                'message' => 'Bukti pembayaran berhasil diunggah. Menunggu konfirmasi admin.',
-            ],
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Bukti pembayaran berhasil diunggah. Menunggu konfirmasi admin.',
         ]);
+
+        return back();
     }
 
     /**

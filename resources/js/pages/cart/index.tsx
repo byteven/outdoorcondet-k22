@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { formatRupiah } from "@/components/product-shared";
+import { cartLineStock } from "@/lib/cart-stock";
 import { cn } from "@/lib/utils";
 import { parseRentalQueryDate } from "@/hooks/use-rental-dates";
 import { useCartRentalDates } from "@/hooks/use-cart-rental-dates";
@@ -63,6 +64,8 @@ type CartItemPayload = {
     max_quantity: number;
     available: number;
     is_out_of_stock: boolean;
+    variant_consumptions?: Record<string, number>;
+    variant_available?: Record<string, number>;
     is_rentable: boolean;
     total_days: number;
     pickup_date: string;
@@ -555,6 +558,7 @@ function CartItemList({
                 <li key={group.key}>
                     <CartItemCard
                         group={group}
+                        allItems={items}
                         busyItemId={busyItemId}
                         onQuantityChange={onQuantityChange}
                         onVariantChange={onVariantChange}
@@ -568,6 +572,7 @@ function CartItemList({
 
 type CartItemCardProps = {
     group: CartItemGroup;
+    allItems: CartItemPayload[];
     busyItemId: number | null;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
     onVariantChange: (item: CartItemPayload, variantId: number) => void;
@@ -576,6 +581,7 @@ type CartItemCardProps = {
 
 function CartItemCard({
     group,
+    allItems,
     busyItemId,
     onQuantityChange,
     onVariantChange,
@@ -620,6 +626,7 @@ function CartItemCard({
                     <CartItemVariantRow
                         key={item.id}
                         item={item}
+                        allItems={allItems}
                         busy={busyItemId === item.id}
                         onQuantityChange={onQuantityChange}
                         onVariantChange={onVariantChange}
@@ -634,6 +641,7 @@ function CartItemCard({
 
 type CartItemVariantRowProps = {
     item: CartItemPayload;
+    allItems: CartItemPayload[];
     busy: boolean;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
     onVariantChange: (item: CartItemPayload, variantId: number) => void;
@@ -642,6 +650,7 @@ type CartItemVariantRowProps = {
 
 function CartItemVariantRow({
     item,
+    allItems,
     busy,
     onQuantityChange,
     onVariantChange,
@@ -663,7 +672,7 @@ function CartItemVariantRow({
                         busy={busy}
                         onVariantChange={onVariantChange}
                     />
-                    <CartItemStock item={item} />
+                    <CartItemStock item={item} allItems={allItems} />
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -682,7 +691,7 @@ function CartItemVariantRow({
                      <QuantityStepper
                         value={item.quantity}
                         min={1}
-                        max={item.max_quantity}
+                        max={cartLineStock(item, allItems).max}
                         disabled={busy || !item.is_rentable}
                         onChange={(quantity) =>
                             onQuantityChange(item, quantity)
@@ -797,7 +806,13 @@ function CartItemVariant({
     );
 }
 
-function CartItemStock({ item }: { item: CartItemPayload }) {
+function CartItemStock({
+    item,
+    allItems,
+}: {
+    item: CartItemPayload;
+    allItems: CartItemPayload[];
+}) {
     if (!item.is_rentable) {
         return (
             <p className="flex items-center gap-1.5 text-xs text-destructive">
@@ -807,10 +822,21 @@ function CartItemStock({ item }: { item: CartItemPayload }) {
         );
     }
 
+    const remaining = cartLineStock(item, allItems).remaining;
+
+    if (remaining < item.quantity) {
+        return (
+            <p className="flex items-center gap-1.5 text-xs text-destructive">
+                <CalendarXIcon className="size-3.5 shrink-0" />
+                Sisa {remaining} unit — kurangi quantity
+            </p>
+        );
+    }
+
     return (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarCheckIcon className="size-3.5 shrink-0 text-primary" />
-            Sisa {item.available} unit
+            Sisa {remaining} unit
         </p>
     );
 }

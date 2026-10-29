@@ -26,6 +26,7 @@ Route::middleware(['auth', 'can:access-customer'])->group(function () {
     Route::patch('cart/items/{cartItem}/variant', [CartController::class, 'updateVariant'])->name('cart.variant');
     Route::delete('cart/items/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 
+    Route::get('checkout', [CheckoutController::class, 'index'])->name('checkout.index');
     Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
     Route::get('checkout/{rental}', [CheckoutController::class, 'show'])->name('checkout.show');
     Route::post('checkout/{rental}/payment', [CheckoutController::class, 'storePayment'])->name('checkout.payment.store');

@@ -10,7 +10,10 @@ use App\Models\Rental;
 use App\Models\RentalPayment;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -80,7 +83,11 @@ class CheckoutService
         return DB::transaction(function () use ($user, $customer, $paymentType): Rental {
             $cartItems = CartItem::query()
                 ->where('user_id', $user->id)
-                ->with('rentable')
+                ->with([
+                    'rentable' => fn (MorphTo $morphTo) => $morphTo->morphWith([
+                        Package::class => ['items'],
+                    ]),
+                ])
                 ->lockForUpdate()
                 ->get();
 
@@ -93,6 +100,8 @@ class CheckoutService
             $pickupDate = $cartItems->first()->pickup_date;
             $returnDate = $cartItems->first()->return_date;
             $totalDays = $this->pricing->totalDays($pickupDate, $returnDate);
+
+            $this->assertVariantDemandFitsStock($cartItems, $pickupDate, $returnDate);
 
             $rentalAmount = 0.0;
             $depositAmount = 0.0;
@@ -114,24 +123,6 @@ class CheckoutService
                 if (! $isActive) {
                     throw ValidationException::withMessages([
                         'cart' => 'Salah satu item di keranjang sudah tidak aktif.',
-                    ]);
-                }
-
-                $available = $rentable instanceof ProductVariant
-                    ? $this->availability->availableStock(
-                        $rentable->id,
-                        $pickupDate,
-                        $returnDate,
-                    )
-                    : $this->availability->availablePackageStock(
-                        $rentable->id,
-                        $pickupDate,
-                        $returnDate,
-                    );
-
-                if ($cartItem->quantity > $available) {
-                    throw ValidationException::withMessages([
-                        'cart' => 'Stok tidak cukup untuk '.$this->rentableName($rentable).' pada rentang tanggal ini.',
                     ]);
                 }
 
@@ -257,6 +248,56 @@ class CheckoutService
         $rental->update(['status' => 'waiting_confirmation']);
 
         return $payment->fresh();
+    }
+
+    /**
+     * Total kebutuhan varian seluruh keranjang harus muat dalam stok
+     * tersedia: baris varian memakai langsung, baris paket memakai isi
+     * paketnya. Satu cek agregat menggantikan cek per item agar alat
+     * yang sama di beberapa baris (individual + paket) tidak saling
+     * mengklaim stok yang sama.
+     *
+     * @param  Collection<int, CartItem>  $cartItems
+     */
+    private function assertVariantDemandFitsStock(
+        Collection $cartItems,
+        CarbonInterface $pickupDate,
+        CarbonInterface $returnDate,
+    ): void {
+        $demand = [];
+
+        foreach ($cartItems as $cartItem) {
+            $rentable = $cartItem->rentable;
+
+            if ($rentable === null) {
+                continue;
+            }
+
+            if ($rentable instanceof ProductVariant) {
+                $demand[$rentable->id] = ($demand[$rentable->id] ?? 0) + $cartItem->quantity;
+
+                continue;
+            }
+
+            foreach ($rentable->items as $packageItem) {
+                if ($packageItem->product_variant_id === null) {
+                    continue;
+                }
+
+                $demand[$packageItem->product_variant_id] = ($demand[$packageItem->product_variant_id] ?? 0)
+                    + $packageItem->quantity * $cartItem->quantity;
+            }
+        }
+
+        foreach ($demand as $variantId => $needed) {
+            $available = $this->availability->availableStock($variantId, $pickupDate, $returnDate);
+
+            if ($needed > $available) {
+                throw ValidationException::withMessages([
+                    'cart' => 'Stok tidak cukup untuk beberapa item pada rentang tanggal ini. Kurangi quantity atau hapus item yang bertumpuk.',
+                ]);
+            }
+        }
     }
 
     /**

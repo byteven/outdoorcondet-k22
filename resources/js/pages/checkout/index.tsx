@@ -1,5 +1,12 @@
 import { Head, Link } from "@inertiajs/react";
-import { ArrowRightIcon, ChevronRightIcon, ClipboardListIcon, ReceiptText } from "lucide-react";
+import {
+    ArrowRightIcon,
+    CalendarArrowDown,
+    CalendarArrowUp,
+    ChevronRightIcon,
+    ClipboardListIcon,
+    ReceiptText,
+} from "lucide-react";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
@@ -83,7 +90,6 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
                 />
             </div>
 
-            {/* Dua kolom: kiri (kode + tanggal), kanan (status atas, total bawah) */}
             <div className="flex min-w-0 flex-1 justify-between gap-3">
                 <div className="flex min-w-0 flex-col gap-1.5">
                     <span className="flex h-5 items-center truncate text-xs font-semibold text-foreground md:text-base">
@@ -91,12 +97,23 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
                     </span>
 
                     {rental.start_date && rental.end_date ? (
-                        <div className="grid grid-cols-[auto_1fr] gap-2 mt-1 text-[10px] md:text-xs">
-
-                            <div className="font-medium text-muted-foreground">
+                        <div className="mt-1 flex md:flex-row flex-col md:gap-2 gap-0 text-[10px] font-medium text-muted-foreground md:text-xs">
+                            <div className="flex items-center gap-1.5">
+                                <CalendarArrowDown
+                                    className="size-2 shrink-0 text-muted-foreground md:size-4"
+                                    strokeWidth={1.75}
+                                    aria-hidden="true"
+                                />
+                                <span className="sr-only">Pengambilan:</span>
                                 {formatDateShort(rental.start_date)}
                             </div>
-                            <div className="font-medium text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                                <CalendarArrowUp
+                                    className="size-2 shrink-0 text-muted-foreground md:size-4"
+                                    strokeWidth={1.75}
+                                    aria-hidden="true"
+                                />
+                                <span className="sr-only">Pengembalian:</span>
                                 {formatDateShort(rental.end_date)}
                             </div>
                         </div>
@@ -107,7 +124,7 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
                     <StatusBadge status={rental.status} />
 
                     <div className="flex flex-col items-end">
-                        <p className="text-[11px] font-semibold text-foreground md:text-sm">
+                        <p className="text-sm font-semibold text-foreground md:text-md">
                             {formatRupiah(rental.grand_total)}
                         </p>
                         {rental.payment_type === "down_payment" && (
@@ -118,8 +135,6 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
                     </div>
                 </div>
             </div>
-
-            <ChevronRightIcon className="size-4 shrink-0 text-primary md:size-5" />
         </Link>
     );
 }

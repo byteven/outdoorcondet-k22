@@ -12,6 +12,7 @@ class RentalItem extends Model
         'rental_id',
         'rentable_type',
         'rentable_id',
+        'name',
         'quantity',
         'unit_price',
         'price_breakdown',

@@ -9,13 +9,9 @@ class RentalPayment extends Model
 {
     protected $fillable = [
         'rental_id',
-        'kind',
         'amount',
-        'method',
         'proof_path',
         'status',
-        'review_note',
-        'reviewed_by',
         'reviewed_at',
     ];
 
@@ -27,10 +23,5 @@ class RentalPayment extends Model
     public function rental(): BelongsTo
     {
         return $this->belongsTo(Rental::class);
-    }
-
-    public function reviewer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

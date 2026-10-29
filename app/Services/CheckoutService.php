@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\CartItem;
+use App\Models\Customer;
 use App\Models\Package;
 use App\Models\ProductVariant;
 use App\Models\Rental;
 use App\Models\RentalPayment;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +24,12 @@ use Illuminate\Validation\ValidationException;
 class CheckoutService
 {
     private const PAYMENT_TIMEOUT_MINUTES = 30;
+
+    /**
+     * Kunci antar-proses checkout: cek stok lalu insert rental harus atomik
+     * agar dua customer yang checkout bersamaan tidak bisa double-booking.
+     */
+    private const AVAILABILITY_LOCK = 'checkout:rental-availability';
 
     public function __construct(
         private readonly AvailabilityService $availability,
@@ -42,6 +51,32 @@ class CheckoutService
             ]);
         }
 
+        $lock = Cache::lock(self::AVAILABILITY_LOCK, 10);
+
+        try {
+            $lock->block(5);
+        } catch (LockTimeoutException) {
+            throw ValidationException::withMessages([
+                'cart' => 'Sedang ada transaksi lain yang diproses. Coba lagi beberapa saat.',
+            ]);
+        }
+
+        try {
+            return $this->createRentalFromCart($user, $customer, $paymentType);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Buat rental + item + pembayaran dari isi keranjang di dalam transaksi.
+     * Dipanggil dengan availability lock terpegang agar cek stok dan insert
+     * rental bersifat atomik terhadap checkout lain.
+     *
+     * @throws ValidationException
+     */
+    private function createRentalFromCart(User $user, Customer $customer, string $paymentType): Rental
+    {
         return DB::transaction(function () use ($user, $customer, $paymentType): Rental {
             $cartItems = CartItem::query()
                 ->where('user_id', $user->id)
@@ -122,6 +157,9 @@ class CheckoutService
                 $rentalItemData[] = [
                     'rentable_type' => $rentable->getMorphClass(),
                     'rentable_id' => $rentable->id,
+                    // Snapshot nama: tampilan rental tetap benar meski
+                    // produk/bundle kemudian dihapus dari master data.
+                    'name' => $this->rentableName($rentable),
                     'quantity' => $cartItem->quantity,
                     'unit_price' => $unitPrice,
                     'price_breakdown' => $this->priceBreakdown($rentable, $totalDays),
@@ -137,8 +175,8 @@ class CheckoutService
             $remainingBalance = 0.0;
 
             if ($paymentType === 'down_payment') {
-                // DP = 50% dari biaya sewa saja, dibulatkan ke atas ke kelipatan Rp1.000.
-                $downPaymentAmount = (float) ceil($rentalAmount * 0.5 / 1000) * 1000;
+                // DP = 50% absolut dari biaya sewa, tanpa pembulatan.
+                $downPaymentAmount = $rentalAmount * 0.5;
                 $remainingBalance = max(0.0, $rentalAmount - $downPaymentAmount);
             }
             // Untuk 'full': down_payment_amount = 0 dan remaining_balance = 0
@@ -150,9 +188,7 @@ class CheckoutService
                 'rental_code' => $rentalCode,
                 'customer_id' => $customer->id,
                 'start_date' => $pickupDate,
-                'billing_start_date' => $pickupDate->copy()->addDay(),
                 'end_date' => $returnDate,
-                'return_due_at' => $returnDate->copy()->endOfDay(),
                 'total_days' => $totalDays,
                 'rental_amount' => $rentalAmount,
                 'deposit_amount' => $depositAmount,
@@ -163,20 +199,16 @@ class CheckoutService
                 'payment_deadline_at' => CarbonImmutable::now()->addMinutes(self::PAYMENT_TIMEOUT_MINUTES),
                 'late_fee_per_day' => config('rental.late_fee_per_day', 50000),
                 'status' => 'pending_payment',
-                'is_self_order' => false,
             ]);
 
             foreach ($rentalItemData as $itemData) {
                 $rental->items()->create($itemData);
             }
 
-            // Pembayaran online selalu QRIS, atas biaya sewa saja (DP atau lunas).
-            // `kind` pada rental_payments adalah 'dp' atau 'full', beda dari
-            // `payment_type` pada rental yang bernilai 'down_payment'.
+            // Pembayaran online selalu QRIS, atas biaya sewa saja (DP atau
+            // lunas); nominalnya derivable dari rental.payment_type.
             $rental->payments()->create([
-                'kind' => $paymentType === 'down_payment' ? 'dp' : 'full',
                 'amount' => $paymentType === 'down_payment' ? $downPaymentAmount : $rentalAmount,
-                'method' => 'qris',
                 'proof_path' => null,
                 'status' => 'waiting',
             ]);
@@ -190,12 +222,26 @@ class CheckoutService
 
     /**
      * Simpan bukti pembayaran dan ubah status rental menunggu konfirmasi admin.
+     * Hanya diizinkan saat rental masih pending_payment dan belum lewat
+     * batas waktu pembayaran.
      */
     public function recordPayment(Rental $rental, string $proofPath): RentalPayment
     {
-        $payment = $rental->payments()->where('kind', $rental->payment_type)
-            ->where('method', 'qris')
+        if ($rental->status !== 'pending_payment') {
+            throw ValidationException::withMessages([
+                'payment' => 'Bukti pembayaran untuk pesanan ini sudah diunggah.',
+            ]);
+        }
+
+        if ($rental->payment_deadline_at?->isPast()) {
+            throw ValidationException::withMessages([
+                'payment' => 'Waktu pembayaran sudah habis. Buat pesanan kembali dari keranjang.',
+            ]);
+        }
+
+        $payment = $rental->payments()
             ->where('status', 'waiting')
+            ->whereNull('proof_path')
             ->first();
 
         if ($payment === null) {

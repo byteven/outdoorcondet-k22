@@ -9,6 +9,7 @@ import {
     Trash2Icon,
 } from "lucide-react";
 import { QuantityStepper } from "@/components/quantity-stepper";
+import { QrisLogo } from "@/components/qris-logo";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { RentalRange } from "@/components/rental-range";
 import { SiteFooter } from "@/components/site-footer";
@@ -32,6 +33,7 @@ import {
 import { store as checkoutStoreRoute } from "@/routes/checkout";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
+import { show as showPackage } from "@/routes/packages";
 import { CheckoutConfirmDialog } from "@/components/checkout/checkout-confirm-dialog";
 
 type CartItemType = "alat" | "bundle";
@@ -116,10 +118,9 @@ export default function CartPage({ cart }: Props) {
     const rentalAmount = summary.rental_amount;
     const depositAmount = summary.deposit_amount;
 
-    // DP = 50% dari biaya sewa saja, dibulatkan ke atas ke kelipatan Rp1.000.
     const downPaymentAmount =
         paymentType === "down_payment"
-            ? Math.ceil((rentalAmount * 0.5) / 1000) * 1000
+            ? rentalAmount * 0.5
             : 0;
     const remainingBalance = Math.max(0, rentalAmount - downPaymentAmount);
     const amountToPayNow =
@@ -233,10 +234,10 @@ export default function CartPage({ cart }: Props) {
         <>
             <Head title="Keranjang Sewa" />
 
-            <div className="flex min-h-screen flex-col bg-background">
+            <div className="flex min-h-screen flex-col bg-white">
                 <LandingHeader />
 
-                <main className="flex-1 bg-[#fbfbfc]">
+                <main className="flex-1 bg-white">
                     <section className="mx-auto w-full max-w-6xl px-4 pt-24 pb-16 md:px-6">
                         <div className="flex flex-col gap-1">
                             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -375,14 +376,10 @@ function CheckoutSummaryCard({
             </div>
 
         <div className="mt-6 space-y-3">
-            <div className="rounded-xl border border-input bg-background p-4">
+            <div className="rounded-xl bg-background">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium text-muted-foreground">
-                        Metode pembayaran
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                        QRIS
-                    </span>
+
+                    <QrisLogo className="h-5" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -404,7 +401,7 @@ function CheckoutSummaryCard({
             <div>
                 <Button
                     type="button"
-                    className="w-full rounded-full transition-none"
+                    className="w-full rounded-full transition-none mt-3"
                     disabled={checkoutDisabled}
                     onClick={onOpenConfirm}
                 >
@@ -584,54 +581,56 @@ function CartItemCard({
     onVariantChange,
     onRemove,
 }: CartItemCardProps) {
+    const firstItem = group.items[0];
+    const isBundle = firstItem.type === "bundle";
     const href = group.slug
-        ? showProduct.url({
-              productSlug: group.slug,
-          })
+        ? isBundle
+            ? showPackage.url({ packageSlug: group.slug })
+            : showProduct.url({ productSlug: group.slug })
         : undefined;
 
     return (
-        <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex gap-4">
+        <div className="grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-2 rounded-xl border border-border bg-card p-3 sm:gap-x-4 sm:p-4">
+            <div className="sm:row-span-2">
                 <ItemThumbnail
                     image={group.image}
                     name={group.name}
                     href={href}
                 />
+            </div>
 
-                <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="min-w-0">
-                        {href ? (
-                            <Link
-                                href={href}
-                                className="block truncate font-semibold text-foreground transition-colors hover:text-primary"
-                            >
-                                {group.name}
-                            </Link>
-                        ) : (
-                            <p className="truncate font-semibold">
-                                {group.name}
-                            </p>
-                        )}
-                    </div>
+            <div className="flex min-h-12 min-w-0 items-center sm:min-h-0 sm:items-start">
+                {href ? (
+                    <Link
+                        href={href}
+                        className="line-clamp-2 break-words text-sm font-semibold leading-snug text-foreground transition-colors hover:text-primary sm:text-base"
+                    >
+                        {group.name}
+                    </Link>
+                ) : (
+                    <p className="line-clamp-2 break-words text-sm font-semibold leading-snug sm:text-base">
+                        {group.name}
+                    </p>
+                )}
+            </div>
 
-                    <div className="mt-1.5 flex flex-col divide-y divide-border">
-                        {group.items.map((item) => (
-                            <CartItemVariantRow
-                                key={item.id}
-                                item={item}
-                                busy={busyItemId === item.id}
-                                onQuantityChange={onQuantityChange}
-                                onVariantChange={onVariantChange}
-                                onRemove={onRemove}
-                            />
-                        ))}
-                    </div>
-                </div>
+            {/* Blok varian: tanpa divider, cukup jarak antar blok */}
+            <div className="col-span-2 flex min-w-0 flex-col gap-5 sm:col-span-1">
+                {group.items.map((item) => (
+                    <CartItemVariantRow
+                        key={item.id}
+                        item={item}
+                        busy={busyItemId === item.id}
+                        onQuantityChange={onQuantityChange}
+                        onVariantChange={onVariantChange}
+                        onRemove={onRemove}
+                    />
+                ))}
             </div>
         </div>
     );
 }
+
 
 type CartItemVariantRowProps = {
     item: CartItemPayload;
@@ -651,12 +650,14 @@ function CartItemVariantRow({
     return (
         <div
             className={cn(
-                "flex flex-col gap-2 py-3 first:pt-0 last:pb-0",
+                "flex flex-col gap-3",
                 !item.is_rentable && "opacity-80",
             )}
         >
-            <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-col gap-1.5">
+            {/* Row 1: varian + stok (kiri) | stepper + hapus (kanan) */}
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col items-start gap-1.5">
+             
                     <CartItemVariant
                         item={item}
                         busy={busy}
@@ -665,36 +666,41 @@ function CartItemVariantRow({
                     <CartItemStock item={item} />
                 </div>
 
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    disabled={busy}
-                    onClick={() => onRemove(item)}
-                    aria-label={`Hapus ${item.name} dari keranjang`}
-                >
-                    <Trash2Icon className="size-4" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+                   
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        disabled={busy}
+                        onClick={() => onRemove(item)}
+                        aria-label={`Hapus ${item.name} dari keranjang`}
+                    >
+                        <Trash2Icon className="size-4" />
+                    </Button>
+                     <QuantityStepper
+                        value={item.quantity}
+                        min={1}
+                        max={item.max_quantity}
+                        disabled={busy || !item.is_rentable}
+                        onChange={(quantity) =>
+                            onQuantityChange(item, quantity)
+                        }
+                        ariaLabel={`Jumlah ${item.name}`}
+                        className="shrink-0"
+                    />
+                </div>
             </div>
 
-            <div className="flex flex-wrap items-end justify-between gap-3">
-                <div className="text-left">
-                    <p className="text-sm font-semibold text-foreground">
-                        {formatRupiah(item.rental_subtotal)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        Deposit {formatRupiah(item.deposit_subtotal)}
-                    </p>
-                </div>
-                <QuantityStepper
-                    value={item.quantity}
-                    min={1}
-                    max={item.max_quantity}
-                    disabled={busy || !item.is_rentable}
-                    onChange={(quantity) => onQuantityChange(item, quantity)}
-                    ariaLabel={`Jumlah ${item.name}`}
-                />
+            {/* Row 2: satu-satunya garis. Deposit kiri, harga sewa kanan */}
+            <div className="flex items-baseline justify-between gap-3 border-t border-border/60 pt-3">
+                <p className="text-xs text-muted-foreground">
+                    Deposit {formatRupiah(item.deposit_subtotal)}
+                </p>
+                <p className="text-sm font-semibold text-foreground">
+                    {formatRupiah(item.rental_subtotal)}
+                </p>
             </div>
         </div>
     );
@@ -714,12 +720,12 @@ function ItemThumbnail({
             src={`/storage/${image}`}
             alt={name}
             loading="lazy"
-            className="size-20 rounded-xl border border-border/20 object-cover md:size-24"
+            className="size-12 rounded-lg border border-border/20 object-cover sm:size-20 sm:rounded-xl"
         />
     ) : (
-        <span className="flex size-20 items-center justify-center rounded-xl border border-border/20 bg-muted md:size-24">
+        <span className="flex size-12 items-center justify-center rounded-lg border border-border/20 bg-muted sm:size-20 sm:rounded-xl">
             <PackageIcon
-                className="size-8 text-muted-foreground/40"
+                className="size-5 text-muted-foreground/40 sm:size-7"
                 strokeWidth={1.5}
             />
         </span>
@@ -730,7 +736,7 @@ function ItemThumbnail({
     }
 
     return (
-        <Link href={href} tabIndex={-1} aria-hidden="true" className="shrink-0">
+        <Link href={href} tabIndex={-1} aria-hidden="true" className="block shrink-0">
             {content}
         </Link>
     );
@@ -801,19 +807,10 @@ function CartItemStock({ item }: { item: CartItemPayload }) {
         );
     }
 
-    if (item.is_out_of_stock) {
-        return (
-            <p className="flex items-center gap-1.5 text-xs text-amber-600">
-                <CalendarXIcon className="size-3.5 shrink-0" />
-                Stok tersedia hanya {item.available} unit untuk tanggal ini
-            </p>
-        );
-    }
-
     return (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarCheckIcon className="size-3.5 shrink-0 text-primary" />
-            {item.available} unit tersedia
+            Sisa {item.available} unit
         </p>
     );
 }

@@ -86,6 +86,8 @@ class CatalogDetailController extends Controller
                 'items:id,package_id,product_variant_id,quantity',
                 'items.variant:id,product_id,sku',
                 'items.variant.product:id,name',
+                'items.variant.values:id,product_variant_id,attribute_id,value',
+                'items.variant.values.attribute:id,name',
             ])
             ->firstOrFail();
 
@@ -220,6 +222,12 @@ class CatalogDetailController extends Controller
                 ->map(fn ($item): array => [
                     'name' => $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
                     'quantity' => (int) $item->quantity,
+                    'variant_values' => $item->variant?->values
+                        ->map(fn ($value): array => [
+                            'attribute' => $value->attribute?->name,
+                            'value' => $value->value,
+                        ])
+                        ->all(),
                 ])
                 ->values()
                 ->all(),

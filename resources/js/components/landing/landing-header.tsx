@@ -45,7 +45,9 @@ export function LandingHeader() {
         <header
             className={cn(
                 'fixed inset-x-0 top-0 z-40 transition-colors duration-300',
-                scrolled ? 'bg-background' : 'bg-transparent',
+                scrolled
+                    ? 'bg-background border-b border-border'
+                    : 'bg-transparent',
             )}
         >
             <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-6 px-4 md:px-6">

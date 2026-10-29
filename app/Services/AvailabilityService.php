@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Package;
 use App\Models\PackageItem;
 use App\Models\ProductVariant;
 use App\Models\Rental;
@@ -49,7 +50,11 @@ class AvailabilityService
     ): int {
         $totalStock = ProductVariant::where('id', $variantId)->value('stock') ?? 0;
 
-        return max(0, $totalStock - $this->rentedQty($variantId, $pickupDate, $returnDate) - $this->maintenanceQty($variantId));
+        $used = $this->rentedQty($variantId, $pickupDate, $returnDate)
+            + $this->rentedQtyViaPackages($variantId, $pickupDate, $returnDate)
+            + $this->maintenanceQty($variantId);
+
+        return max(0, $totalStock - $used);
     }
 
     /**
@@ -73,10 +78,13 @@ class AvailabilityService
         $stocks = ProductVariant::whereIn('id', $variantIds)
             ->pluck('stock', 'id');
 
-        // 2. Stok terpakai oleh rental aktif overlapping (satu query GROUP BY)
+        // 2. Stok terpakai oleh rental aktif overlapping — item varian langsung
         $rented = $this->batchRentedQty($variantIds, $pickupDate, $returnDate);
 
-        // 3. Stok dalam maintenance
+        // 3. Stok terpakai melalui paket (rental item bertipe Package)
+        $rentedViaPackages = $this->batchRentedQtyViaPackages($variantIds, $pickupDate, $returnDate);
+
+        // 4. Stok dalam maintenance
         $maintenance = VariantMaintenance::query()
             ->selectRaw('product_variant_id, SUM(quantity) as qty')
             ->whereIn('product_variant_id', $variantIds)
@@ -87,7 +95,9 @@ class AvailabilityService
         $result = [];
         foreach ($variantIds as $id) {
             $total = (int) ($stocks[$id] ?? 0);
-            $used = (int) ($rented[$id] ?? 0) + (int) ($maintenance[$id] ?? 0);
+            $used = (int) ($rented[$id] ?? 0)
+                + (int) ($rentedViaPackages[$id] ?? 0)
+                + (int) ($maintenance[$id] ?? 0);
             $result[$id] = max(0, $total - $used);
         }
 
@@ -177,6 +187,99 @@ class AvailabilityService
             ->whereHas('rental', fn ($q) => $this->applyOverlapScope($q, $pickupDate, $returnDate))
             ->groupBy('rentable_id')
             ->pluck('qty', 'rentable_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+    }
+
+    /**
+     * Unit varian yang terpakai melalui rental item bertipe Package (single variant).
+     *
+     * Setiap rental item Package dengan quantity N mengonsumsi
+     * N × package_items.quantity unit dari masing-masing varian penyusunnya.
+     */
+    private function rentedQtyViaPackages(
+        int $variantId,
+        CarbonInterface $pickupDate,
+        CarbonInterface $returnDate,
+    ): int {
+        $bufferDays = 1;
+        $now = now();
+        $bufferedReturn = $returnDate->copy()->addDays($bufferDays)->toDateString();
+        $bufferedPickup = $pickupDate->copy()->subDays($bufferDays)->toDateString();
+
+        return (int) RentalItem::query()
+            ->selectRaw('SUM(ri.quantity * pi.quantity) as total')
+            ->from('rental_items as ri')
+            ->join('package_items as pi', 'pi.package_id', '=', 'ri.rentable_id')
+            ->where('ri.rentable_type', Package::class)
+            ->where('pi.product_variant_id', $variantId)
+            ->whereExists(function ($q) use ($now, $bufferedReturn, $bufferedPickup): void {
+                $q->from('rentals')
+                    ->whereColumn('rentals.id', 'ri.rental_id')
+                    ->whereIn('rentals.status', self::BLOCKING_STATUSES)
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'pending_payment')
+                            ->orWhere('rentals.payment_deadline_at', '>', $now);
+                    })
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'returned')
+                            ->orWhere(function ($q3) use ($now): void {
+                                $q3->whereNull('rentals.stock_release_at')
+                                    ->orWhere('rentals.stock_release_at', '>', $now);
+                            });
+                    })
+                    ->whereDate('rentals.start_date', '<=', $bufferedReturn)
+                    ->where('rentals.end_date', '>=', $bufferedPickup);
+            })
+            ->value('total') ?? 0;
+    }
+
+    /**
+     * Batch version: unit varian yang terpakai melalui rental item Package.
+     *
+     * @param  array<int>  $variantIds
+     * @return array<int, int> variantId => consumed quantity
+     */
+    private function batchRentedQtyViaPackages(
+        array $variantIds,
+        CarbonInterface $pickupDate,
+        CarbonInterface $returnDate,
+    ): array {
+        if (empty($variantIds)) {
+            return [];
+        }
+
+        $bufferDays = 1;
+        $now = now();
+        $bufferedReturn = $returnDate->copy()->addDays($bufferDays)->toDateString();
+        $bufferedPickup = $pickupDate->copy()->subDays($bufferDays)->toDateString();
+
+        return RentalItem::query()
+            ->selectRaw('pi.product_variant_id, SUM(ri.quantity * pi.quantity) as qty')
+            ->from('rental_items as ri')
+            ->join('package_items as pi', 'pi.package_id', '=', 'ri.rentable_id')
+            ->where('ri.rentable_type', Package::class)
+            ->whereIn('pi.product_variant_id', $variantIds)
+            ->whereExists(function ($q) use ($now, $bufferedReturn, $bufferedPickup): void {
+                $q->from('rentals')
+                    ->whereColumn('rentals.id', 'ri.rental_id')
+                    ->whereIn('rentals.status', self::BLOCKING_STATUSES)
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'pending_payment')
+                            ->orWhere('rentals.payment_deadline_at', '>', $now);
+                    })
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'returned')
+                            ->orWhere(function ($q3) use ($now): void {
+                                $q3->whereNull('rentals.stock_release_at')
+                                    ->orWhere('rentals.stock_release_at', '>', $now);
+                            });
+                    })
+                    ->whereDate('rentals.start_date', '<=', $bufferedReturn)
+                    ->where('rentals.end_date', '>=', $bufferedPickup);
+            })
+            ->groupBy('pi.product_variant_id')
+            ->pluck('qty', 'pi.product_variant_id')
             ->map(fn ($v) => (int) $v)
             ->all();
     }

@@ -9,13 +9,20 @@ use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
     /**
+     * Sumber gambar dummy yang ikut git (`public/images/seeder-img-products`).
+     * Saat seed, file disalin ke disk public agar URL `/storage/...` tetap sama.
+     */
+    private const SOURCE_FOLDER = 'images/seeder-img-products';
+
+    /**
      * Folder relatif (dari storage/app/public) tempat gambar seed disimpan.
-     * Tambahkan file: produk-01.png, produk-02.png, … dst di folder ini.
      */
     private const IMAGE_FOLDER = 'seed/products';
 
@@ -44,7 +51,6 @@ class ProductSeeder extends Seeder
                 ],
             );
 
-            // Bind gambar seed — file: storage/app/public/seed/products/produk-XX.png
             $this->seedImage($product, $index + 1);
 
             if (array_key_exists('variants', $row)) {
@@ -87,16 +93,21 @@ class ProductSeeder extends Seeder
 
     /**
      * Sisipkan satu gambar primary per produk.
-     * Path mengacu ke file yang harus diletakkan user di folder seed.
+     * File sumber di-commit; salinan hidup di storage public (tidak di git).
      */
     private function seedImage(Product $product, int $number): void
     {
         $filename = sprintf('produk-%02d.webp', $number);
+        $sourcePath = public_path(self::SOURCE_FOLDER.'/'.$filename);
         $imagePath = self::IMAGE_FOLDER.'/'.$filename;
 
+        if (File::isFile($sourcePath)) {
+            Storage::disk('public')->put($imagePath, File::get($sourcePath));
+        }
+
         ProductImage::query()->updateOrCreate(
-            ['product_id' => $product->id, 'image_path' => $imagePath],
-            ['is_primary' => true],
+            ['product_id' => $product->id, 'is_primary' => true],
+            ['image_path' => $imagePath],
         );
     }
 

@@ -98,6 +98,7 @@ export default function CatalogDetailPage({
 }: Props) {
     const [isInitialLoading, setIsInitialLoading] = useState(false);
     const [isRangeUpdating, setIsRangeUpdating] = useState(false);
+    const [dateError, setDateError] = useState(false);
     const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
         () => {
             if (detail.type !== "alat" || detail.variants.length === 0) {
@@ -195,6 +196,7 @@ export default function CatalogDetailPage({
     } = useCatalogDetailPricing(detail, activeRental, selectedVariantId);
 
     const handleRangeChange = (params: RentalRangeParams) => {
+        setDateError(false);
         syncRentalRangePersistence(
             params.pickupDate,
             params.returnDate,
@@ -355,6 +357,7 @@ export default function CatalogDetailPage({
                                                 initialReturnDate={returnDate}
                                                 onSearch={handleRangeChange}
                                                 hideButton
+                                                dateError={dateError}
                                             />
                                         }
                                         footerAction={
@@ -371,6 +374,9 @@ export default function CatalogDetailPage({
                                                     selectedVariantId
                                                 }
                                                 loading={isAvailabilityLoading}
+                                                onMissingDates={() =>
+                                                    setDateError(true)
+                                                }
                                             />
                                         }
                                     />

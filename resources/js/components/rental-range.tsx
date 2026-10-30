@@ -44,6 +44,7 @@ type RentalRangeProps = {
     className?: string;
     variant?: "default" | "compact";
     hideButton?: boolean;
+    dateError?: boolean;
 };
 
 const AUTO_SEARCH_DELAY = 500;
@@ -65,6 +66,7 @@ export function RentalRange({
     className,
     variant = "default",
     hideButton = false,
+    dateError = false,
 }: RentalRangeProps) {
     const [pickupOpen, setPickupOpen] = useState(false);
     const [returnOpen, setReturnOpen] = useState(false);
@@ -113,6 +115,7 @@ export function RentalRange({
 
     const pickupDate = range?.from;
     const returnDate = range?.to;
+    const showDateError = showError || dateError;
 
     const billingStartDate = useMemo(
         () =>
@@ -263,7 +266,7 @@ export function RentalRange({
                         open={pickupOpen}
                         onOpenChange={setPickupOpen}
                         selectedDate={pickupDate}
-                        showError={showError}
+                        showError={showDateError}
                         clearLabel="Hapus tanggal ambil"
                         onClear={handleClearPickup}
                         calendar={
@@ -314,7 +317,7 @@ export function RentalRange({
                         open={returnOpen}
                         onOpenChange={setReturnOpen}
                         selectedDate={returnDate}
-                        showError={showError}
+                        showError={showDateError}
                         clearLabel="Hapus tanggal kembali"
                         onClear={handleClearReturn}
                         triggerDisabled={!pickupDate}

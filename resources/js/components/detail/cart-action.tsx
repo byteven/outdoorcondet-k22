@@ -37,6 +37,7 @@ type CartActionProps = {
     availability: number | null;
     selectedVariantId?: number | null;
     loading?: boolean;
+    onMissingDates?: () => void;
 };
 
 /**
@@ -54,6 +55,7 @@ export function CartAction({
     availability,
     selectedVariantId = null,
     loading = false,
+    onMissingDates,
 }: CartActionProps) {
     const { auth } = usePage().props;
     const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -65,11 +67,15 @@ export function CartAction({
 
     const hasRentalRange = totalDays !== null && !!pickupDate && !!returnDate;
     const isDisabled =
-        !hasRentalRange ||
-        (availability !== null && availability === 0) ||
-        loading;
+        (availability !== null && availability === 0) || loading;
 
     const handleAddToCart = () => {
+        if (!hasRentalRange) {
+            onMissingDates?.();
+
+            return;
+        }
+
         if (!auth.user) {
             setIsLoginOpen(true);
 

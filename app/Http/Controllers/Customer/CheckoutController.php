@@ -45,7 +45,7 @@ class CheckoutController extends Controller
                 'start_date' => $rental->start_date?->format('Y-m-d'),
                 'end_date' => $rental->end_date?->format('Y-m-d'),
                 'total_days' => $rental->total_days,
-                'grand_total' => (float) $rental->grand_total,
+                'rental_amount' => (float) $rental->rental_amount,
                 'payment_type' => $rental->payment_type,
                 'created_at' => $rental->created_at?->toISOString(),
             ])->all(),

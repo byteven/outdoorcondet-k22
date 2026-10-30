@@ -11,7 +11,7 @@ import { LandingHeader } from "@/components/landing/landing-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/components/product-shared";
-import { cn } from "@/lib/utils";
+import { RentalStatusBadge } from "@/components/rental-status-badge";
 import { show as showCheckout } from "@/routes/checkout";
 import { home } from "@/routes";
 
@@ -21,7 +21,7 @@ type RentalSummary = {
     start_date: string | null;
     end_date: string | null;
     total_days: number;
-    grand_total: number;
+    rental_amount: number;
     payment_type: string;
     created_at: string | null;
 };
@@ -92,7 +92,7 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
 
             <div className="flex min-w-0 flex-1 justify-between gap-3">
                 <div className="flex min-w-0 flex-col gap-1.5">
-                    <span className="flex h-5 items-center truncate text-xs font-semibold text-foreground md:text-base">
+                    <span className="block h-5 truncate text-xs leading-5 font-semibold text-foreground md:text-base">
                         {rental.rental_code}
                     </span>
 
@@ -121,37 +121,16 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-                    <StatusBadge status={rental.status} />
+                    <RentalStatusBadge status={rental.status} />
 
-                    <div className="flex flex-col items-end">
-                        <p className="text-sm font-semibold text-foreground md:text-md">
-                            {formatRupiah(rental.grand_total)}
-                        </p>
-                        {rental.payment_type === "down_payment" && (
-                            <p className="text-xs text-muted-foreground">
-                                (DP 50%)
-                            </p>
-                        )}
-                    </div>
+                    <p className="text-sm font-semibold text-foreground md:text-md">
+                        {formatRupiah(rental.rental_amount)}
+                    </p>
                 </div>
             </div>
         </Link>
     );
 }
-function StatusBadge({ status }: { status: string }) {
-    return (
-        <span
-            className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold md:px-2.5 md:text-xs",
-                statusBadgeClass(status),
-            )}
-        >
-            <span className="size-1.5 rounded-full bg-current" />
-            {statusLabel(status)}
-        </span>
-    );
-}
-
 function EmptyOrders() {
     return (
         <div className="flex flex-col items-center gap-4 py-24 text-center">
@@ -185,30 +164,4 @@ function formatDateShort(dateString: string): string {
         month: "short",
         year: "numeric",
     });
-}
-
-function statusBadgeClass(status: string): string {
-    const classes: Record<string, string> = {
-        pending_payment: "bg-muted text-muted-foreground",
-        waiting_confirmation: "bg-warning-muted text-warning",
-        dp_paid: "bg-success-muted text-success",
-        fully_paid: "bg-success-muted text-success",
-        returned: "bg-success-muted text-success",
-        cancelled: "bg-destructive/10 text-destructive",
-    };
-
-    return classes[status] ?? "bg-muted text-muted-foreground";
-}
-
-function statusLabel(status: string): string {
-    const labels: Record<string, string> = {
-        pending_payment: "Menunggu pembayaran",
-        waiting_confirmation: "Menunggu konfirmasi",
-        dp_paid: "Siap diambil",
-        fully_paid: "Siap diambil",
-        returned: "Selesai",
-        cancelled: "Dibatalkan",
-    };
-
-    return labels[status] ?? status;
 }

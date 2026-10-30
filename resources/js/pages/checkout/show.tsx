@@ -1,7 +1,19 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircleIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon, FileTextIcon, Loader, Maximize2Icon, PackageIcon, QrCodeIcon, XIcon } from "lucide-react";
+import {
+    AlertCircleIcon,
+    CheckIcon,
+    ChevronDownIcon,
+    CopyIcon,
+    DownloadIcon,
+    FileTextIcon,
+    Loader,
+    Maximize2Icon,
+    PackageIcon,
+    QrCodeIcon,
+    XIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Collapsible,
@@ -21,6 +33,7 @@ import { formatRupiah } from "@/components/product-shared";
 import { QrisLogo } from "@/components/qris-logo";
 import { PaymentProofDialog } from "@/components/checkout/payment-proof-dialog";
 import { PaymentCardSkeleton } from "@/components/checkout/payment-card-skeleton";
+import { RentalStatusBadge } from "@/components/rental-status-badge";
 import { cn } from "@/lib/utils";
 import { STORE_PICKUP_TIME, STORE_RETURN_TIME } from "@/lib/rental-date";
 import { store as checkoutPaymentStoreRoute } from "@/routes/checkout/payment";
@@ -187,7 +200,9 @@ export default function CheckoutShow({ rental }: Props) {
                 },
                 onError: (errors) => {
                     const message =
-                        errors.payment ?? errors.proof ?? Object.values(errors)[0];
+                        errors.payment ??
+                        errors.proof ??
+                        Object.values(errors)[0];
 
                     if (typeof message === "string") {
                         toast.error(message);
@@ -199,7 +214,9 @@ export default function CheckoutShow({ rental }: Props) {
 
     return (
         <>
-            <Head title={`Detail Transaksi ${rental.rental_code} - OutdoorCondet`} />
+            <Head
+                title={`Detail Transaksi ${rental.rental_code} - OutdoorCondet`}
+            />
 
             <div className="flex min-h-screen flex-col bg-white">
                 <LandingHeader />
@@ -221,15 +238,10 @@ export default function CheckoutShow({ rental }: Props) {
                                     <p className="text-sm text-muted-foreground">
                                         Status pesanan
                                     </p>
-                                    <span
-                                        className={cn(
-                                            "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
-                                            statusBadgeClass(rental.status),
-                                        )}
-                                    >
-                                        <span className="size-1.5 rounded-full bg-current" />
-                                        {statusLabel(rental.status)}
-                                    </span>
+                                    <RentalStatusBadge
+                                        status={rental.status}
+                                        className="mt-1.5 px-3 py-1 text-xs"
+                                    />
                                 </div>
 
                                 <div className="md:text-right">
@@ -252,13 +264,13 @@ export default function CheckoutShow({ rental }: Props) {
                                         <span className="text-sm font-medium text-foreground">
                                             {rental.rental_code}
                                         </span>
-
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {rental.status === "pending_payment" && !isCountdownReady ? (
+                        {rental.status === "pending_payment" &&
+                            !isCountdownReady ? (
                             <PaymentCardSkeleton />
                         ) : rental.status === "pending_payment" ? (
                             !expired ? (
@@ -274,7 +286,9 @@ export default function CheckoutShow({ rental }: Props) {
                                 <ExpiredPaymentSection />
                             )
                         ) : rental.status === "cancelled" ? (
-                            <RejectedPaymentCard reason={rental.cancel_reason} />
+                            <RejectedPaymentCard
+                                reason={rental.cancel_reason}
+                            />
                         ) : rental.payment_proof ? (
                             <PaymentProofCard
                                 status={rental.status}
@@ -445,7 +459,12 @@ function PaymentSection({
                             className="w-44 object-contain md:w-52"
                             loading="lazy"
                         />
-                        <Button asChild variant="outline" size="sm" className="rounded-full">
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                        >
                             <a
                                 href="/images/qris.webp"
                                 download="qris-outdoorcondet.webp"
@@ -488,7 +507,13 @@ function CountdownDigit({ value }: { value: string }) {
     );
 }
 
-function CardAccent({ src, grayscale = false }: { src: string; grayscale?: boolean }) {
+function CardAccent({
+    src,
+    grayscale = false,
+}: {
+    src: string;
+    grayscale?: boolean;
+}) {
     const filter = grayscale ? "grayscale opacity-20" : "opacity-84";
 
     return (
@@ -535,17 +560,15 @@ function ExpiredPaymentSection() {
                     Waktu pembayaran habis!
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                    Pesanan ini telah kedaluwarsa. Silakan buat
-                    pesanan kembali dari keranjang.
+                    Pesanan ini telah kedaluwarsa. Silakan buat pesanan kembali
+                    dari keranjang.
                 </p>
                 <Button
                     type="button"
                     className="mt-4 w-full sm:w-auto rounded-full"
                     asChild
                 >
-                    <Link href={home.url()}>
-                        Kembali ke beranda
-                    </Link>
+                    <Link href={home.url()}>Kembali ke beranda</Link>
                 </Button>
             </div>
         </section>
@@ -556,7 +579,7 @@ function RejectedPaymentCard({ reason }: { reason: string | null }) {
     return (
         <section className="mt-6">
             <div className="rounded-2xl border border-border p-6 md:p-8 text-center">
-                <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive">
                     <XIcon className="size-7 text-destructive-foreground" />
                 </div>
                 <h2 className="mt-4 text-xl font-bold text-destructive">
@@ -568,21 +591,9 @@ function RejectedPaymentCard({ reason }: { reason: string | null }) {
                         <p className="text-xs font-medium text-muted-foreground">
                             Pesan dari Admin:
                         </p>
-                        <p className="mt-1 text-sm text-foreground">
-                            {reason}
-                        </p>
+                        <p className="mt-1 text-sm text-foreground">{reason}</p>
                     </div>
                 )}
-
-                <Button
-                    type="button"
-                    className="mt-4 w-full sm:w-auto rounded-full"
-                    asChild
-                >
-                    <Link href={home.url()}>
-                        Kembali ke beranda
-                    </Link>
-                </Button>
             </div>
         </section>
     );
@@ -602,7 +613,9 @@ function PaymentProofCard({
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     const isConfirmed =
-        status === "dp_paid" || status === "fully_paid" || status === "returned";
+        status === "dp_paid" ||
+        status === "fully_paid" ||
+        status === "returned";
 
     const title =
         status === "waiting_confirmation"
@@ -633,7 +646,9 @@ function PaymentProofCard({
                         <Loader className="size-7 text-foreground" />
                     </div>
                 )}
-                <h2 className="mt-4 text-lg font-semibold tracking-tight">{title}</h2>
+                <h2 className="mt-4 text-lg font-semibold tracking-tight">
+                    {title}
+                </h2>
                 <p className="mt-2 max-w-md text-sm text-muted-foreground">
                     {message}
                 </p>
@@ -658,7 +673,12 @@ function PaymentProofCard({
                                 </span>
                             </button>
                         ) : (
-                            <Button asChild variant="outline" size="sm" className="rounded-full">
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full"
+                            >
                                 <a
                                     href={proof.url}
                                     target="_blank"
@@ -759,14 +779,21 @@ function StoreLocationCard() {
                 allowFullScreen
             />
             <div className="p-4">
-                <h2 className="font-semibold tracking-tight">
-                    Lokasi outlet
-                </h2>
+                <h2 className="font-semibold tracking-tight">Lokasi outlet</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                     Sewa Alat Outdoor & Camping Condet
                 </p>
-                <Button asChild variant="outline" size="sm" className="mt-3 w-full rounded-full">
-                    <a href={STORE_MAPS_URL} target="_blank" rel="noopener noreferrer">
+                <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full rounded-full"
+                >
+                    <a
+                        href={STORE_MAPS_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         Buka di Google Maps
                     </a>
                 </Button>
@@ -884,7 +911,10 @@ function OrderItemRow({ item }: { item: RentalItem }) {
             </div>
 
             <div className="flex min-w-0 flex-col gap-1">
-                <p className="font-semibold text-foreground truncate" title={item.name}>
+                <p
+                    className="font-semibold text-foreground truncate"
+                    title={item.name}
+                >
                     {item.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -913,30 +943,4 @@ function formatDateID(dateString: string): string {
         month: "short",
         year: "numeric",
     });
-}
-
-function statusBadgeClass(status: string): string {
-    const classes: Record<string, string> = {
-        pending_payment: "bg-muted text-muted-foreground",
-        waiting_confirmation: "bg-muted text-muted-foreground",
-        dp_paid: "bg-success-muted text-success",
-        fully_paid: "bg-success-muted text-success",
-        returned: "bg-success-muted text-success",
-        cancelled: "bg-destructive/10 text-destructive",
-    };
-
-    return classes[status] ?? "bg-muted text-muted-foreground";
-}
-
-function statusLabel(status: string): string {
-    const labels: Record<string, string> = {
-        pending_payment: "Menunggu pembayaran",
-        waiting_confirmation: "Menunggu konfirmasi admin",
-        dp_paid: "Siap diambil",
-        fully_paid: "Siap diambil",
-        returned: "Selesai",
-        cancelled: "Dibatalkan",
-    };
-
-    return labels[status] ?? status;
 }

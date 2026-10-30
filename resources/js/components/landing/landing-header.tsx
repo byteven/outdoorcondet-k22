@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { MenuIcon, ShoppingCartIcon, UserRoundIcon } from 'lucide-react';
+import { MenuIcon, ReceiptText, ShoppingCartIcon, UserRoundIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { login, register } from '@/routes';
 import { dashboard } from '@/routes/admin';
 import { index as cartIndex } from '@/routes/cart';
+import { index as checkoutIndex } from '@/routes/checkout';
 import { edit as editProfile } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -164,6 +165,28 @@ function MobileNavSheet() {
                     aria-label="Navigasi seluler"
                     className="flex flex-col gap-1 px-4"
                 >
+                    <SheetClose asChild>
+                        <Link
+                            href={cartIndex.url()}
+                            prefetch
+                            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                        >
+                            <ShoppingCartIcon className="size-5 shrink-0" />
+                            Keranjang
+                        </Link>
+                    </SheetClose>
+
+                    <SheetClose asChild>
+                        <Link
+                            href={checkoutIndex.url()}
+                            prefetch
+                            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                        >
+                            <ReceiptText className="size-5 shrink-0" />
+                            Riwayat Pesanan
+                        </Link>
+                    </SheetClose>
+
                     <SheetClose asChild>
                         <Link
                             href={editProfile()}

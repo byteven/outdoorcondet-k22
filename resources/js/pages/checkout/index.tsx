@@ -1,18 +1,32 @@
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
+import { useState } from "react";
 import {
     ArrowRightIcon,
     CalendarArrowDown,
     CalendarArrowUp,
-    ChevronRightIcon,
     ClipboardListIcon,
+    ListFilter,
+    RotateCcwIcon,
     ReceiptText,
+
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { formatRupiah } from "@/components/product-shared";
 import { RentalStatusBadge } from "@/components/rental-status-badge";
-import { show as showCheckout } from "@/routes/checkout";
+import {
+    index as checkoutIndex,
+    show as showCheckout,
+} from "@/routes/checkout";
 import { home } from "@/routes";
 
 type RentalSummary = {
@@ -26,11 +40,57 @@ type RentalSummary = {
     created_at: string | null;
 };
 
-type Props = {
-    rentals: RentalSummary[];
+type CheckoutFilters = {
+    status: string;
 };
 
-export default function CheckoutIndex({ rentals }: Props) {
+type Props = {
+    rentals: RentalSummary[];
+    filters: CheckoutFilters;
+};
+
+const statusOptions = [
+    { value: "all", label: "Semua status" },
+    { value: "pending_payment", label: "Menunggu pembayaran" },
+    { value: "waiting_confirmation", label: "Menunggu konfirmasi" },
+    { value: "siap_diambil", label: "Siap diambil" },
+    { value: "returned", label: "Selesai" },
+    { value: "cancelled", label: "Dibatalkan" },
+];
+
+// Transaksi aktif: masih berjalan sampai barang dikembalikan.
+// Sisanya (returned/cancelled) masuk ke bagian riwayat.
+const activeStatuses = new Set([
+    "pending_payment",
+    "waiting_confirmation",
+    "siap_diambil",
+]);
+
+export default function CheckoutIndex({ rentals, filters }: Props) {
+    const [status, setStatus] = useState(filters.status);
+    const [loading, setLoading] = useState(false);
+
+    const reload = (params: Record<string, string>) => {
+        router.get(
+            checkoutIndex.url(),
+            { status, ...params },
+            {
+                preserveState: true,
+                replace: true,
+                only: ["rentals", "filters"],
+                onStart: () => setLoading(true),
+                onFinish: () => setLoading(false),
+            },
+        );
+    };
+
+    const activeRentals = rentals.filter((rental) =>
+        activeStatuses.has(rental.status),
+    );
+    const historyRentals = rentals.filter(
+        (rental) => !activeStatuses.has(rental.status),
+    );
+
     return (
         <>
             <Head title="Riwayat Pesanan - OutdoorCondet" />
@@ -49,9 +109,51 @@ export default function CheckoutIndex({ rentals }: Props) {
                             </p>
                         </div>
 
+                        <div className="mt-6 flex flex-wrap items-center gap-3">
+                            <Select
+                                value={status}
+                                onValueChange={(value) => {
+                                    setStatus(value);
+                                    reload({ status: value });
+                                }}
+                            >
+                                <SelectTrigger aria-label="Filter status" className="w-fit">
+                                    <ListFilter className="size-4 text-muted-foreground" />
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {statusOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div className="mt-6">
-                            {rentals.length > 0 ? (
-                                <RentalList rentals={rentals} />
+                            {loading ? (
+                                <RentalListSkeleton />
+                            ) : rentals.length > 0 ? (
+                                <div className="flex flex-col gap-8">
+                                    {activeRentals.length > 0 && (
+                                        <RentalList rentals={activeRentals} />
+                                    )}
+
+                                    {historyRentals.length > 0 && (
+                                        <section className="flex flex-col gap-3">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <RotateCcwIcon className="text-muted-foreground/60 size-4" />
+                                                    <h2 className="text-sm font-medium tracking-wide text-muted-foreground">
+                                                        Riwayat
+                                                    </h2>
+                                                </div>
+                                            </div>
+                                            <RentalList rentals={historyRentals} />
+                                        </section>
+                                    )}
+                                </div>
                             ) : (
                                 <EmptyOrders />
                             )}
@@ -131,6 +233,34 @@ function RentalCard({ rental }: { rental: RentalSummary }) {
         </Link>
     );
 }
+
+function RentalListSkeleton() {
+    return (
+        <ul className="flex flex-col gap-3" role="status" aria-label="Memuat riwayat pesanan">
+            {[0, 1, 2].map((index) => (
+                <li
+                    key={index}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 md:gap-5 md:p-5"
+                >
+                    <Skeleton className="size-11 shrink-0 rounded-xl md:size-16" />
+
+                    <div className="flex min-w-0 flex-1 justify-between gap-3">
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                            <Skeleton className="h-5 w-36 md:w-44" />
+                            <Skeleton className="h-4 w-44 md:w-56" />
+                        </div>
+
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                            <Skeleton className="h-5 w-24 rounded-full" />
+                            <Skeleton className="h-4 w-20" />
+                        </div>
+                    </div>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 function EmptyOrders() {
     return (
         <div className="flex flex-col items-center gap-4 py-24 text-center">

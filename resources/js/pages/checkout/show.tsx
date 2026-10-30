@@ -5,6 +5,7 @@ import {
     AlertCircleIcon,
     CheckIcon,
     ChevronDownIcon,
+    ChevronLeftIcon,
     CopyIcon,
     DownloadIcon,
     FileTextIcon,
@@ -34,6 +35,7 @@ import { QrisLogo } from "@/components/qris-logo";
 import { PaymentProofDialog } from "@/components/checkout/payment-proof-dialog";
 import { PaymentCardSkeleton } from "@/components/checkout/payment-card-skeleton";
 import { RentalStatusBadge } from "@/components/rental-status-badge";
+import { index as checkoutIndex } from "@/routes/checkout";
 import { cn } from "@/lib/utils";
 import { STORE_PICKUP_TIME, STORE_RETURN_TIME } from "@/lib/rental-date";
 import { store as checkoutPaymentStoreRoute } from "@/routes/checkout/payment";
@@ -92,6 +94,7 @@ export default function CheckoutShow({ rental }: Props) {
     const [isCountdownReady, setIsCountdownReady] = useState(false);
     const [isStepsOpen, setIsStepsOpen] = useState(true);
     const [isCopied, setIsCopied] = useState(false);
+    const hasReloadedAfterExpiry = useRef(false);
 
     useEffect(() => {
         if (!rental.payment_deadline_at) {
@@ -112,6 +115,14 @@ export default function CheckoutShow({ rental }: Props) {
             if (diff <= 0) {
                 setSecondsRemaining(0);
                 setExpired(true);
+
+                // Minta status terbaru: backend membatalkan rental yang
+                // melewati batas waktu pembayaran, lalu kartu berganti
+                // jadi status dibatalkan.
+                if (!hasReloadedAfterExpiry.current) {
+                    hasReloadedAfterExpiry.current = true;
+                    router.reload({ only: ["rental"] });
+                }
 
                 return;
             }
@@ -223,7 +234,18 @@ export default function CheckoutShow({ rental }: Props) {
 
                 <main className="flex-1 bg-white">
                     <section className="mx-auto w-full max-w-6xl px-4 pt-24 pb-16 md:px-6">
-                        <div className="flex flex-col gap-1">
+                        <Link
+                            href={checkoutIndex.url()}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
+                        >
+                            <ChevronLeftIcon
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Kembali
+                        </Link>
+
+                        <div className="mt-4 flex flex-col gap-1">
                             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                                 Detail Pesanan
                             </h1>
@@ -234,7 +256,7 @@ export default function CheckoutShow({ rental }: Props) {
 
                         <div className="mt-6 rounded-2xl border border-border bg-card p-4 md:p-5">
                             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                                <div className="relative w-full overflow-hidden rounded-xl bg-muted text-muted-foreground md:w-auto md:min-w-72">
+                                <div className="relative w-full overflow-hidden rounded-xl bg-muted text-foreground/80 md:w-auto md:min-w-72">
                                     <span
                                         aria-hidden="true"
                                         className="absolute top-1/2 -left-2.5 size-5 -translate-y-1/2 rounded-full bg-card"

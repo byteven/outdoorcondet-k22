@@ -40,6 +40,7 @@
     --color-destructive-foreground: #ffffff;
 
     --color-success: #16a34a;
+    --color-success-foreground: #ffffff;
     --color-success-muted: #dcfce7;
 
     --color-info: #1d4ed8;
@@ -87,6 +88,7 @@
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
     --success: #16a34a;
+    --success-foreground: #ffffff;
     --success-muted: #dcfce7;
     --info: #1d4ed8;
     --info-muted: #dbeafe;

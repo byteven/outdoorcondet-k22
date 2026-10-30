@@ -127,10 +127,10 @@ export default function Landing({ catalog, filters }: Props) {
         <>
             <Head title="OutdoorCondet - Sewa Alat Outdoor Condet" />
 
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-white">
                 <LandingHeader />
 
-                <main className="bg-[#fbfbfc]">
+                <main className="bg-white">
                     <HeroSection />
 
                     <section className="relative z-10 mx-auto -mt-16 w-full max-w-5xl px-4 md:-mt-28">
@@ -143,7 +143,7 @@ export default function Landing({ catalog, filters }: Props) {
 
                     <section
                         id={CATALOG_SECTION_ID}
-                        className="scroll-mt-20 bg-[#fbfbfc]"
+                        className="scroll-mt-20 bg-white"
                     >
                         <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6 md:py-20">
                             <div className="max-w-2xl">

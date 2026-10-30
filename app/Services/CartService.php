@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CartItem;
 use App\Models\Package;
+use App\Models\PackageItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantValue;
@@ -81,6 +82,7 @@ class CartService
                         ],
                         Package::class => [
                             'durationPrices:id,package_id,duration_days,price',
+                            'items:id,package_id,product_variant_id,quantity',
                         ],
                     ]);
                 },
@@ -427,7 +429,7 @@ class CartService
         /** @var Package $package */
         $package = $cartItem->rentable;
 
-        return $this->itemPayload(
+        $payload = $this->itemPayload(
             $cartItem,
             type: 'bundle',
             name: $package->name,
@@ -437,6 +439,21 @@ class CartService
             depositPerUnit: (float) $package->deposit_per_package,
             isRentable: $package->is_active,
         );
+
+        // Data untuk perhitungan stepper di frontend: kebutuhan varian
+        // per paket dan stok mentah tiap variannya.
+        $payload['variant_consumptions'] = $package->items
+            ->mapWithKeys(fn (PackageItem $item): array => [
+                $item->product_variant_id => $item->quantity,
+            ])
+            ->all();
+        $payload['variant_available'] = $this->availability->batchAvailableStock(
+            $package->items->pluck('product_variant_id')->filter()->all(),
+            $cartItem->pickup_date,
+            $cartItem->return_date,
+        );
+
+        return $payload;
     }
 
     /**

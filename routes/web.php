@@ -4,8 +4,10 @@ use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\RentalController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogDetailController;
+use App\Http\Controllers\Customer\CheckoutController;
 use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +25,12 @@ Route::middleware(['auth', 'can:access-customer'])->group(function () {
     Route::patch('cart/items/{cartItem}', [CartController::class, 'update'])->name('cart.update');
     Route::patch('cart/items/{cartItem}/variant', [CartController::class, 'updateVariant'])->name('cart.variant');
     Route::delete('cart/items/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
+
+    Route::get('checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::get('checkout/{rental}', [CheckoutController::class, 'show'])->name('checkout.show');
+    Route::post('checkout/{rental}/payment', [CheckoutController::class, 'storePayment'])->name('checkout.payment.store');
+    Route::get('checkout/{rental}/payment-proof', [CheckoutController::class, 'paymentProof'])->name('checkout.payment.proof');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -50,6 +58,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+        Route::post('rentals/{rental}/confirm-payment', [RentalController::class, 'confirmPayment'])->name('rentals.confirm-payment');
+        Route::post('rentals/{rental}/reject-payment', [RentalController::class, 'rejectPayment'])->name('rentals.reject-payment');
+        Route::post('rentals/{rental}/confirm-return', [RentalController::class, 'confirmReturn'])->name('rentals.confirm-return');
     });
 });
 

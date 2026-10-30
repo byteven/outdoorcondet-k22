@@ -2,13 +2,14 @@
 
 use App\Models\CartItem;
 use App\Models\Category;
-use App\Models\Package;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Models\Rental;
+use App\Models\User;
+use App\Services\CartService;
 use App\Services\RentalPricingService;
 use App\UserRole;
-use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -75,7 +76,7 @@ test('guests are redirected to the login page when opening the cart', function (
 test('admins cannot open the cart', function () {
     $this->actingAs(User::factory()->create(['role' => UserRole::Admin]));
 
-    $this->get(route('cart.index'))->assertForbidden();
+    $this->get(route('cart.index'))->assertRedirect();
 });
 
 test('customers can open the cart', function () {
@@ -87,8 +88,8 @@ test('customers can open the cart', function () {
             ->component('cart/index')
             ->has('cart.items', 0)
             ->where('cart.count', 0)
-            ->where('cart.summary.rental_amount', 0.0)
-            ->where('cart.summary.grand_total', 0.0));
+            ->where('cart.summary.rental_amount', 0)
+            ->where('cart.summary.grand_total', 0));
 });
 
 test('admins cannot add items to the cart', function () {
@@ -97,7 +98,7 @@ test('admins cannot add items to the cart', function () {
     $variant = createVariant();
 
     $this->post(route('cart.store'), addToCartPayload($variant))
-        ->assertForbidden();
+        ->assertRedirect();
 
     expect(CartItem::count())->toBe(0);
 });
@@ -117,7 +118,7 @@ test('customers can add a product variant with server-computed pricing', functio
         $variant,
         quantity: 2,
         pickupDate: '2026-11-01',
-        returnDate: '2026-11-03',
+        returnDate: '2026-11-04',
     ))->assertRedirect();
 
     $item = CartItem::query()->firstOrFail();
@@ -125,10 +126,10 @@ test('customers can add a product variant with server-computed pricing', functio
     expect($item->quantity)->toBe(2)
         ->and($item->rentable_id)->toBe($variant->id)
         ->and($item->pickup_date->format('Y-m-d'))->toBe('2026-11-01')
-        ->and($item->return_date->format('Y-m-d'))->toBe('2026-11-03');
+        ->and($item->return_date->format('Y-m-d'))->toBe('2026-11-04');
 
     // Konsisten dengan halaman detail: 3 hari = tier Rp50.000/unit.
-    $cart = app(App\Services\CartService::class)->summaryFor($customer);
+    $cart = app(CartService::class)->summaryFor($customer);
 
     expect($cart['items'][0]['unit_price'])->toBe(50000.0)
         ->and($cart['items'][0]['rental_subtotal'])->toBe(100000.0)
@@ -150,16 +151,16 @@ test('adding the same item again merges quantity into one row', function () {
         ->and(CartItem::query()->firstOrFail()->quantity)->toBe(3);
 });
 
-test('adding beyond available stock is rejected', function () {
+test('adding beyond available stock is capped to the available stock', function () {
     $this->actingAs(User::factory()->create(['role' => UserRole::Customer]));
 
     $variant = createVariant(stock: 2, rentalPricePerDay: 20000, depositPerUnit: 0);
 
     $response = $this->post(route('cart.store'), addToCartPayload($variant, quantity: 3));
     $response->assertRedirect();
-    $response->assertSessionHasErrors(['quantity']);
 
-    expect(CartItem::count())->toBe(0);
+    expect(CartItem::count())->toBe(1)
+        ->and(CartItem::query()->firstOrFail()->quantity)->toBe(2);
 });
 
 test('adding an inactive variant is rejected', function () {
@@ -510,13 +511,11 @@ function createRentalFor(
     int $quantity,
     string $startDate,
     string $endDate,
-): App\Models\Rental {
-    $rental = App\Models\Rental::create([
+): Rental {
+    $rental = Rental::create([
         'rental_code' => 'RNT-'.Str::uuid(),
         'start_date' => $startDate,
-        'billing_start_date' => Carbon\Carbon::parse($startDate)->addDay()->toDateString(),
         'end_date' => $endDate,
-        'return_due_at' => Carbon\Carbon::parse($endDate)->endOfDay(),
         'total_days' => Carbon\Carbon::parse($endDate)->diffInDays(Carbon\Carbon::parse($startDate)->addDay()) + 1,
         'rental_amount' => 0,
         'grand_total' => 0,

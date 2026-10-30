@@ -1,13 +1,19 @@
 <?php
 
+use App\Models\User;
+use App\UserRole;
 use Inertia\Testing\AssertableInertia;
 
-uses(Tests\TestCase::class);
+test('guests are redirected to login when opening the cart page', function () {
+    $this->get(route('cart.index'))
+        ->assertRedirect(route('login'));
+});
 
-test('cart page is available without authentication', function () {
-    /** @var \Tests\TestCase $this */
-    $this->get(route('cart'))
+test('customers can open the cart page', function () {
+    $this->actingAs(User::factory()->create(['role' => UserRole::Customer]));
+
+    $this->get(route('cart.index'))
         ->assertOk()
-        ->assertInertia(fn(AssertableInertia $page) => $page
-            ->component('cart'));
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('cart/index'));
 });

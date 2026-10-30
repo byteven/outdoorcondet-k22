@@ -60,7 +60,11 @@ type PackageDetail = {
     daily_price: number;
     deposit_per_package: number;
     duration_prices: DurationPrice[];
-    items: { name: string; quantity: number }[];
+    items: {
+        name: string;
+        quantity: number;
+        variant_values: DetailVariantValue[];
+    }[];
 };
 
 type CatalogDetail = ProductDetail | PackageDetail;
@@ -297,10 +301,10 @@ export default function CatalogDetailPage({
         <>
             <Head title={`${detail.name} - OutdoorCondet`} />
 
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-white">
                 <LandingHeader />
 
-                <main className="bg-[#fbfbfc]">
+                <main className="bg-white">
                     {isInitialLoading ? (
                         <CatalogDetailPageSkeleton />
                     ) : (

@@ -8,8 +8,8 @@ use App\Models\ProductVariant;
 use App\Models\Rental;
 use App\Models\RentalItem;
 use App\Models\VariantMaintenance;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Menghitung ketersediaan stok mempertimbangkan:
@@ -41,7 +41,7 @@ class AvailabilityService
      * @param  int  $variantId  ID dari product_variant
      * @param  CarbonInterface  $pickupDate  tanggal ambil (start_date)
      * @param  CarbonInterface  $returnDate  tanggal kembali (end_date, sebelum buffer)
-     * @return int  stok yang tersedia (0 or lebih)
+     * @return int stok yang tersedia (0 or lebih)
      */
     public function availableStock(
         int $variantId,
@@ -50,7 +50,11 @@ class AvailabilityService
     ): int {
         $totalStock = ProductVariant::where('id', $variantId)->value('stock') ?? 0;
 
-        return max(0, $totalStock - $this->rentedQty($variantId, $pickupDate, $returnDate) - $this->maintenanceQty($variantId));
+        $used = $this->rentedQty($variantId, $pickupDate, $returnDate)
+            + $this->rentedQtyViaPackages($variantId, $pickupDate, $returnDate)
+            + $this->maintenanceQty($variantId);
+
+        return max(0, $totalStock - $used);
     }
 
     /**
@@ -59,7 +63,7 @@ class AvailabilityService
      * @param  array<int>  $variantIds
      * @param  CarbonInterface  $pickupDate  tanggal ambil
      * @param  CarbonInterface  $returnDate  tanggal kembali
-     * @return array<int, int>  map variantId => availableQty
+     * @return array<int, int> map variantId => availableQty
      */
     public function batchAvailableStock(
         array $variantIds,
@@ -74,10 +78,13 @@ class AvailabilityService
         $stocks = ProductVariant::whereIn('id', $variantIds)
             ->pluck('stock', 'id');
 
-        // 2. Stok terpakai oleh rental aktif overlapping (satu query GROUP BY)
+        // 2. Stok terpakai oleh rental aktif overlapping — item varian langsung
         $rented = $this->batchRentedQty($variantIds, $pickupDate, $returnDate);
 
-        // 3. Stok dalam maintenance
+        // 3. Stok terpakai melalui paket (rental item bertipe Package)
+        $rentedViaPackages = $this->batchRentedQtyViaPackages($variantIds, $pickupDate, $returnDate);
+
+        // 4. Stok dalam maintenance
         $maintenance = VariantMaintenance::query()
             ->selectRaw('product_variant_id, SUM(quantity) as qty')
             ->whereIn('product_variant_id', $variantIds)
@@ -88,7 +95,9 @@ class AvailabilityService
         $result = [];
         foreach ($variantIds as $id) {
             $total = (int) ($stocks[$id] ?? 0);
-            $used = (int) ($rented[$id] ?? 0) + (int) ($maintenance[$id] ?? 0);
+            $used = (int) ($rented[$id] ?? 0)
+                + (int) ($rentedViaPackages[$id] ?? 0)
+                + (int) ($maintenance[$id] ?? 0);
             $result[$id] = max(0, $total - $used);
         }
 
@@ -98,10 +107,7 @@ class AvailabilityService
     /**
      * Ketersediaan paket = min floor(available(variant) / qty_per_paket) dari semua items.
      *
-     * @param  int  $packageId
-     * @param  CarbonInterface  $pickupDate
-     * @param  CarbonInterface  $returnDate
-     * @return int  jumlah paket yang tersedia
+     * @return int jumlah paket yang tersedia
      */
     public function availablePackageStock(
         int $packageId,
@@ -186,6 +192,99 @@ class AvailabilityService
     }
 
     /**
+     * Unit varian yang terpakai melalui rental item bertipe Package (single variant).
+     *
+     * Setiap rental item Package dengan quantity N mengonsumsi
+     * N × package_items.quantity unit dari masing-masing varian penyusunnya.
+     */
+    private function rentedQtyViaPackages(
+        int $variantId,
+        CarbonInterface $pickupDate,
+        CarbonInterface $returnDate,
+    ): int {
+        $bufferDays = 1;
+        $now = now();
+        $bufferedReturn = $returnDate->copy()->addDays($bufferDays)->toDateString();
+        $bufferedPickup = $pickupDate->copy()->subDays($bufferDays)->toDateString();
+
+        return (int) RentalItem::query()
+            ->selectRaw('SUM(ri.quantity * pi.quantity) as total')
+            ->from('rental_items as ri')
+            ->join('package_items as pi', 'pi.package_id', '=', 'ri.rentable_id')
+            ->where('ri.rentable_type', Package::class)
+            ->where('pi.product_variant_id', $variantId)
+            ->whereExists(function ($q) use ($now, $bufferedReturn, $bufferedPickup): void {
+                $q->from('rentals')
+                    ->whereColumn('rentals.id', 'ri.rental_id')
+                    ->whereIn('rentals.status', self::BLOCKING_STATUSES)
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'pending_payment')
+                            ->orWhere('rentals.payment_deadline_at', '>', $now);
+                    })
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'returned')
+                            ->orWhere(function ($q3) use ($now): void {
+                                $q3->whereNull('rentals.stock_release_at')
+                                    ->orWhere('rentals.stock_release_at', '>', $now);
+                            });
+                    })
+                    ->whereDate('rentals.start_date', '<=', $bufferedReturn)
+                    ->where('rentals.end_date', '>=', $bufferedPickup);
+            })
+            ->value('total') ?? 0;
+    }
+
+    /**
+     * Batch version: unit varian yang terpakai melalui rental item Package.
+     *
+     * @param  array<int>  $variantIds
+     * @return array<int, int> variantId => consumed quantity
+     */
+    private function batchRentedQtyViaPackages(
+        array $variantIds,
+        CarbonInterface $pickupDate,
+        CarbonInterface $returnDate,
+    ): array {
+        if (empty($variantIds)) {
+            return [];
+        }
+
+        $bufferDays = 1;
+        $now = now();
+        $bufferedReturn = $returnDate->copy()->addDays($bufferDays)->toDateString();
+        $bufferedPickup = $pickupDate->copy()->subDays($bufferDays)->toDateString();
+
+        return RentalItem::query()
+            ->selectRaw('pi.product_variant_id, SUM(ri.quantity * pi.quantity) as qty')
+            ->from('rental_items as ri')
+            ->join('package_items as pi', 'pi.package_id', '=', 'ri.rentable_id')
+            ->where('ri.rentable_type', Package::class)
+            ->whereIn('pi.product_variant_id', $variantIds)
+            ->whereExists(function ($q) use ($now, $bufferedReturn, $bufferedPickup): void {
+                $q->from('rentals')
+                    ->whereColumn('rentals.id', 'ri.rental_id')
+                    ->whereIn('rentals.status', self::BLOCKING_STATUSES)
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'pending_payment')
+                            ->orWhere('rentals.payment_deadline_at', '>', $now);
+                    })
+                    ->where(function ($q2) use ($now): void {
+                        $q2->where('rentals.status', '!=', 'returned')
+                            ->orWhere(function ($q3) use ($now): void {
+                                $q3->whereNull('rentals.stock_release_at')
+                                    ->orWhere('rentals.stock_release_at', '>', $now);
+                            });
+                    })
+                    ->whereDate('rentals.start_date', '<=', $bufferedReturn)
+                    ->where('rentals.end_date', '>=', $bufferedPickup);
+            })
+            ->groupBy('pi.product_variant_id')
+            ->pluck('qty', 'pi.product_variant_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+    }
+
+    /**
      * Terapkan kondisi overlap + blocking status ke query builder rental.
      *
      * Overlap logic:
@@ -195,7 +294,7 @@ class AvailabilityService
      *   AND rental.end_date + buffer >= A
      */
     private function applyOverlapScope(
-        \Illuminate\Database\Eloquent\Builder $query,
+        Builder $query,
         CarbonInterface $pickupDate,
         CarbonInterface $returnDate,
     ): void {
@@ -203,7 +302,6 @@ class AvailabilityService
         $now = now();
 
         $bufferedReturnDate = $returnDate->copy()->addDays($bufferDays)->toDateString();
-        $pickupDateStr = $pickupDate->toDateString();
 
         $query
             ->whereIn('status', self::BLOCKING_STATUSES)
@@ -223,7 +321,8 @@ class AvailabilityService
             // Overlap: rental.start_date <= returnDate + buffer
             ->whereDate('start_date', '<=', $bufferedReturnDate)
             // AND rental.end_date + buffer >= pickupDate
-            ->whereRaw('DATE_ADD(end_date, INTERVAL ? DAY) >= ?', [$bufferDays, $pickupDateStr]);
+            // (dihitung di PHP agar kompatibel MySQL dan SQLite)
+            ->where('end_date', '>=', $pickupDate->copy()->subDays($bufferDays)->toDateString());
     }
 
     /**

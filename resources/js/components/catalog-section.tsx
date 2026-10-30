@@ -576,7 +576,7 @@ function CatalogGrid<T extends GridItem>({
             ) : (
                 <div
                     className={cn(
-                        'grid grid-cols-2 gap-3 sm:gap-4',
+                        'grid grid-cols-2 gap-4 sm:gap-5 lg:gap-6',
                         content.gridColumnClass,
                     )}
                 >
@@ -685,9 +685,9 @@ function CategoryPill({
 
 function CatalogCardSkeleton() {
     return (
-        <div className="overflow-hidden rounded-[1.25rem] border border-border/20 bg-card p-2">
-            <Skeleton className="aspect-[4/3] w-full rounded-[1rem] bg-muted" />
-            <div className="space-y-2 px-2 pt-2.5 pb-2">
+        <div className="overflow-hidden rounded-lg border border-border bg-card p-3">
+            <Skeleton className="aspect-[4/3] w-full rounded-md bg-muted" />
+            <div className="space-y-2 px-0 pt-1 pb-2">
                 <Skeleton className="h-3 w-1/3 bg-muted" />
                 <Skeleton className="h-4 w-3/4 bg-muted" />
                 <Skeleton className="h-4 w-2/5 bg-muted" />

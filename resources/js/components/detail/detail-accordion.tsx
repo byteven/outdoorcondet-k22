@@ -10,7 +10,11 @@ import { cn } from '@/lib/utils';
 
 type DetailAccordionProps = {
     description: string | null;
-    items?: { name: string; quantity: number }[];
+    items?: {
+        name: string;
+        quantity: number;
+        variant_values: { attribute: string | null; value: string }[];
+    }[];
     className?: string;
 };
 
@@ -91,16 +95,26 @@ function DescriptionContent({ text }: { text: string | null }) {
 function PackageItemsContent({
     items,
 }: {
-    items: { name: string; quantity: number }[];
+    items: {
+        name: string;
+        quantity: number;
+        variant_values: { attribute: string | null; value: string }[];
+    }[];
 }) {
     return (
         <ul className="flex flex-col gap-2">
             {items.map((item, index) => (
-                <li key={item.name + index} className="flex items-start gap-2">
-                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary/60" />
+                <li key={item.name + index} className="flex items-center gap-2">
+                    <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
                     <span>
                         {item.name}
-                        <span className="font-medium text-primary">
+                        {item.variant_values.length > 0 && (
+                            <span className="font-medium text-muted-foreground">
+                                {' '}
+                                ({variantValuesLabel(item.variant_values)})
+                            </span>
+                        )}
+                        <span className="font-medium text-muted-foreground">
                             {' '}
                             × {item.quantity}
                         </span>
@@ -109,4 +123,17 @@ function PackageItemsContent({
             ))}
         </ul>
     );
+}
+
+function variantValuesLabel(
+    values: { attribute: string | null; value: string }[],
+): string {
+    return values
+        .map((value) => {
+            const attribute = value.attribute
+                ? `${value.attribute}: `
+                : '';
+            return `${attribute}${value.value}`;
+        })
+        .join(' / ');
 }

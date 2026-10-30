@@ -38,9 +38,7 @@ class RentalTestSeeder extends Seeder
             'rental_code' => 'OC-TEST-NOV2026-TUN',
             'customer_id' => $customer->id,
             'start_date' => Carbon::create(2026, 11, 20),
-            'billing_start_date' => Carbon::create(2026, 11, 20),
             'end_date' => Carbon::create(2026, 11, 23),
-            'return_due_at' => Carbon::create(2026, 11, 23, 23, 59, 59),
             'total_days' => 3,
             'rental_amount' => 248000,      // 4 unit × 62.000 (harga promo 3 hari)
             'deposit_amount' => 240000,     // 4 unit × 60.000
@@ -50,10 +48,7 @@ class RentalTestSeeder extends Seeder
             'remaining_balance' => 0,
             'payment_deadline_at' => now()->addHours(24),
             'late_fee_per_day' => 75000,
-            'deposit_status' => 'held',
             'status' => 'fully_paid',
-            'is_self_order' => false,
-            'notes' => '[TEST] Tenda Tunnel 20-23 Nov 2026 — semua 4 unit, untuk availability testing.',
         ]);
 
         RentalItem::create([

@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\Attribute;
 use App\Models\Category;
 use App\Models\Package;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Models\ProductVariantValue;
 use App\Models\VariantDurationPrice;
 use Inertia\Testing\AssertableInertia;
 
@@ -106,6 +108,20 @@ test('package detail page renders the package payload', function () {
         'is_active' => true,
     ]);
 
+    Attribute::factory()->create(['name' => 'Warna']);
+    Attribute::factory()->create(['name' => 'Kapasitas']);
+
+    ProductVariantValue::factory()->create([
+        'product_variant_id' => $variant->id,
+        'attribute_id' => Attribute::where('name', 'Warna')->value('id'),
+        'value' => 'Hitam',
+    ]);
+    ProductVariantValue::factory()->create([
+        'product_variant_id' => $variant->id,
+        'attribute_id' => Attribute::where('name', 'Kapasitas')->value('id'),
+        'value' => '60L',
+    ]);
+
     $package = Package::create([
         'name' => 'Paket Camping Dasar',
         'slug' => 'paket-camping-dasar',
@@ -138,6 +154,10 @@ test('package detail page renders the package payload', function () {
             ->has('detail.items', 1)
             ->where('detail.items.0.name', $productName)
             ->where('detail.items.0.quantity', 2)
+            ->where('detail.items.0.variant_values', [
+                ['attribute' => 'Warna', 'value' => 'Hitam'],
+                ['attribute' => 'Kapasitas', 'value' => '60L'],
+            ])
             ->where('availability', null));
 });
 

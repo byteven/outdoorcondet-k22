@@ -251,6 +251,52 @@ class CheckoutService
     }
 
     /**
+     * Batalkan semua rental yang melewati batas waktu pembayaran 30 menit,
+     * opsional dibatasi untuk satu customer: bukti yang masih menunggu
+     * ditolak, status menjadi cancelled dengan alasan. Stok langsung lepas
+     * karena cancelled tidak memblokir stok.
+     *
+     * Set-based (tanpa loop) dan kondisional pada status: UPDATE hanya
+     * menyentuh baris yang MASIH pending_payment saat dieksekusi, jadi
+     * atomik terhadap recordPayment yang mengunggah bukti bersamaan.
+     * Dipanggil scheduler tiap menit dan saat halaman riwayat/detail
+     * dibuka agar status "menunggu pembayaran" tidak pernah tampil untuk
+     * pesanan yang sudah kedaluwarsa.
+     */
+    public function cancelExpiredPayments(?int $customerId = null): int
+    {
+        $expiredIds = Rental::where('status', 'pending_payment')
+            ->whereNotNull('payment_deadline_at')
+            ->where('payment_deadline_at', '<', CarbonImmutable::now())
+            ->when($customerId !== null, fn ($query) => $query->where('customer_id', $customerId))
+            ->pluck('id');
+
+        if ($expiredIds->isEmpty()) {
+            return 0;
+        }
+
+        $now = CarbonImmutable::now();
+
+        return DB::transaction(function () use ($expiredIds, $now): int {
+            RentalPayment::query()
+                ->whereIn('rental_id', $expiredIds)
+                ->where('status', 'waiting')
+                ->whereNull('proof_path')
+                ->update(['status' => 'rejected', 'updated_at' => $now]);
+
+            // Guard status di WHERE: baris yang baru saja berpindah ke
+            // waiting_confirmation (bukti terunggah) tidak ikut dibatalkan.
+            return Rental::whereIn('id', $expiredIds)
+                ->where('status', 'pending_payment')
+                ->update([
+                    'status' => 'cancelled',
+                    'cancel_reason' => 'Batas waktu pembayaran '.self::PAYMENT_TIMEOUT_MINUTES.' menit terlewat.',
+                    'updated_at' => $now,
+                ]);
+        });
+    }
+
+    /**
      * Total kebutuhan varian seluruh keranjang harus muat dalam stok
      * tersedia: baris varian memakai langsung, baris paket memakai isi
      * paketnya. Satu cek agregat menggantikan cek per item agar alat

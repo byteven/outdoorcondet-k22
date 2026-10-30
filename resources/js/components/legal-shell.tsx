@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeftIcon } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { LandingHeader } from '@/components/landing/landing-header';
 import { SiteFooter } from '@/components/site-footer';
-import { Button } from '@/components/ui/button';
-import { home } from '@/routes';
 import { formatDateID } from '@/lib/rental-date';
 
 type Props = {
@@ -19,26 +17,9 @@ export function LegalShell({ title, description, updatedAt, children }: Props) {
             <Head title={`${title} - OutdoorCondet`} />
 
             <div className="flex min-h-screen flex-col bg-background">
-                <header className="border-b border-border">
-                    <div className="mx-auto flex h-16 w-full max-w-4xl items-center justify-between gap-4 px-4">
-                        <Link href={home()} className="flex items-center">
-                            <img
-                                src="/images/logo-landscape-transparent.webp"
-                                alt="OutdoorCondet"
-                                className="h-8 w-auto object-contain"
-                            />
-                        </Link>
+                <LandingHeader />
 
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={home()}>
-                                <ArrowLeftIcon />
-                                Kembali
-                            </Link>
-                        </Button>
-                    </div>
-                </header>
-
-                <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 md:py-12">
+                <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-24 pb-10 md:pb-12">
                     <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                         {title}
                     </h1>

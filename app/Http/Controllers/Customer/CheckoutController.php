@@ -34,12 +34,32 @@ class CheckoutController extends Controller
 
         abort_if($customer === null, 404);
 
+        $this->checkoutService->cancelExpiredPayments($customer->id);
+
+        $filters = $request->validate([
+            'status' => [
+                'nullable',
+                'in:all,pending_payment,waiting_confirmation,siap_diambil,returned,cancelled',
+            ],
+        ]);
+
+        $status = $filters['status'] ?? 'all';
+
         $rentals = Rental::where('customer_id', $customer->id)
+            ->when(
+                $status === 'siap_diambil',
+                fn($query) => $query->whereIn('status', ['dp_paid', 'fully_paid']),
+            )
+            ->when(
+                ! in_array($status, ['all', 'siap_diambil'], true),
+                fn($query) => $query->where('status', $status),
+            )
+            ->orderByDesc('start_date')
             ->orderByDesc('created_at')
             ->get();
 
         return Inertia::render('checkout/index', [
-            'rentals' => $rentals->map(fn (Rental $rental): array => [
+            'rentals' => $rentals->map(fn(Rental $rental): array => [
                 'rental_code' => $rental->rental_code,
                 'status' => $rental->status,
                 'start_date' => $rental->start_date?->format('Y-m-d'),
@@ -49,6 +69,9 @@ class CheckoutController extends Controller
                 'payment_type' => $rental->payment_type,
                 'created_at' => $rental->created_at?->toISOString(),
             ])->all(),
+            'filters' => [
+                'status' => $status,
+            ],
         ]);
     }
 
@@ -78,6 +101,10 @@ class CheckoutController extends Controller
     public function show(Request $request, Rental $rental): Response
     {
         $this->authorizeRentalOwner($request, $rental);
+
+        // Batalkan dulu bila batas waktu pembayaran sudah lewat, supaya
+        // status yang tampil bukan lagi "menunggu pembayaran".
+        $this->checkoutService->cancelExpiredPayments($rental->customer_id);
 
         $rental->load(['items.rentable', 'customer.user', 'payments']);
 
@@ -124,7 +151,10 @@ class CheckoutController extends Controller
 
         abort_if($payment === null, 404);
 
-        return Storage::disk('local')->response($payment->proof_path);
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('local');
+
+        return $disk->response($payment->proof_path);
     }
 
     /**
@@ -208,10 +238,10 @@ class CheckoutController extends Controller
 
             $image = ($product->images?->firstWhere('is_primary', true) ?? $product->images->first());
 
-            return $image?->image_path ? '/storage/'.$image->image_path : null;
+            return $image?->image_path ? '/storage/' . $image->image_path : null;
         }
 
-        return $rentable->image_path ? '/storage/'.$rentable->image_path : null;
+        return $rentable->image_path ? '/storage/' . $rentable->image_path : null;
     }
 
     /**
@@ -235,14 +265,16 @@ class CheckoutController extends Controller
     private function paymentProofPayload(Rental $rental): ?array
     {
         $payment = $rental->payments->firstWhere(
-            fn (RentalPayment $payment): bool => $payment->proof_path !== null,
+            fn(RentalPayment $payment): bool => $payment->proof_path !== null,
         );
 
         if ($payment === null) {
             return null;
         }
 
-        $mimeType = (string) Storage::disk('local')->mimeType($payment->proof_path);
+        $mimeType = (string) \Illuminate\Support\Facades\File::mimeType(
+            Storage::disk('local')->path($payment->proof_path),
+        );
 
         return [
             'url' => route('checkout.payment.proof', ['rental' => $rental->rental_code]),

@@ -46,9 +46,9 @@ class RentalTestSeeder extends Seeder
             'payment_type' => 'full',
             'down_payment_amount' => 0,
             'remaining_balance' => 0,
-            'payment_deadline_at' => now()->addHours(24),
+            'payment_deadline_at' => now()->addMinutes(30),
             'late_fee_per_day' => 75000,
-            'status' => 'fully_paid',
+            'status' => 'pending_payment',
         ]);
 
         RentalItem::create([

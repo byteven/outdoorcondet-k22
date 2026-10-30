@@ -6,7 +6,7 @@ import {
     CalendarArrowUp,
     ClipboardListIcon,
     ListFilter,
-    ClockIcon,
+    RotateCcwIcon,
     ReceiptText,
 
 } from "lucide-react";
@@ -144,7 +144,7 @@ export default function CheckoutIndex({ rentals, filters }: Props) {
                                         <section className="flex flex-col gap-3">
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <ClockIcon className="text-muted-foreground/60 size-4" />
+                                                    <RotateCcwIcon className="text-muted-foreground/60 size-4" />
                                                     <h2 className="text-sm font-medium tracking-wide text-muted-foreground">
                                                         Riwayat
                                                     </h2>

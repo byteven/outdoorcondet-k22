@@ -234,6 +234,41 @@ export default function CheckoutShow({ rental }: Props) {
 
                         <div className="mt-6 rounded-2xl border border-border bg-card p-4 md:p-5">
                             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="relative w-full overflow-hidden rounded-xl bg-muted text-muted-foreground md:w-auto md:min-w-72">
+                                    <span
+                                        aria-hidden="true"
+                                        className="absolute top-1/2 -left-2.5 size-5 -translate-y-1/2 rounded-full bg-card"
+                                    />
+                                    <span
+                                        aria-hidden="true"
+                                        className="absolute top-1/2 -right-2.5 size-5 -translate-y-1/2 rounded-full bg-card"
+                                    />
+                                    <img
+                                        src="/images/logo-circle.webp"
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute -right-3 -bottom-4 h-16 w-auto -rotate-12 opacity-60"
+                                    />
+                                    <div className="relative px-4 py-3">
+                                        <div className="mt-1 flex items-center gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={handleCopyRentalCode}
+                                                aria-label="Salin nomor transaksi"
+                                                className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground/70    "
+                                            >
+                                                {isCopied ? (
+                                                    <CheckIcon className="size-3.5" />
+                                                ) : (
+                                                    <CopyIcon className="size-3.5" />
+                                                )}
+                                            </button>
+                                            <span className="text-sm font-semibold tracking-wide">
+                                                {rental.rental_code}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">
                                         Status pesanan
@@ -242,29 +277,6 @@ export default function CheckoutShow({ rental }: Props) {
                                         status={rental.status}
                                         className="mt-1.5 px-3 py-1 text-xs"
                                     />
-                                </div>
-
-                                <div className="md:text-right">
-                                    <p className="text-sm text-muted-foreground">
-                                        No. transaksi
-                                    </p>
-                                    <div className="mt-1.5 flex items-center gap-1 md:justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={handleCopyRentalCode}
-                                            aria-label="Salin nomor transaksi"
-                                            className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-primary"
-                                        >
-                                            {isCopied ? (
-                                                <CheckIcon className="size-3.5" />
-                                            ) : (
-                                                <CopyIcon className="size-3.5" />
-                                            )}
-                                        </button>
-                                        <span className="text-sm font-medium text-foreground">
-                                            {rental.rental_code}
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -744,8 +756,14 @@ function RentalSteps() {
             {steps.map((step, index) => (
                 <li
                     key={step}
-                    className="relative flex flex-col items-center gap-2 text-center"
+                    className="relative flex flex-row items-start gap-3 text-left sm:flex-col sm:items-center sm:gap-2 sm:text-center"
                 >
+                    {index < steps.length - 1 && (
+                        <span
+                            aria-hidden="true"
+                            className="absolute top-7 bottom-[-1rem] left-[0.8125rem] w-0.5 bg-primary/25 sm:hidden"
+                        />
+                    )}
                     {index > 0 && (
                         <span
                             aria-hidden="true"
@@ -755,7 +773,7 @@ function RentalSteps() {
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-xs font-semibold text-primary-foreground sm:size-8 sm:text-sm">
                         {index + 1}
                     </span>
-                    <span className="max-w-40 text-xs leading-relaxed text-muted-foreground">
+                    <span className="text-xs leading-relaxed text-muted-foreground">
                         {step}
                     </span>
                 </li>
@@ -816,12 +834,12 @@ function OrderInfoCard({
                 {rows.map((row) => (
                     <div
                         key={row.label}
-                        className="flex items-baseline justify-between gap-2 text-sm"
+                        className="flex flex-col items-start gap-0.5 text-sm sm:flex-row sm:items-baseline sm:justify-between sm:gap-2"
                     >
                         <span className="text-muted-foreground">
                             {row.label}
                         </span>
-                        <span className="font-medium text-foreground">
+                        <span className="font-medium text-foreground sm:text-right">
                             {row.value}
                         </span>
                     </div>

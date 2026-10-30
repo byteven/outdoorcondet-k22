@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, TriangleAlert } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,7 +9,6 @@ import { EmergencyContactInput } from '@/components/emergency-contact-input';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { SocialMediaInput } from '@/components/social-media-input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -121,41 +120,6 @@ export default function Profile() {
     const emergencyContactValue = watch('emergency_contact');
     const socialMediaValue = watch('social_media');
 
-    const isEmergencyContactEmpty =
-        !emergencyContactValue || emergencyContactValue.trim() === '';
-    const isSocialMediaEmpty =
-        !socialMediaValue || socialMediaValue.trim() === '';
-    const showIncompleteWarning =
-        isEmergencyContactEmpty || isSocialMediaEmpty;
-
-    const warningMessage = (() => {
-        if (isEmergencyContactEmpty && isSocialMediaEmpty) {
-            return {
-                title: 'Kontak darurat dan sosial media belum diisi',
-                description:
-                    'Lengkapi kontak darurat dan akun sosial media untuk mempermudah proses reservasi alat camping.',
-            };
-        }
-
-        if (isEmergencyContactEmpty) {
-            return {
-                title: 'Kontak darurat belum diisi',
-                description:
-                    'Lengkapi nomor kontak darurat untuk kebutuhan verifikasi dan keselamatan saat sewa.',
-            };
-        }
-
-        if (isSocialMediaEmpty) {
-            return {
-                title: 'Akun sosial media belum diisi',
-                description:
-                    'Lengkapi tautan akun sosial media untuk mempermudah proses reservasi alat camping.',
-            };
-        }
-
-        return null;
-    })();
-
     const errorFor = (
         field: keyof ProfileFormData,
     ): string | undefined => errors[field]?.message ?? serverErrors[field];
@@ -203,18 +167,6 @@ export default function Profile() {
 
                 <form onSubmit={handleSubmit(onSubmit)} noValidate>
                     <div className="grid gap-6">
-                        {showIncompleteWarning && warningMessage && (
-                            <Alert className="border-0 bg-warning-muted text-warning">
-                                <TriangleAlert className="size-4" />
-                                <AlertTitle className="font-semibold text-warning">
-                                    {warningMessage.title}
-                                </AlertTitle>
-                                <AlertDescription className="text-warning/90">
-                                    {warningMessage.description}
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
                         <Collapsible
                             open={dataDiriOpen}
                             onOpenChange={setDataDiriOpen}

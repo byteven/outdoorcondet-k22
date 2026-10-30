@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { InfoIcon } from 'lucide-react';
 import { EmergencyContactInput } from '@/components/emergency-contact-input';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
@@ -58,17 +57,20 @@ const registerSchema = z
             .string({ error: 'Konfirmasi password wajib diisi.' })
             .min(1, 'Konfirmasi password wajib diisi.'),
         emergency_contact: z
-            .string()
-            .max(255, 'Kontak darurat maksimal 255 karakter.')
-            .optional(),
+            .string({ error: 'Kontak darurat wajib diisi.' })
+            .trim()
+            .min(1, 'Kontak darurat wajib diisi.')
+            .max(255, 'Kontak darurat maksimal 255 karakter.'),
         address: z
-            .string()
-            .max(2000, 'Alamat maksimal 2000 karakter.')
-            .optional(),
+            .string({ error: 'Alamat wajib diisi.' })
+            .trim()
+            .min(1, 'Alamat wajib diisi.')
+            .max(2000, 'Alamat maksimal 2000 karakter.'),
         social_media: z
-            .string()
-            .max(255, 'Sosial media maksimal 255 karakter.')
-            .optional(),
+            .string({ error: 'Sosial media wajib diisi.' })
+            .trim()
+            .min(1, 'Sosial media wajib diisi.')
+            .max(255, 'Sosial media maksimal 255 karakter.'),
         terms: z.boolean().refine((value) => value === true, {
             message:
                 'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
@@ -125,13 +127,6 @@ export default function Register({ passwordRules }: Props) {
 
     const emergencyContactValue = watch('emergency_contact');
     const socialMediaValue = watch('social_media');
-    const addressValue = watch('address');
-
-    const hasSupportingData = Boolean(
-        addressValue?.trim() ||
-        emergencyContactValue?.trim() ||
-        socialMediaValue?.trim(),
-    );
 
     const errorFor = (field: keyof RegisterFormData): string | undefined =>
         errors[field]?.message ?? serverErrors[field];
@@ -163,9 +158,9 @@ export default function Register({ passwordRules }: Props) {
                 phone_number: `62${normalizePhoneRest(data.phone_number)}`,
                 password: data.password,
                 password_confirmation: data.password_confirmation,
-                emergency_contact: data.emergency_contact || undefined,
-                address: data.address || undefined,
-                social_media: data.social_media || undefined,
+                emergency_contact: data.emergency_contact,
+                address: data.address,
+                social_media: data.social_media,
                 terms: data.terms,
             },
             {
@@ -296,13 +291,6 @@ export default function Register({ passwordRules }: Props) {
 
                 {step === 1 && (
                     <div className="grid gap-4">
-                        <Alert className="items-center border-0 bg-info-muted text-info [&>svg]:translate-y-0">
-                            <InfoIcon />
-                            <p className="text-xs">
-                                Data pendukung wajib diisi ketika mulai menyewa,
-                                ya.
-                            </p>
-                        </Alert>
 
                         <div className="grid gap-2">
                             <Label htmlFor="address">Alamat</Label>
@@ -399,9 +387,7 @@ export default function Register({ passwordRules }: Props) {
                             </Button>
                             <Button type="submit" disabled={processing}>
                                 {processing && <Spinner />}
-                                {hasSupportingData
-                                    ? 'Daftar'
-                                    : 'Lewati & Daftar'}
+                                Daftar
                             </Button>
                         </div>
                     </div>

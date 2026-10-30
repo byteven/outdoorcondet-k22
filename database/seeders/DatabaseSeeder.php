@@ -53,6 +53,9 @@ class DatabaseSeeder extends Seeder
         Customer::factory()->create([
             'user_id' => $vio->id,
             'phone_number' => '088225842413',
+            'emergency_contact' => '6288225842413 (Orang Tua)',
+            'social_media' => 'https://instagram.com/viosalman',
+            'address' => 'Jl. Condet Raya No. 22, Jakarta Timur',
             'is_verified' => true,
             'is_active' => true,
         ]);

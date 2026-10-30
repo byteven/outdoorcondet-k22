@@ -8,7 +8,7 @@
 
 ---
 
-Pengujian modul profil customer menggunakan metode Equivalence Partitioning untuk memvalidasi partisi input valid dan tidak valid pada field wajib seperti email, nomor telepon, dan nama lengkap, serta Boundary Value Analysis untuk menguji batas minimum digit nomor telepon (9 digit). Pengujian mencakup pembaruan data diri, ganti password dengan verifikasi password lama, dan fungsionalitas banner peringatan kelengkapan data. Dari total 18 test case yang dijalankan, terdiri dari 9 skenario positif dan 9 skenario negatif, seluruhnya menunjukkan hasil Pass.
+Pengujian modul profil customer menggunakan metode Equivalence Partitioning untuk memvalidasi partisi input valid dan tidak valid pada field wajib seperti email, nomor telepon, dan nama lengkap, serta Boundary Value Analysis untuk menguji batas minimum digit nomor telepon (9 digit). Pengujian mencakup pembaruan data diri dan ganti password dengan verifikasi password lama. Dari total 18 test case yang dijalankan, terdiri dari 9 skenario positif dan 9 skenario negatif, seluruhnya menunjukkan hasil Pass.
 
 ---
 
@@ -16,10 +16,9 @@ Pengujian modul profil customer menggunakan metode Equivalence Partitioning untu
 
 Berdasarkan kode yang ada:
 - Field **Nama Lengkap**, **Email**, **No. Telepon** bersifat **wajib**
-- Field **Alamat**, **Kontak Darurat**, **Sosial Media** bersifat **opsional**
+- Field **Alamat**, **Kontak Darurat**, **Sosial Media** diisi saat registrasi dan dapat diperbarui di profil
 - No. Telepon ditampilkan dengan prefix `+62` di UI; input hanya menerima angka (non-angka distrip otomatis via `onChange`)
 - No. Telepon disimpan ke DB dengan prefix `62` (otomatis ditambahkan saat submit)
-- **Banner kuning** (warning) muncul jika Kontak Darurat atau Sosial Media kosong
 - Tombol **"Simpan perubahan"** hanya muncul jika ada perubahan (`isDirty`)
 - Tombol **"Batal"** mereset form ke nilai awal
 
@@ -30,8 +29,6 @@ Berdasarkan kode yang ada:
 | Test Case ID | Tester | Nama Test Case | Tipe | Deskripsi | Precondition | Step# | Langkah Uji | Expected Result | Actual Result |
 |---|---|---|---|---|---|---|---|---|---|
 | TC.PRF.001.001 | Vio | Halaman profil tampil dengan data yang sudah ada | Positive | Data profil yang tersimpan tampil di form | Customer sudah login, sudah memiliki data profil | 1 | Buka halaman `settings/profile` | Semua field terisi sesuai data yang tersimpan; | |
-| TC.PRF.001.002 | Vio | Banner kuning muncul saat kontak darurat dan sosial media kosong | Positive | Warning awareness tampil jika data belum lengkap | Customer login, kontak darurat dan sosial media kosong | 1 | Buka halaman `settings/profile` | Banner kuning tampil dengan pesan "Kontak darurat dan sosial media belum diisi" | |
-| TC.PRF.001.003 | Vio | Banner kuning tidak muncul saat data sudah lengkap | Positive | Warning tidak tampil jika kontak darurat dan sosial media sudah diisi | Customer login, kontak darurat dan sosial media sudah terisi | 1 | Buka halaman `settings/profile` | Banner kuning tidak tampil | |
 | TC.PRF.002.001 | Vio | Update profil berhasil — semua field valid | Positive | Ubah semua field dan simpan | Customer sudah login dan berada di halaman profil | 1 | Ubah Nama Lengkap, Email, No. Telepon, Alamat | | |
 | | | | | | | 2 | Klik "Simpan perubahan" | Profil berhasil diperbarui; muncul toast sukses "Profil berhasil diperbarui." | |
 | TC.PRF.002.002 | Vio | Tombol simpan hanya muncul jika ada perubahan | Positive | Tombol "Simpan perubahan" tidak tampil saat form belum diubah | Customer berada di halaman profil | 1 | Buka halaman profil tanpa mengubah field apapun | Tombol "Simpan perubahan" tidak tampil | |

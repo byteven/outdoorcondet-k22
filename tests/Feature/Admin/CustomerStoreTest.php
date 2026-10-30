@@ -16,6 +16,7 @@ function validPayload(): array
         'password' => 'Rahasia123',
         'phone_number' => '+6281234567890',
         'emergency_contact' => '6281234567890 (Orang Tua)',
+        'social_media' => 'https://instagram.com/udinsaputra',
         'address' => 'Jl. Condet Raya No. 1',
     ];
 }
@@ -78,7 +79,15 @@ test('storing a customer validates the input', function () {
             'password' => 'pendek',
             'phone_number' => '',
         ])
-        ->assertSessionHasErrors(['name', 'email', 'password', 'phone_number']);
+        ->assertSessionHasErrors([
+            'name',
+            'email',
+            'password',
+            'phone_number',
+            'emergency_contact',
+            'social_media',
+            'address',
+        ]);
 
     expect(Customer::count())->toBe(0);
 });

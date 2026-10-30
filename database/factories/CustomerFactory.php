@@ -55,10 +55,16 @@ class CustomerFactory extends Factory
             'user_id' => User::factory()->state([
                 'name' => fake()->randomElement(self::INDONESIAN_NAMES),
             ]),
-            'emergency_contact' => fake()->optional()->passthrough('628'.fake()->numerify('########').' (Orang Tua)'),
-            'social_media' => null,
+            'emergency_contact' => '628'.fake()->numerify('########').' (Orang Tua)',
+            'social_media' => 'https://instagram.com/'.fake()->unique()->bothify('user####'),
             'phone_number' => '62'.fake()->numerify('8##########'),
-            'address' => fake()->optional()->address(),
+            'address' => 'Jl. '.fake()->randomElement([
+                'Condet Raya',
+                'Batu Ampar',
+                'Kayu Manis',
+                'Gedong',
+                'Cililitan',
+            ]).' No. '.fake()->numberBetween(1, 200).', Jakarta Timur',
             'is_verified' => true,
             'is_active' => true,
         ];

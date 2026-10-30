@@ -47,11 +47,20 @@ const createCustomerSchema = z.object({
         .min(9, 'Nomor telepon minimal 9 digit.')
         .max(13, 'Nomor telepon maksimal 13 digit.'),
     emergency_contact: z
-        .string()
-        .max(255, 'Kontak darurat maksimal 255 karakter.')
-        .optional(),
-    social_media: z.string().max(255, 'Sosial media maksimal 255 karakter.').optional(),
-    address: z.string().max(2000, 'Alamat maksimal 2000 karakter.').optional(),
+        .string({ error: 'Kontak darurat wajib diisi.' })
+        .trim()
+        .min(1, 'Kontak darurat wajib diisi.')
+        .max(255, 'Kontak darurat maksimal 255 karakter.'),
+    social_media: z
+        .string({ error: 'Sosial media wajib diisi.' })
+        .trim()
+        .min(1, 'Sosial media wajib diisi.')
+        .max(255, 'Sosial media maksimal 255 karakter.'),
+    address: z
+        .string({ error: 'Alamat wajib diisi.' })
+        .trim()
+        .min(1, 'Alamat wajib diisi.')
+        .max(2000, 'Alamat maksimal 2000 karakter.'),
 });
 
 type CreateCustomerFormData = z.infer<typeof createCustomerSchema>;
@@ -119,9 +128,9 @@ export function CustomerFormDialog() {
             {
                 ...data,
                 phone_number: `62${normalizePhoneRest(data.phone_number)}`,
-                emergency_contact: data.emergency_contact || undefined,
-                social_media: data.social_media || undefined,
-                address: data.address || undefined,
+                emergency_contact: data.emergency_contact,
+                social_media: data.social_media,
+                address: data.address,
             },
             {
                 onStart: () => setProcessing(true),

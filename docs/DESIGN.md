@@ -21,7 +21,7 @@ Semua komponen base ada di `resources/js/components/ui/`.
 - Font: Mutlak **hanya Inter** (`font-sans`). Dilarang keras memakai font lain selain Inter (tidak boleh ada `font-mono`, serif, cursive, atau font lain), termasuk pada URL prefix, kode prefix telepon, placeholder input, maupun data tabel.
 - Hierarki: judul `text-2xl font-bold` → `text-lg font-semibold` → body `text-sm` → `text-muted-foreground`.
 - Label form: `text-sm font-medium` (dari `Label`), gunakan penamaan formal dan jelas (contoh: "Nama Lengkap", bukan "Nama Panggilan").
-- Teks `(opsional)`: Wajib berukuran kecil dan memudar (`text-xs font-normal text-muted-foreground`). Teks `(opsional)` **hanya boleh ada secara eksklusif pada formulir registrasi pelanggan step 2**. Halaman profil/pengaturan, dialog tambah admin, dan dialog edit dilarang menampilkan teks `(opsional)`.
+- Teks `(opsional)`: Wajib berukuran kecil dan memudar (`text-xs font-normal text-muted-foreground`). Formulir registrasi pelanggan (termasuk step 2) tidak menampilkan teks `(opsional)` karena alamat, kontak darurat, dan sosial media wajib diisi.
 - Jangan pernah memunculkan label ganda/tumpang tindih (misal label field diikuti label opsional di bawahnya pada mode edit).
 
 ## Border
@@ -90,7 +90,7 @@ Semua komponen base ada di `resources/js/components/ui/`.
   (`#C21C24`, `red-500`, `bg-gray-100`). Pakai token.
 - Jangan `uppercase` / `text-transform: uppercase` / teks KAPITAL. Sentence case
   (kecuali singkatan seperti SKU).
-- Jangan menaruh tulisan `(opsional)` di luar formulir registrasi step 2.
+- Jangan menaruh tulisan `(opsional)` pada formulir registrasi pelanggan.
 - Jangan beri border pembatas vertikal di samping kode `+62` pada input nomor telepon.
 - Jangan biarkan teks yang panjang mendorong tombol aksi editable/copy ke kanan atau terpotong tanpa kelas `truncate`.
 - Jangan `shadow`, `shadow-lg`, `drop-shadow` di button dan card.

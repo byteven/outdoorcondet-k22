@@ -8,6 +8,7 @@ import {
     Package,
     ReceiptText,
     SlidersHorizontal,
+    Store,
     Users,
     Wrench,
 } from 'lucide-react';
@@ -44,6 +45,11 @@ const dashboardNavItems: NavItem[] = [
 ];
 
 const transactionNavItems: NavItem[] = [
+    {
+        title: 'Kasir (POS)',
+        href: '/admin/pos',
+        icon: Store,
+    },
     {
         title: 'Monitoring Rental',
         href: rentalsIndex(),

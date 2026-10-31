@@ -568,7 +568,6 @@ export function ProductFormDialog({
                                         processing={processing}
                                         errors={errors}
                                         serverErrors={serverErrors}
-<<<<<<< HEAD
                                     />
                                     <InputError
                                         message={
@@ -578,8 +577,6 @@ export function ProductFormDialog({
                                                 ?.message ??
                                             serverErrors[`variants.${i}.values`]
                                         }
-=======
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
                                     />
                                     <VariantDurationPricesInput
                                         control={control}
@@ -852,56 +849,6 @@ function VariantValuesInput({
                                     : 'Hapus atribut'
                             }
                         >
-<<<<<<< HEAD
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Pilih" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {attributes.map((a) => (
-                                    <SelectItem key={a.id} value={String(a.id)}>
-                                        {a.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <InputError
-                            message={
-                                errors.variants?.[variantIndex]?.values?.[j]
-                                    ?.attribute_id?.message ??
-                                serverErrors[
-                                    `variants.${variantIndex}.values.${j}.attribute_id`
-                                ]
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-1">
-                        <Label className="text-xs">Nilai</Label>
-                        <Input
-                            placeholder="Merah, XL, 4 Orang..."
-                            disabled={processing}
-                            {...register(
-                                `variants.${variantIndex}.values.${j}.value`,
-                            )}
-                        />
-                        <InputError
-                            message={
-                                errors.variants?.[variantIndex]?.values?.[j]
-                                    ?.value?.message ??
-                                serverErrors[
-                                    `variants.${variantIndex}.values.${j}.value`
-                                ]
-                            }
-                        />
-                    </div>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(j)}
-                    >
-                        <Trash2 />
-                    </Button>
-=======
                             <Trash2 />
                         </Button>
                     </div>
@@ -919,7 +866,6 @@ function VariantValuesInput({
                             ]
                         }
                     />
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
                 </div>
             ))}
             <InputError

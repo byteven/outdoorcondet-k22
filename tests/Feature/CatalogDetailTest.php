@@ -155,15 +155,12 @@ test('package detail page renders the package payload', function () {
             ->has('detail.items', 1)
             ->where('detail.items.0.name', $productName)
             ->where('detail.items.0.quantity', 2)
-<<<<<<< HEAD
             ->where('detail.items.0.allow_variant_selection', false)
             ->where('detail.items.0.variant_name', 'OC-TND-4P')
-=======
             ->where('detail.items.0.variant_values', [
                 ['attribute' => 'Warna', 'value' => 'Hitam'],
                 ['attribute' => 'Kapasitas', 'value' => '60L'],
             ])
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
             ->where('availability', null));
 });
 

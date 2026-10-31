@@ -224,19 +224,16 @@ class CatalogDetailController extends Controller
                     'product_id' => (int) $item->product_id,
                     'name' => $item->product?->name ?? $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
                     'quantity' => (int) $item->quantity,
-<<<<<<< HEAD
                     'allow_variant_selection' => (bool) $item->allow_variant_selection,
                     'variant_name' => $item->allow_variant_selection
                         ? null
                         : $item->variant?->sku,
-=======
                     'variant_values' => $item->variant?->values
                         ->map(fn ($value): array => [
                             'attribute' => $value->attribute?->name,
                             'value' => $value->value,
                         ])
                         ->all(),
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
                 ])
                 ->values()
                 ->all(),

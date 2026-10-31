@@ -359,7 +359,11 @@ test('checkout ditolak jika total kebutuhan varian melebihi stok tersedia', func
         'deposit_per_package' => 100000,
         'is_active' => true,
     ]);
-    $package->items()->create(['product_variant_id' => $variant->id, 'quantity' => 2]);
+    $package->items()->create([
+        'product_id' => $variant->product_id,
+        'product_variant_id' => $variant->id,
+        'quantity' => 2,
+    ]);
 
     // 4 unit individual + paket butuh 2 unit = total 6 > stok 4.
     $this->post(route('cart.store'), [
@@ -395,7 +399,11 @@ test('checkout lolos jika total kebutuhan varian tepat memenuhi stok', function 
         'deposit_per_package' => 100000,
         'is_active' => true,
     ]);
-    $package->items()->create(['product_variant_id' => $variant->id, 'quantity' => 2]);
+    $package->items()->create([
+        'product_id' => $variant->product_id,
+        'product_variant_id' => $variant->id,
+        'quantity' => 2,
+    ]);
 
     // 2 unit individual + paket butuh 2 unit = total 4 = stok 4.
     $this->post(route('cart.store'), [

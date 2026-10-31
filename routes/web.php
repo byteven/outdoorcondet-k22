@@ -60,16 +60,14 @@ Route::middleware(['auth'])->group(function () {
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
-<<<<<<< HEAD
         Route::get('packages', [PackageController::class, 'index'])->name('packages.index');
         Route::post('packages', [PackageController::class, 'store'])->name('packages.store');
         Route::put('packages/{package}', [PackageController::class, 'update'])->name('packages.update');
         Route::delete('packages/{package}', [PackageController::class, 'destroy'])->name('packages.destroy');
-=======
+
         Route::post('rentals/{rental}/confirm-payment', [RentalController::class, 'confirmPayment'])->name('rentals.confirm-payment');
         Route::post('rentals/{rental}/reject-payment', [RentalController::class, 'rejectPayment'])->name('rentals.reject-payment');
         Route::post('rentals/{rental}/confirm-return', [RentalController::class, 'confirmReturn'])->name('rentals.confirm-return');
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
     });
 });
 

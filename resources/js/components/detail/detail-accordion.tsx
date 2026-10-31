@@ -13,12 +13,9 @@ type DetailAccordionProps = {
     items?: {
         name: string;
         quantity: number;
-<<<<<<< HEAD
         allow_variant_selection?: boolean;
         variant_name?: string | null;
-=======
         variant_values: { attribute: string | null; value: string }[];
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
     }[];
     className?: string;
 };
@@ -108,12 +105,9 @@ function PackageItemsContent({
     items: {
         name: string;
         quantity: number;
-<<<<<<< HEAD
         allow_variant_selection?: boolean;
         variant_name?: string | null;
-=======
         variant_values: { attribute: string | null; value: string }[];
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
     }[];
 }) {
     return (
@@ -123,7 +117,6 @@ function PackageItemsContent({
                     <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
                     <span>
                         {item.name}
-<<<<<<< HEAD
                         {item.allow_variant_selection ? (
                             <span className="text-xs"> (varian bebas)</span>
                         ) : item.variant_name ? (
@@ -131,17 +124,13 @@ function PackageItemsContent({
                                 {' '}
                                 ({item.variant_name})
                             </span>
-                        ) : null}
-                        <span className="font-medium text-primary">
-=======
-                        {item.variant_values.length > 0 && (
-                            <span className="font-medium text-muted-foreground">
+                        ) : item.variant_values.length > 0 ? (
+                            <span className="text-xs">
                                 {' '}
                                 ({variantValuesLabel(item.variant_values)})
                             </span>
-                        )}
-                        <span className="font-medium text-muted-foreground">
->>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
+                        ) : null}
+                        <span className="font-medium text-primary">
                             {' '}
                             × {item.quantity}
                         </span>

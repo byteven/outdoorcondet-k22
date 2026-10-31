@@ -5,6 +5,8 @@ use App\Models\Rental;
 use App\Models\User;
 use App\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
@@ -177,3 +179,64 @@ test('penolakan ditolak untuk rental yang tidak menunggu konfirmasi', function (
 
     expect($rental->fresh()->status)->toBe('pending_payment');
 });
+
+test('admin dapat melihat daftar rental', function () {
+    actingAsAdmin();
+    rentalWithProof();
+
+    $this->get(route('admin.rentals.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('rentals/index')
+            ->has('rentals.data')
+            ->has('summary')
+            ->has('filters'));
+});
+
+test('admin dapat melihat detail rental', function () {
+    actingAsAdmin();
+    $rental = rentalWithProof();
+
+    $this->get(route('admin.rentals.show', ['rental' => $rental->rental_code]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('rentals/show')
+            ->has('rental')
+            ->where('rental.rental_code', $rental->rental_code));
+});
+
+test('admin dapat membatalkan rental secara manual', function () {
+    actingAsAdmin();
+    $rental = rentalWithProof();
+
+    $this->post(route('admin.rentals.cancel', ['rental' => $rental->rental_code]), [
+        'reason' => 'Dibatalkan atas permintaan customer.',
+    ])->assertRedirect();
+
+    expect($rental->fresh()->status)->toBe('cancelled')
+        ->and($rental->fresh()->cancel_reason)->toBe('Dibatalkan atas permintaan customer.');
+});
+
+test('pembatalan manual gagal jika rental sudah returned', function () {
+    actingAsAdmin();
+    $rental = rentalWithProof('full', ['status' => 'returned']);
+
+    $this->post(route('admin.rentals.cancel', ['rental' => $rental->rental_code]), [
+        'reason' => 'Coba batalkan',
+    ])->assertSessionHasErrors(['rental']);
+
+    expect($rental->fresh()->status)->toBe('returned');
+});
+
+test('admin dapat melihat bukti pembayaran privat', function () {
+    actingAsAdmin();
+    Storage::fake('local');
+    Storage::disk('local')->put('rental-payments/test-proof.jpg', 'dummy-image-content');
+
+    $rental = rentalWithProof();
+    $rental->payments()->update(['proof_path' => 'rental-payments/test-proof.jpg']);
+
+    $this->get(route('admin.rentals.payment-proof', ['rental' => $rental->rental_code]))
+        ->assertOk();
+});
+

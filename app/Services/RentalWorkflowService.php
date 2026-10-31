@@ -105,6 +105,33 @@ class RentalWorkflowService
     }
 
     /**
+     * Batalkan rental secara manual oleh admin (kapan pun sebelum returned).
+     *
+     * @throws ValidationException
+     */
+    public function cancel(Rental $rental, string $reason): Rental
+    {
+        if ($rental->status === 'returned') {
+            throw ValidationException::withMessages([
+                'rental' => 'Rental yang sudah dikembalikan tidak dapat dibatalkan.',
+            ]);
+        }
+
+        if ($rental->status === 'cancelled') {
+            throw ValidationException::withMessages([
+                'rental' => 'Rental ini sudah dibatalkan.',
+            ]);
+        }
+
+        $rental->update([
+            'status' => 'cancelled',
+            'cancel_reason' => $reason,
+        ]);
+
+        return $rental->fresh();
+    }
+
+    /**
      * Bukti pembayaran yang masih menunggu review admin.
      *
      * @throws ValidationException

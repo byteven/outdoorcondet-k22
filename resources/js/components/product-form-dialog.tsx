@@ -772,9 +772,6 @@ function VariantValuesInput({
     variantIndex: number;
     attributes: AttributeOption[];
     processing: boolean;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    errors: any;
-    serverErrors: Record<string, string>;
 }) {
     const { fields, append, remove } = useFieldArray({
         control,

@@ -5,6 +5,7 @@ import {
     FolderTree,
     LayoutGrid,
     Package,
+    ReceiptText,
     SlidersHorizontal,
     Users,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ import { index as categoriesIndex } from '@/routes/admin/categories';
 import { index as customersIndex } from '@/routes/admin/customers';
 import { index as packagesIndex } from '@/routes/admin/packages';
 import { index as productsIndex } from '@/routes/admin/products';
+import { index as rentalsIndex } from '@/routes/admin/rentals';
 import { home } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -35,6 +37,14 @@ const dashboardNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+];
+
+const transactionNavItems: NavItem[] = [
+    {
+        title: 'Monitoring Rental',
+        href: rentalsIndex(),
+        icon: ReceiptText,
     },
 ];
 
@@ -85,6 +95,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={dashboardNavItems} />
+                <NavMain items={transactionNavItems} label="Transaksi" />
                 <NavMain items={manageNavItems} label="Kelola Data" />
             </SidebarContent>
 

@@ -65,9 +65,13 @@ Route::middleware(['auth'])->group(function () {
         Route::put('packages/{package}', [PackageController::class, 'update'])->name('packages.update');
         Route::delete('packages/{package}', [PackageController::class, 'destroy'])->name('packages.destroy');
 
+        Route::get('rentals', [RentalController::class, 'index'])->name('rentals.index');
+        Route::get('rentals/{rental}', [RentalController::class, 'show'])->name('rentals.show');
+        Route::get('rentals/{rental}/payment-proof', [RentalController::class, 'paymentProof'])->name('rentals.payment-proof');
         Route::post('rentals/{rental}/confirm-payment', [RentalController::class, 'confirmPayment'])->name('rentals.confirm-payment');
         Route::post('rentals/{rental}/reject-payment', [RentalController::class, 'rejectPayment'])->name('rentals.reject-payment');
         Route::post('rentals/{rental}/confirm-return', [RentalController::class, 'confirmReturn'])->name('rentals.confirm-return');
+        Route::post('rentals/{rental}/cancel', [RentalController::class, 'cancel'])->name('rentals.cancel');
     });
 });
 

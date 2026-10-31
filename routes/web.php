@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\RentalCalendarController;
 use App\Http\Controllers\Admin\RentalController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogDetailController;
@@ -77,6 +78,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
         Route::post('maintenances', [MaintenanceController::class, 'store'])->name('maintenances.store');
         Route::post('maintenances/{maintenance}/mark-ready', [MaintenanceController::class, 'markReady'])->name('maintenances.mark-ready');
+
+        Route::get('calendar', [RentalCalendarController::class, 'index'])->name('calendar.index');
     });
 });
 

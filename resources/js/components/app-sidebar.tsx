@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     Boxes,
+    CalendarDays,
     House,
     FolderTree,
     LayoutGrid,
@@ -52,6 +53,11 @@ const transactionNavItems: NavItem[] = [
         title: 'Return & Maintenance',
         href: maintenancesIndex(),
         icon: Wrench,
+    },
+    {
+        title: 'Kalender Rental',
+        href: '/admin/calendar',
+        icon: CalendarDays,
     },
 ];
 

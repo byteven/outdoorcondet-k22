@@ -30,14 +30,17 @@ class CreateNewUser implements CreatesNewUsers
             ...$this->profileRules(),
             'phone_number' => ['required', 'string', 'regex:/^[0-9]+$/', 'min:9', 'max:20'],
             'password' => $this->passwordRules(),
-            'emergency_contact' => ['nullable', 'string', 'max:255'],
-            'social_media' => ['nullable', 'string', 'max:255'],
-            'address' => ['nullable', 'string', 'max:2000'],
+            'emergency_contact' => ['required', 'string', 'max:255'],
+            'social_media' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:2000'],
             'terms' => ['required', 'accepted'],
         ], [
             'phone_number.required' => 'Nomor telepon wajib diisi.',
             'phone_number.regex' => 'Nomor telepon hanya boleh berisi angka.',
             'phone_number.min' => 'Nomor telepon minimal 9 digit.',
+            'emergency_contact.required' => 'Kontak darurat wajib diisi.',
+            'social_media.required' => 'Sosial media wajib diisi.',
+            'address.required' => 'Alamat wajib diisi.',
             'terms.required' => 'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
             'terms.accepted' => 'Anda wajib menyetujui Kebijakan dan Privasi sebelum mendaftar.',
         ])->validate();
@@ -52,9 +55,9 @@ class CreateNewUser implements CreatesNewUsers
 
             $user->customer()->create([
                 'phone_number' => $input['phone_number'],
-                'emergency_contact' => $input['emergency_contact'] ?? null,
-                'social_media' => $input['social_media'] ?? null,
-                'address' => $input['address'] ?? null,
+                'emergency_contact' => $input['emergency_contact'],
+                'social_media' => $input['social_media'],
+                'address' => $input['address'],
             ]);
 
             return $user;

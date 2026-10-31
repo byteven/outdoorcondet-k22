@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, ShoppingCartIcon, UserRoundIcon, ReceiptTextIcon } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -9,6 +9,8 @@ import {
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { logout } from '@/routes';
+import { index as cartIndex } from '@/routes/cart';
+import { index as ordersIndex } from '@/routes/checkout';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -43,8 +45,30 @@ export function UserMenuContent({ user }: Props) {
                                 prefetch
                                 onClick={cleanup}
                             >
-                                <Settings className="mr-2" />
-                                Pengaturan
+                                <UserRoundIcon className="mr-2 size-4" />
+                                Profil
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link
+                                className="block w-full cursor-pointer"
+                                href={cartIndex.url()}
+                                prefetch
+                                onClick={cleanup}
+                            >
+                                <ShoppingCartIcon className="mr-2 size-4" />
+                                Keranjang
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link
+                                className="block w-full cursor-pointer"
+                                href={ordersIndex.url()}
+                                prefetch
+                                onClick={cleanup}
+                            >
+                                <ReceiptTextIcon className="mr-2 size-4" />
+                                Riwayat Pesanan
                             </Link>
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
@@ -66,3 +90,4 @@ export function UserMenuContent({ user }: Props) {
         </>
     );
 }
+

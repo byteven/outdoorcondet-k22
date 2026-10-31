@@ -13,6 +13,9 @@ void createInertiaApp({
         switch (true) {
             case name === 'landing':
             case name === 'products/show':
+            case name === 'cart/index':
+            case name === 'checkout/show':
+            case name === 'checkout/index':
             case name.startsWith('legal/'):
                 return null;
             case name.startsWith('auth/'):

@@ -13,8 +13,12 @@ type DetailAccordionProps = {
     items?: {
         name: string;
         quantity: number;
+<<<<<<< HEAD
         allow_variant_selection?: boolean;
         variant_name?: string | null;
+=======
+        variant_values: { attribute: string | null; value: string }[];
+>>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
     }[];
     className?: string;
 };
@@ -70,7 +74,7 @@ function Accordion({ sections }: { sections: AccordionSection[] }) {
                         setOpenKey(open ? section.key : null)
                     }
                 >
-                    <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-4 text-left text-sm font-semibold transition-colors hover:text-primary">
+                    <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-4 text-left text-lg font-semibold transition-colors hover:text-primary">
                         {section.title}
                         <ChevronDownIcon
                             className={cn(
@@ -104,17 +108,22 @@ function PackageItemsContent({
     items: {
         name: string;
         quantity: number;
+<<<<<<< HEAD
         allow_variant_selection?: boolean;
         variant_name?: string | null;
+=======
+        variant_values: { attribute: string | null; value: string }[];
+>>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
     }[];
 }) {
     return (
         <ul className="flex flex-col gap-2">
             {items.map((item, index) => (
-                <li key={item.name + index} className="flex items-start gap-2">
-                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary/60" />
+                <li key={item.name + index} className="flex items-center gap-2">
+                    <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
                     <span>
                         {item.name}
+<<<<<<< HEAD
                         {item.allow_variant_selection ? (
                             <span className="text-xs"> (varian bebas)</span>
                         ) : item.variant_name ? (
@@ -124,6 +133,15 @@ function PackageItemsContent({
                             </span>
                         ) : null}
                         <span className="font-medium text-primary">
+=======
+                        {item.variant_values.length > 0 && (
+                            <span className="font-medium text-muted-foreground">
+                                {' '}
+                                ({variantValuesLabel(item.variant_values)})
+                            </span>
+                        )}
+                        <span className="font-medium text-muted-foreground">
+>>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
                             {' '}
                             × {item.quantity}
                         </span>
@@ -132,4 +150,17 @@ function PackageItemsContent({
             ))}
         </ul>
     );
+}
+
+function variantValuesLabel(
+    values: { attribute: string | null; value: string }[],
+): string {
+    return values
+        .map((value) => {
+            const attribute = value.attribute
+                ? `${value.attribute}: `
+                : '';
+            return `${attribute}${value.value}`;
+        })
+        .join(' / ');
 }

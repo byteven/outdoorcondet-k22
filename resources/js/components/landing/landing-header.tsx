@@ -1,7 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { MenuIcon, ShoppingCartIcon, UserRoundIcon } from 'lucide-react';
-import { useCartCount } from '@/hooks/use-cart-count';
+import { MenuIcon, ReceiptText, ShoppingCartIcon, UserRoundIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +21,8 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { login, register } from '@/routes';
 import { dashboard } from '@/routes/admin';
+import { index as cartIndex } from '@/routes/cart';
+import { index as checkoutIndex } from '@/routes/checkout';
 import { edit as editProfile } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -45,7 +46,9 @@ export function LandingHeader() {
         <header
             className={cn(
                 'fixed inset-x-0 top-0 z-40 transition-colors duration-300',
-                scrolled ? 'bg-background' : 'bg-transparent',
+                scrolled
+                    ? 'bg-background border-b border-border'
+                    : 'bg-transparent',
             )}
         >
             <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-6 px-4 md:px-6">
@@ -87,25 +90,29 @@ function UserActions({ user }: { user: User }) {
 }
 
 function CartButton() {
-    const count = useCartCount();
+    const { cart } = usePage().props;
+    const count = (cart as { count?: number } | null)?.count ?? 0;
 
     return (
         <Button
+            asChild
             variant="ghost"
             size="icon"
             className="relative size-10 rounded-full"
             aria-label="Keranjang"
             title="Keranjang"
         >
-            <ShoppingCartIcon className="size-5" />
-            {count > 0 && (
-                <span
-                    className="absolute -top-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white"
-                    aria-label={`${count} item di keranjang`}
-                >
-                    {count > 9 ? '9+' : count}
-                </span>
-            )}
+            <Link href={cartIndex.url()}>
+                <ShoppingCartIcon className="size-5" />
+                {count > 0 && (
+                    <span
+                        className="absolute -top-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white"
+                        aria-label={`${count} item di keranjang`}
+                    >
+                        {count > 9 ? '9+' : count}
+                    </span>
+                )}
+            </Link>
         </Button>
     );
 }
@@ -158,6 +165,28 @@ function MobileNavSheet() {
                     aria-label="Navigasi seluler"
                     className="flex flex-col gap-1 px-4"
                 >
+                    <SheetClose asChild>
+                        <Link
+                            href={cartIndex.url()}
+                            prefetch
+                            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                        >
+                            <ShoppingCartIcon className="size-5 shrink-0" />
+                            Keranjang
+                        </Link>
+                    </SheetClose>
+
+                    <SheetClose asChild>
+                        <Link
+                            href={checkoutIndex.url()}
+                            prefetch
+                            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                        >
+                            <ReceiptText className="size-5 shrink-0" />
+                            Riwayat Pesanan
+                        </Link>
+                    </SheetClose>
+
                     <SheetClose asChild>
                         <Link
                             href={editProfile()}

@@ -57,9 +57,9 @@ class StoreCustomerRequest extends FormRequest
             ],
             'password' => ['required', 'string', 'min:8', 'max:100'],
             'phone_number' => ['required', 'string', 'regex:/^[0-9]+$/', 'min:9', 'max:20'],
-            'emergency_contact' => ['nullable', 'string', 'max:255'],
-            'social_media' => ['nullable', 'string', 'max:255'],
-            'address' => ['nullable', 'string', 'max:2000'],
+            'emergency_contact' => ['required', 'string', 'max:255'],
+            'social_media' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:2000'],
         ];
     }
 
@@ -80,6 +80,9 @@ class StoreCustomerRequest extends FormRequest
             'phone_number.required' => 'Nomor telepon wajib diisi.',
             'phone_number.regex' => 'Nomor telepon hanya boleh berisi angka.',
             'phone_number.min' => 'Nomor telepon minimal 9 digit.',
+            'emergency_contact.required' => 'Kontak darurat wajib diisi.',
+            'social_media.required' => 'Sosial media wajib diisi.',
+            'address.required' => 'Alamat wajib diisi.',
         ];
     }
 }

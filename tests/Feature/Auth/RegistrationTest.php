@@ -20,6 +20,9 @@ test('new users can register', function () {
         'phone_number' => '+6281234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'emergency_contact' => '6281234567890 (Orang Tua)',
+        'address' => 'Jl. Condet Raya No. 22',
+        'social_media' => 'https://instagram.com/testuser',
         'terms' => true,
     ]);
 
@@ -47,6 +50,9 @@ test('new customers are redirected away from the admin dashboard', function () {
         'phone_number' => '+6281234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'emergency_contact' => '6281234567890 (Orang Tua)',
+        'address' => 'Jl. Condet Raya No. 22',
+        'social_media' => 'https://instagram.com/testuser',
         'terms' => true,
     ]);
 
@@ -62,6 +68,9 @@ test('new registration creates an active and verified customer profile', functio
         'phone_number' => '081234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'emergency_contact' => '6281234567890 (Orang Tua)',
+        'address' => 'Jl. Condet Raya No. 22',
+        'social_media' => 'https://instagram.com/udinsaputra',
         'terms' => true,
     ]);
 
@@ -72,7 +81,32 @@ test('new registration creates an active and verified customer profile', functio
         ->and($customer->is_active)->toBeTrue();
 });
 
-test('new users can register with optional profile data', function () {
+test('new users cannot register without required supporting profile data', function (string $field, string $message) {
+    $payload = [
+        'name' => 'Test User',
+        'email' => 'test@example.com',
+        'phone_number' => '+6281234567890',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'emergency_contact' => '6281234567890 (Orang Tua)',
+        'address' => 'Jl. Condet Raya No. 22',
+        'social_media' => 'https://instagram.com/testuser',
+        'terms' => true,
+    ];
+
+    unset($payload[$field]);
+
+    $response = $this->post(route('register.store'), $payload);
+
+    $response->assertSessionHasErrors([$field => $message]);
+    $this->assertGuest();
+})->with([
+    'emergency contact' => ['emergency_contact', 'Kontak darurat wajib diisi.'],
+    'address' => ['address', 'Alamat wajib diisi.'],
+    'social media' => ['social_media', 'Sosial media wajib diisi.'],
+]);
+
+test('new users can register with supporting profile data', function () {
     $response = $this->post(route('register.store'), [
         'name' => 'Udin Saputra',
         'email' => 'udin@example.com',

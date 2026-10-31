@@ -3,6 +3,9 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use App\Models\CartItem;
+use App\Models\User;
+use App\UserRole;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -41,7 +44,26 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'cart' => $this->sharedCart($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * Jumlah item di keranjang untuk badge header; hanya untuk customer.
+     *
+     * @return array{count: int}|null
+     */
+    private function sharedCart(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== UserRole::Customer) {
+            return null;
+        }
+
+        return [
+            'count' => CartItem::query()->where('user_id', $user->id)->count(),
         ];
     }
 }

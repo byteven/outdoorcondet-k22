@@ -45,7 +45,7 @@ const defaultVariant = {
     deposit_per_unit: 0,
     weight_grams: 0,
     is_active: true,
-    values: [],
+    values: [{ attribute_id: 0, value: '' }],
     duration_prices: [],
 };
 
@@ -81,7 +81,7 @@ export function ProductFormDialog({
             slug: '',
             description: '',
             is_active: true,
-            variants: [{ ...defaultVariant, values: [] }],
+            variants: [{ ...defaultVariant, values: [{ attribute_id: 0, value: '' }] }],
         },
     });
 
@@ -335,9 +335,9 @@ export function ProductFormDialog({
                                     placeholder={
                                         watchedName
                                             ? watchedName
-                                                  .toLowerCase()
-                                                  .replace(/[^\w ]+/g, '')
-                                                  .replace(/ +/g, '-')
+                                                .toLowerCase()
+                                                .replace(/[^\w ]+/g, '')
+                                                .replace(/ +/g, '-')
                                             : 'otomatis dari nama'
                                     }
                                     disabled={processing}
@@ -441,7 +441,7 @@ export function ProductFormDialog({
                                                     errors.variants?.[i]?.sku
                                                         ?.message ??
                                                     serverErrors[
-                                                        `variants.${i}.sku`
+                                                    `variants.${i}.sku`
                                                     ]
                                                 }
                                             />
@@ -470,7 +470,7 @@ export function ProductFormDialog({
                                                     errors.variants?.[i]?.stock
                                                         ?.message ??
                                                     serverErrors[
-                                                        `variants.${i}.stock`
+                                                    `variants.${i}.stock`
                                                     ]
                                                 }
                                             />
@@ -501,7 +501,7 @@ export function ProductFormDialog({
                                                         ?.rental_price_per_day
                                                         ?.message ??
                                                     serverErrors[
-                                                        `variants.${i}.rental_price_per_day`
+                                                    `variants.${i}.rental_price_per_day`
                                                     ]
                                                 }
                                             />
@@ -530,7 +530,7 @@ export function ProductFormDialog({
                                                         ?.deposit_per_unit
                                                         ?.message ??
                                                     serverErrors[
-                                                        `variants.${i}.deposit_per_unit`
+                                                    `variants.${i}.deposit_per_unit`
                                                     ]
                                                 }
                                             />
@@ -568,6 +568,7 @@ export function ProductFormDialog({
                                         processing={processing}
                                         errors={errors}
                                         serverErrors={serverErrors}
+<<<<<<< HEAD
                                     />
                                     <InputError
                                         message={
@@ -577,6 +578,8 @@ export function ProductFormDialog({
                                                 ?.message ??
                                             serverErrors[`variants.${i}.values`]
                                         }
+=======
+>>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
                                     />
                                     <VariantDurationPricesInput
                                         control={control}
@@ -600,7 +603,7 @@ export function ProductFormDialog({
                                     onClick={() =>
                                         appendVariant({
                                             ...defaultVariant,
-                                            values: [],
+                                            values: [{ attribute_id: 0, value: '' }],
                                         })
                                     }
                                     disabled={variantFields.length >= 20}
@@ -772,6 +775,9 @@ function VariantValuesInput({
     variantIndex: number;
     attributes: AttributeOption[];
     processing: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    errors: any;
+    serverErrors: Record<string, string>;
 }) {
     const { fields, append, remove } = useFieldArray({
         control,
@@ -782,31 +788,71 @@ function VariantValuesInput({
         <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3">
             <p className="text-xs font-medium text-muted-foreground">
                 Atribut varian{' '}
+                <span className="text-destructive">*</span>{' '}
                 <span className="font-normal">(contoh: Warna = Merah)</span>
             </p>
             {fields.map((field, j) => (
-                <div
-                    key={field.id}
-                    className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
-                >
-                    <div className="grid gap-1">
-                        <Label className="text-xs">Atribut</Label>
-                        <Select
-                            defaultValue={String(
-                                (field as unknown as { attribute_id?: number })
-                                    .attribute_id ?? '',
-                            )}
-                            onValueChange={(v) =>
-                                setValue(
-                                    `variants.${variantIndex}.values.${j}.attribute_id`,
-                                    Number(v),
-                                    {
-                                        shouldDirty: true,
-                                        shouldValidate: true,
-                                    },
-                                )
+                <div key={field.id} className="flex flex-col gap-2">
+                    <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                        <div className="grid gap-1">
+                            <Label className="text-xs">Atribut</Label>
+                            <Select
+                                defaultValue={String(
+                                    (
+                                        field as unknown as {
+                                            attribute_id?: number;
+                                        }
+                                    ).attribute_id ?? '',
+                                )}
+                                onValueChange={(v) =>
+                                    setValue(
+                                        `variants.${variantIndex}.values.${j}.attribute_id`,
+                                        Number(v),
+                                        {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                        },
+                                    )
+                                }
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Pilih" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {attributes.map((a) => (
+                                        <SelectItem
+                                            key={a.id}
+                                            value={String(a.id)}
+                                        >
+                                            {a.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-1">
+                            <Label className="text-xs">Nilai</Label>
+                            <Input
+                                placeholder="Merah, XL, 4 Orang..."
+                                disabled={processing}
+                                {...register(
+                                    `variants.${variantIndex}.values.${j}.value`,
+                                )}
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => remove(j)}
+                            disabled={fields.length <= 1}
+                            title={
+                                fields.length <= 1
+                                    ? 'Minimal satu atribut wajib diisi'
+                                    : 'Hapus atribut'
                             }
                         >
+<<<<<<< HEAD
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Pilih" />
                             </SelectTrigger>
@@ -855,8 +901,33 @@ function VariantValuesInput({
                     >
                         <Trash2 />
                     </Button>
+=======
+                            <Trash2 />
+                        </Button>
+                    </div>
+                    <InputError
+                        message={
+                            errors.variants?.[variantIndex]?.values?.[j]
+                                ?.attribute_id?.message ??
+                            errors.variants?.[variantIndex]?.values?.[j]?.value
+                                ?.message ??
+                            serverErrors[
+                            `variants.${variantIndex}.values.${j}.attribute_id`
+                            ] ??
+                            serverErrors[
+                            `variants.${variantIndex}.values.${j}.value`
+                            ]
+                        }
+                    />
+>>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
                 </div>
             ))}
+            <InputError
+                message={
+                    errors.variants?.[variantIndex]?.values?.message ??
+                    serverErrors[`variants.${variantIndex}.values`]
+                }
+            />
             {attributes.length > 0 && (
                 <div>
                     <Button

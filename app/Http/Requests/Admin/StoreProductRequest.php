@@ -87,10 +87,15 @@ class StoreProductRequest extends FormRequest
             'variants.*.sku.unique' => 'SKU sudah digunakan oleh varian lain.',
             'variants.*.stock.required' => 'Stok varian wajib diisi.',
             'variants.*.rental_price_per_day.required' => 'Harga sewa per hari wajib diisi.',
+<<<<<<< HEAD
             'variants.*.rental_price_per_day.gt' => 'Harga sewa per hari harus lebih dari 0.',
             'variants.*.duration_prices.*.price.gt' => 'Harga durasi harus lebih dari 0.',
             'variants.*.values.required' => 'Minimal satu atribut varian wajib diisi.',
             'variants.*.values.min' => 'Minimal satu atribut varian wajib diisi.',
+=======
+            'variants.*.values.required' => 'Atribut varian wajib diisi.',
+            'variants.*.values.min' => 'Minimal satu atribut wajib diisi untuk setiap varian.',
+>>>>>>> 62c2893ec47ee6d448e891f1b7db605839632f48
             'variants.*.values.*.attribute_id.exists' => 'Atribut tidak ditemukan.',
             'variants.*.values.*.value.required' => 'Nilai atribut wajib diisi.',
         ];

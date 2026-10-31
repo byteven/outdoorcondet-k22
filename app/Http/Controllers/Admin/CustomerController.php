@@ -112,9 +112,9 @@ class CustomerController extends Controller
 
                     $existingCustomer->update([
                         'phone_number' => $validated['phone_number'],
-                        'emergency_contact' => $validated['emergency_contact'] ?? null,
-                        'social_media' => $validated['social_media'] ?? null,
-                        'address' => $validated['address'] ?? null,
+                        'emergency_contact' => $validated['emergency_contact'],
+                        'social_media' => $validated['social_media'],
+                        'address' => $validated['address'],
                         'is_active' => true,
                     ]);
 
@@ -125,9 +125,9 @@ class CustomerController extends Controller
 
                 $existingUser->customer()->create([
                     'phone_number' => $validated['phone_number'],
-                    'emergency_contact' => $validated['emergency_contact'] ?? null,
-                    'social_media' => $validated['social_media'] ?? null,
-                    'address' => $validated['address'] ?? null,
+                    'emergency_contact' => $validated['emergency_contact'],
+                    'social_media' => $validated['social_media'],
+                    'address' => $validated['address'],
                 ]);
 
                 $restored = true;
@@ -144,9 +144,9 @@ class CustomerController extends Controller
 
             $user->customer()->create([
                 'phone_number' => $validated['phone_number'],
-                'emergency_contact' => $validated['emergency_contact'] ?? null,
-                'social_media' => $validated['social_media'] ?? null,
-                'address' => $validated['address'] ?? null,
+                'emergency_contact' => $validated['emergency_contact'],
+                'social_media' => $validated['social_media'],
+                'address' => $validated['address'],
             ]);
         });
 

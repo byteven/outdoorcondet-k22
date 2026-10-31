@@ -5,12 +5,10 @@ namespace Database\Seeders;
 use App\Models\Attribute;
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\Gear;
 use App\Models\User;
 use App\UserRole;
 use Database\Factories\AttributeFactory;
 use Database\Factories\CategoryFactory;
-use Database\Factories\GearFactory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -44,16 +42,27 @@ class DatabaseSeeder extends Seeder
             'role' => UserRole::Admin,
         ]);
 
+        // Akun customer milik pemilik (Vio Salman)
+        $vio = User::factory()->create([
+            'name' => 'Vio Salman',
+            'email' => 'vio@gmail.com',
+            'password' => 'Password123321@',
+            'role' => UserRole::Customer,
+        ]);
+
+        Customer::factory()->create([
+            'user_id' => $vio->id,
+            'phone_number' => '088225842413',
+            'emergency_contact' => '6288225842413 (Orang Tua)',
+            'social_media' => 'https://instagram.com/viosalman',
+            'address' => 'Jl. Condet Raya No. 22, Jakarta Timur',
+            'is_verified' => true,
+            'is_active' => true,
+        ]);
+
         Customer::factory()->count(18)->create();
         Customer::factory()->count(5)->verified()->create();
         Customer::factory()->count(2)->inactive()->create();
-
-        foreach (GearFactory::NAMES as $name) {
-            Gear::factory()->create([
-                'name' => $name,
-                'slug' => Str::slug($name),
-            ]);
-        }
 
         foreach (CategoryFactory::CATEGORY_NAMES as $categoryName) {
             Category::firstOrCreate(

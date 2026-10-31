@@ -32,6 +32,19 @@ export type RentalItemDetail = {
     deposit_per_unit: number;
     deposit_subtotal: number;
     price_breakdown?: Record<string, unknown> | null;
+    return_condition?: 'good' | 'damaged' | 'lost' | null;
+    needs_maintenance?: boolean;
+    rentable_type?: string;
+    rentable_id?: number;
+    maintenances?: Array<{
+        id: number;
+        quantity: number;
+        reason: 'cleaning' | 'repair' | 'inspection';
+        status: 'in_maintenance' | 'ready';
+        notes: string | null;
+        completed_at: string | null;
+        created_at: string;
+    }>;
 };
 
 export type RentalRow = {
@@ -65,6 +78,41 @@ export type RentalRow = {
     proof_url: string | null;
     customer?: RentalCustomer;
     payments?: RentalPayment[];
+    items?: RentalItemDetail[];
+};
+
+export type MaintenanceRow = {
+    id: number;
+    product_variant_id: number;
+    rental_item_id: number | null;
+    quantity: number;
+    reason: 'cleaning' | 'repair' | 'inspection';
+    status: 'in_maintenance' | 'ready';
+    notes: string | null;
+    completed_at: string | null;
+    created_at: string;
+    product_name: string;
+    sku: string;
+    attributes_summary: string;
+    image_url: string | null;
+    rental_code: string | null;
+    customer_name: string;
+};
+
+export type MaintenanceSummary = {
+    total_in_maintenance: number;
+    cleaning: number;
+    repair: number;
+    inspection: number;
+    ready_total: number;
+};
+
+export type VariantOption = {
+    id: number;
+    sku: string;
+    product_name: string;
+    label: string;
+    stock: number;
 };
 
 export type RentalDetail = RentalRow & {

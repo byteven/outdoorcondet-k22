@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\RentalController;
@@ -72,6 +73,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('rentals/{rental}/reject-payment', [RentalController::class, 'rejectPayment'])->name('rentals.reject-payment');
         Route::post('rentals/{rental}/confirm-return', [RentalController::class, 'confirmReturn'])->name('rentals.confirm-return');
         Route::post('rentals/{rental}/cancel', [RentalController::class, 'cancel'])->name('rentals.cancel');
+
+        Route::get('maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
+        Route::post('maintenances', [MaintenanceController::class, 'store'])->name('maintenances.store');
+        Route::post('maintenances/{maintenance}/mark-ready', [MaintenanceController::class, 'markReady'])->name('maintenances.mark-ready');
     });
 });
 

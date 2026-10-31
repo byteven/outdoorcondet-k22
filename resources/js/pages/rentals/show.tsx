@@ -14,6 +14,7 @@ import {
     Package,
     ReceiptText,
     User,
+    Wrench,
     X,
     XCircle,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { index as maintenancesIndex } from '@/routes/admin/maintenances';
 import { index as rentalsIndex } from '@/routes/admin/rentals';
 
 type Props = {
@@ -109,10 +111,10 @@ export default function RentalShow({ rental }: Props) {
                 </div>
 
                 {/* Top Header Card */}
-                <div className="flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-xs md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-1.5">
                         <div className="flex flex-wrap items-center gap-2.5">
-                            <h1 className="font-mono text-2xl font-bold tracking-tight text-primary">
+                            <h1 className="text-2xl font-bold tracking-tight text-primary">
                                 {rental.rental_code}
                             </h1>
                             <Button
@@ -164,7 +166,7 @@ export default function RentalShow({ rental }: Props) {
                             <>
                                 <Button
                                     size="sm"
-                                    className="gap-1.5 bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
+                                    className="gap-1.5"
                                     onClick={() => setShowConfirmPayment(true)}
                                 >
                                     <CheckCircle2 className="size-4" />
@@ -185,7 +187,7 @@ export default function RentalShow({ rental }: Props) {
                         {canConfirmReturn && (
                             <Button
                                 size="sm"
-                                className="gap-1.5 shadow-xs"
+                                className="gap-1.5"
                                 onClick={() => setShowConfirmReturn(true)}
                             >
                                 <Clock className="size-4" />
@@ -250,7 +252,7 @@ export default function RentalShow({ rental }: Props) {
                 {rental.status === 'cancelled' && (
                     <Alert
                         variant="destructive"
-                        className="border-destructive/30 bg-destructive/5"
+                        className="border-0 bg-destructive/10 text-destructive"
                     >
                         <XCircle className="size-4" />
                         <AlertTitle className="font-semibold">
@@ -269,8 +271,8 @@ export default function RentalShow({ rental }: Props) {
                 )}
 
                 {rental.status === 'returned' && (
-                    <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-                        <CheckCircle2 className="size-4 text-emerald-600" />
+                    <Alert className="border-0 bg-success-muted text-success">
+                        <CheckCircle2 className="size-4" />
                         <AlertTitle className="font-semibold">
                             Rental Telah Selesai & Dikembalikan
                         </AlertTitle>
@@ -305,7 +307,7 @@ export default function RentalShow({ rental }: Props) {
                                     </div>
                                     <Badge
                                         variant="secondary"
-                                        className="font-mono text-xs"
+                                        className="text-xs"
                                     >
                                         Durasi: {rental.total_days} Hari
                                     </Badge>
@@ -364,6 +366,49 @@ export default function RentalShow({ rental }: Props) {
                                                                     /durasi
                                                                 </span>
                                                             </div>
+                                                            {item.return_condition && (
+                                                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                                    {item.return_condition === 'good' && (
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="h-4 border-transparent bg-success-muted px-1.5 py-0 text-[10px] font-semibold text-success"
+                                                                        >
+                                                                            Kondisi: Baik
+                                                                        </Badge>
+                                                                    )}
+                                                                    {item.return_condition === 'damaged' && (
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="h-4 border-transparent bg-warning-muted px-1.5 py-0 text-[10px] font-semibold text-warning"
+                                                                        >
+                                                                            Kondisi: Rusak
+                                                                        </Badge>
+                                                                    )}
+                                                                    {item.return_condition === 'lost' && (
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className="h-4 border-transparent bg-destructive/10 px-1.5 py-0 text-[10px] font-semibold text-destructive"
+                                                                        >
+                                                                            Kondisi: Hilang
+                                                                        </Badge>
+                                                                    )}
+                                                                    {item.needs_maintenance && (
+                                                                        <Link
+                                                                            href={
+                                                                                maintenancesIndex({
+                                                                                    query: {
+                                                                                        search: rental.rental_code,
+                                                                                    },
+                                                                                }).url
+                                                                            }
+                                                                            className="inline-flex items-center gap-1 rounded bg-warning-muted px-1.5 py-0.5 text-[10px] font-medium text-warning hover:underline"
+                                                                        >
+                                                                            <Wrench className="size-2.5" />
+                                                                            <span>Antrean Perawatan</span>
+                                                                        </Link>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -735,7 +780,7 @@ export default function RentalShow({ rental }: Props) {
                                     <span className="text-xs text-muted-foreground">
                                         Email:
                                     </span>
-                                    <p className="font-mono text-xs">
+                                    <p className="text-xs">
                                         {customerUser?.email ?? '-'}
                                     </p>
                                 </div>
@@ -753,7 +798,7 @@ export default function RentalShow({ rental }: Props) {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-7 gap-1 border-emerald-300 px-2 text-xs text-emerald-600 hover:bg-emerald-50"
+                                                className="h-7 gap-1 px-2 text-xs"
                                                 asChild
                                             >
                                                 <a
@@ -796,7 +841,7 @@ export default function RentalShow({ rental }: Props) {
                                         <span className="text-xs text-muted-foreground">
                                             Media Sosial:
                                         </span>
-                                        <p className="font-mono text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                             {rental.customer.social_media}
                                         </p>
                                     </div>

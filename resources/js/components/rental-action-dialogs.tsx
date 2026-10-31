@@ -7,15 +7,20 @@ import {
     ExternalLink,
     FileText,
     Loader2,
+    PackageOpen,
+    Sparkles,
+    Wrench,
     XCircle,
     ZoomIn,
     ZoomOut,
     RotateCcw,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { formatRupiah, type RentalRow } from '@/components/rental-shared';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -24,7 +29,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
     cancel as cancelRoute,
@@ -312,6 +325,15 @@ type ConfirmReturnDialogProps = {
     onSuccess?: () => void;
 };
 
+type InspectionItemState = {
+    condition: 'good' | 'damaged' | 'lost';
+    needs_maintenance: boolean;
+    maintenance_qty: number;
+    maintenance_reason: 'cleaning' | 'repair' | 'inspection';
+    notes: string;
+    lost_qty: number;
+};
+
 export function ConfirmReturnDialog({
     rental,
     open,
@@ -319,6 +341,28 @@ export function ConfirmReturnDialog({
     onSuccess,
 }: ConfirmReturnDialogProps) {
     const [submitting, setSubmitting] = useState(false);
+    const [inspections, setInspections] = useState<
+        Record<number, InspectionItemState>
+    >({});
+
+    const items = rental?.items ?? [];
+
+    useEffect(() => {
+        if (open && items.length > 0) {
+            const initial: Record<number, InspectionItemState> = {};
+            items.forEach((item) => {
+                initial[item.id] = {
+                    condition: 'good',
+                    needs_maintenance: false,
+                    maintenance_qty: 1,
+                    maintenance_reason: 'repair',
+                    notes: '',
+                    lost_qty: 1,
+                };
+            });
+            setInspections(initial);
+        }
+    }, [open, items.length]);
 
     if (!rental) return null;
 
@@ -327,16 +371,60 @@ export function ConfirmReturnDialog({
     const lateFeePerDay = Number(rental.late_fee_per_day) || 50000;
     const estimatedLateFee = isLate ? lateDays * lateFeePerDay : 0;
 
+    const updateItemInspection = (
+        itemId: number,
+        updates: Partial<InspectionItemState>,
+    ) => {
+        setInspections((prev) => {
+            const current = prev[itemId] || {
+                condition: 'good',
+                needs_maintenance: false,
+                maintenance_qty: 1,
+                maintenance_reason: 'repair',
+                notes: '',
+                lost_qty: 1,
+            };
+            return {
+                ...prev,
+                [itemId]: { ...current, ...updates },
+            };
+        });
+    };
+
     const handleConfirm = () => {
         setSubmitting(true);
+
+        const inspectionsPayload = items.map((item) => {
+            const state = inspections[item.id] || {
+                condition: 'good',
+                needs_maintenance: false,
+                maintenance_qty: 1,
+                maintenance_reason: 'repair',
+                notes: '',
+                lost_qty: 1,
+            };
+            return {
+                rental_item_id: item.id,
+                condition: state.condition,
+                needs_maintenance: state.needs_maintenance,
+                maintenance_qty:
+                    state.condition === 'lost'
+                        ? state.lost_qty
+                        : state.maintenance_qty,
+                maintenance_reason: state.maintenance_reason,
+                notes: state.notes.trim() || null,
+                lost_qty: state.lost_qty,
+            };
+        });
+
         router.post(
             confirmReturnRoute({ rental: rental.rental_code }).url,
-            {},
+            { inspections: inspectionsPayload },
             {
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.success(
-                        `Pengembalian rental ${rental.rental_code} berhasil dicatat!`,
+                        `Pengembalian rental ${rental.rental_code} dan hasil inspeksi berhasil dicatat!`,
                     );
                     onOpenChange(false);
                     onSuccess?.();
@@ -353,58 +441,69 @@ export function ConfirmReturnDialog({
         );
     };
 
+    const goodCount = items.filter(
+        (i) => (inspections[i.id]?.condition ?? 'good') === 'good',
+    ).length;
+    const maintenanceCount = items.filter(
+        (i) =>
+            inspections[i.id]?.needs_maintenance &&
+            inspections[i.id]?.condition !== 'lost',
+    ).length;
+    const lostCount = items.filter(
+        (i) => (inspections[i.id]?.condition ?? 'good') === 'lost',
+    ).length;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <div className="flex items-center gap-2 text-primary">
                         <CalendarCheck className="size-5" />
-                        <DialogTitle>
-                            Konfirmasi Pengembalian Barang
-                        </DialogTitle>
+                        <DialogTitle>Konfirmasi Pengembalian & Return Inspector</DialogTitle>
                     </div>
                     <DialogDescription>
-                        Catat bahwa seluruh barang untuk rental{' '}
+                        Catat fisik pengembalian untuk rental{' '}
                         <strong className="text-foreground">
                             {rental.rental_code}
-                        </strong>{' '}
-                        telah dikembalikan ke outlet.
+                        </strong>
+                        . Lakukan pengecekan kondisi barang sebelum stok dilepas.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-3 py-1 text-sm">
+                <div className="space-y-4 py-1 text-sm">
+                    {/* Status Keterlambatan */}
                     {isLate ? (
-                        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
-                            <div className="flex items-center gap-1.5 font-semibold text-amber-800 dark:text-amber-300">
+                        <div className="space-y-2 rounded-lg border-0 bg-warning-muted p-3 text-warning">
+                            <div className="flex items-center gap-1.5 font-semibold">
                                 <Clock className="size-4 shrink-0" />
-                                <span>Terdeteksi Keterlambatan!</span>
+                                <span>Terdeteksi keterlambatan</span>
                             </div>
-                            <div className="space-y-1 text-xs text-amber-900 dark:text-amber-200">
+                            <div className="space-y-1 text-xs">
                                 <div className="flex justify-between">
-                                    <span>Jumlah Hari Terlambat:</span>
+                                    <span>Jumlah hari terlambat:</span>
                                     <span className="font-bold">
-                                        {lateDays} Hari
+                                        {lateDays} hari
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span>Tarif Denda per Hari:</span>
+                                    <span>Tarif denda per hari:</span>
                                     <span>{formatRupiah(lateFeePerDay)}</span>
                                 </div>
-                                <div className="flex justify-between border-t border-amber-200 pt-1 font-semibold text-destructive dark:border-amber-800">
-                                    <span>Total Denda Keterlambatan:</span>
+                                <div className="flex justify-between border-t border-warning/20 pt-1 font-semibold text-destructive">
+                                    <span>Total denda keterlambatan:</span>
                                     <span>
                                         {formatRupiah(estimatedLateFee)}
                                     </span>
                                 </div>
                             </div>
-                            <p className="text-[11px] text-amber-800/80 italic dark:text-amber-300/80">
+                            <p className="text-[11px] italic opacity-90">
                                 * Sesuai aturan bisnis, denda dipotong dari
                                 deposit secara offline di outlet.
                             </p>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
-                            <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                        <div className="flex items-center gap-2 rounded-lg border-0 bg-success-muted p-3 text-xs text-success">
+                            <CheckCircle2 className="size-4 shrink-0" />
                             <span>
                                 Pengembalian tepat waktu. Tidak ada denda
                                 keterlambatan.
@@ -412,14 +511,337 @@ export function ConfirmReturnDialog({
                         </div>
                     )}
 
+                    {/* Section Checklist Return Inspector */}
+                    <div className="space-y-3 rounded-lg border border-border bg-card p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                            <div>
+                                <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                                    <PackageOpen className="size-4 text-primary" />
+                                    <span>Checklist kondisi fisik barang</span>
+                                </h4>
+                                <p className="text-xs text-muted-foreground">
+                                    Tentukan kondisi tiap barang: Baik, Rusak, atau Hilang
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <Badge
+                                    variant="secondary"
+                                    className="border-transparent bg-success-muted text-success"
+                                >
+                                    {goodCount} Baik
+                                </Badge>
+                                {maintenanceCount > 0 && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="border-transparent bg-warning-muted text-warning"
+                                    >
+                                        {maintenanceCount} Perawatan
+                                    </Badge>
+                                )}
+                                {lostCount > 0 && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="border-transparent bg-destructive/10 text-destructive"
+                                    >
+                                        {lostCount} Hilang
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+
+                        {items.length === 0 ? (
+                            <p className="py-2 text-xs italic text-muted-foreground">
+                                Data rincian item rental belum dimuat. Seluruh item akan otomatis ditandai kondisi baik.
+                            </p>
+                        ) : (
+                            <div className="space-y-3 pt-1">
+                                {items.map((item) => {
+                                    const insp = inspections[item.id] || {
+                                        condition: 'good',
+                                        needs_maintenance: false,
+                                        maintenance_qty: 1,
+                                        maintenance_reason: 'repair',
+                                        notes: '',
+                                        lost_qty: 1,
+                                    };
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className="space-y-2.5 rounded-md border border-border bg-muted/20 p-3 transition-colors"
+                                        >
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div className="space-y-0.5">
+                                                    <span className="font-semibold text-foreground">
+                                                        {item.name}
+                                                    </span>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        Total disewa: <span className="font-medium text-foreground">{item.quantity} unit</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Segmented Button Kondisi */}
+                                                <div className="flex items-center gap-1 rounded-md border border-border bg-muted/40 p-0.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            updateItemInspection(item.id, {
+                                                                condition: 'good',
+                                                                needs_maintenance: false,
+                                                            })
+                                                        }
+                                                        className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                                                            insp.condition === 'good'
+                                                                ? 'bg-success-muted font-semibold text-success'
+                                                                : 'text-muted-foreground hover:text-foreground'
+                                                        }`}
+                                                    >
+                                                        Baik
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            updateItemInspection(item.id, {
+                                                                condition: 'damaged',
+                                                                needs_maintenance: true,
+                                                                maintenance_reason: 'repair',
+                                                            })
+                                                        }
+                                                        className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                                                            insp.condition === 'damaged'
+                                                                ? 'bg-warning-muted font-semibold text-warning'
+                                                                : 'text-muted-foreground hover:text-foreground'
+                                                        }`}
+                                                    >
+                                                        Rusak
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            updateItemInspection(item.id, {
+                                                                condition: 'lost',
+                                                                needs_maintenance: false,
+                                                            })
+                                                        }
+                                                        className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                                                            insp.condition === 'lost'
+                                                                ? 'bg-destructive/10 font-semibold text-destructive'
+                                                                : 'text-muted-foreground hover:text-foreground'
+                                                        }`}
+                                                    >
+                                                        Hilang
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Sub-panel: Kondisi BAIK */}
+                                            {insp.condition === 'good' && (
+                                                <div className="rounded border border-dashed border-border p-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            id={`maint-good-${item.id}`}
+                                                            checked={insp.needs_maintenance}
+                                                            onCheckedChange={(checked) =>
+                                                                updateItemInspection(item.id, {
+                                                                    needs_maintenance: Boolean(checked),
+                                                                    maintenance_reason: 'cleaning',
+                                                                })
+                                                            }
+                                                        />
+                                                        <Label
+                                                            htmlFor={`maint-good-${item.id}`}
+                                                            className="cursor-pointer text-xs text-muted-foreground"
+                                                        >
+                                                            Kondisi baik, tetapi perlu pembersihan / servis rutin sebelum siap disewa kembali
+                                                        </Label>
+                                                    </div>
+
+                                                    {insp.needs_maintenance && (
+                                                        <div className="mt-2.5 space-y-2 border-t border-border pt-2">
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <div>
+                                                                    <Label className="text-[11px]">Jumlah Unit</Label>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min={1}
+                                                                        max={item.quantity}
+                                                                        value={insp.maintenance_qty}
+                                                                        onChange={(e) =>
+                                                                            updateItemInspection(item.id, {
+                                                                                maintenance_qty: Math.min(
+                                                                                    item.quantity,
+                                                                                    Math.max(1, parseInt(e.target.value) || 1),
+                                                                                ),
+                                                                            })
+                                                                        }
+                                                                        className="h-8 text-xs"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <Label className="text-[11px]">Alasan Perawatan</Label>
+                                                                    <Select
+                                                                        value={insp.maintenance_reason}
+                                                                        onValueChange={(val: 'cleaning' | 'repair' | 'inspection') =>
+                                                                            updateItemInspection(item.id, {
+                                                                                maintenance_reason: val,
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        <SelectTrigger className="h-8 text-xs">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="cleaning">Pembersihan (Cleaning)</SelectItem>
+                                                                            <SelectItem value="inspection">Inspeksi Rutin</SelectItem>
+                                                                            <SelectItem value="repair">Perbaikan Minor</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <Label className="text-[11px]">Catatan Perawatan</Label>
+                                                                <Textarea
+                                                                    rows={1}
+                                                                    placeholder="Contoh: Perlu dicuci dari lumpur, disemprot desinfektan..."
+                                                                    value={insp.notes}
+                                                                    onChange={(e) =>
+                                                                        updateItemInspection(item.id, {
+                                                                            notes: e.target.value,
+                                                                        })
+                                                                    }
+                                                                    className="min-h-[36px] text-xs"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Sub-panel: Kondisi RUSAK */}
+                                            {insp.condition === 'damaged' && (
+                                                <div className="space-y-2.5 rounded-md border border-border bg-warning-muted/30 p-2.5">
+                                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-warning">
+                                                        <Wrench className="size-3.5" />
+                                                        <span>Wajib masuk antrean perawatan alat</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <Label className="text-[11px]">Jumlah Rusak (Unit)</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={1}
+                                                                max={item.quantity}
+                                                                value={insp.maintenance_qty}
+                                                                onChange={(e) =>
+                                                                    updateItemInspection(item.id, {
+                                                                        maintenance_qty: Math.min(
+                                                                            item.quantity,
+                                                                            Math.max(1, parseInt(e.target.value) || 1),
+                                                                        ),
+                                                                    })
+                                                                }
+                                                                className="h-8 text-xs"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-[11px]">Jenis Penanganan</Label>
+                                                            <Select
+                                                                value={insp.maintenance_reason}
+                                                                onValueChange={(val: 'cleaning' | 'repair' | 'inspection') =>
+                                                                    updateItemInspection(item.id, {
+                                                                        maintenance_reason: val,
+                                                                    })
+                                                                }
+                                                            >
+                                                                <SelectTrigger className="h-8 text-xs">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="repair">Perbaikan</SelectItem>
+                                                                    <SelectItem value="cleaning">Pembersihan</SelectItem>
+                                                                    <SelectItem value="inspection">Inspeksi teknis</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-[11px]">Rincian Kerusakan & Tindakan</Label>
+                                                        <Textarea
+                                                            rows={2}
+                                                            placeholder="Contoh: Resleting macet, pasak bengkok 2 buah, kain robek 5 cm..."
+                                                            value={insp.notes}
+                                                            onChange={(e) =>
+                                                                updateItemInspection(item.id, {
+                                                                    notes: e.target.value,
+                                                                })
+                                                            }
+                                                            className="text-xs"
+                                                        />
+                                                    </div>
+                                                    <p className="text-[11px] text-warning">
+                                                        * Unit rusak akan langsung masuk ke menu <strong>Return & Maintenance</strong> dan stok di-hold sampai ditandai siap.
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Sub-panel: Kondisi HILANG */}
+                                            {insp.condition === 'lost' && (
+                                                <div className="space-y-2.5 rounded-md border border-border bg-destructive/5 p-2.5">
+                                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                                                        <AlertTriangle className="size-3.5" />
+                                                        <span>Pengurangan stok permanen</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <Label className="text-[11px]">Jumlah Hilang (Unit)</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={1}
+                                                                max={item.quantity}
+                                                                value={insp.lost_qty}
+                                                                onChange={(e) =>
+                                                                    updateItemInspection(item.id, {
+                                                                        lost_qty: Math.min(
+                                                                            item.quantity,
+                                                                            Math.max(1, parseInt(e.target.value) || 1),
+                                                                        ),
+                                                                    })
+                                                                }
+                                                                className="h-8 text-xs"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-[11px]">Catatan / Klaim Deposit</Label>
+                                                            <Input
+                                                                placeholder="Potong deposit customer / ganti rugi..."
+                                                                value={insp.notes}
+                                                                onChange={(e) =>
+                                                                    updateItemInspection(item.id, {
+                                                                        notes: e.target.value,
+                                                                    })
+                                                                }
+                                                                className="h-8 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[11px] text-destructive">
+                                                        * Sesuai PRD AD-08, stok master varian akan <strong>dikurangi secara permanen</strong> sebanyak unit yang hilang.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
                     <div className="space-y-1 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
                         <div className="font-medium text-foreground">
-                            Aturan Pelepasan Stok (Buffer):
+                            Aturan Pelepasan Stok:
                         </div>
                         <p>
-                            Stok alat akan di-buffer selama 1 hari penuh untuk
-                            proses pembersihan dan siap disewa kembali jam 00:00
-                            setelahnya (2 hari dari tanggal hari ini).
+                            Unit berkondisi <strong>Baik</strong> akan di-buffer selama 1 hari dan siap disewa kembali jam 00:00 (H+2). Unit <strong>Dalam Perawatan</strong> hanya akan kembali ke stok setelah ditandai siap oleh staf di menu <em>Return & Maintenance</em>.
                         </p>
                     </div>
                 </div>
@@ -441,7 +863,7 @@ export function ConfirmReturnDialog({
                         {submitting && (
                             <Loader2 className="mr-2 size-4 animate-spin" />
                         )}
-                        Konfirmasi Selesai
+                        Simpan & Konfirmasi Pengembalian
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -641,7 +1063,7 @@ export function PaymentProofModal({
                                 >
                                     <ZoomOut className="size-4" />
                                 </Button>
-                                <span className="px-1 font-mono text-xs">
+                                <span className="px-1 text-xs">
                                     {Math.round(zoomLevel * 100)}%
                                 </span>
                                 <Button
@@ -692,7 +1114,7 @@ export function PaymentProofModal({
                             <img
                                 src={proofUrl}
                                 alt={`Bukti pembayaran ${rentalCode}`}
-                                className="max-h-[70vh] max-w-full rounded object-contain shadow-lg select-none"
+                                className="max-h-[70vh] max-w-full rounded object-contain select-none"
                             />
                         </div>
                     ) : (

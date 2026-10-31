@@ -14,6 +14,7 @@ class VariantMaintenance extends Model
         'rental_item_id',
         'quantity',
         'reason',
+        'custom_reason',
         'status',
         'notes',
         'completed_at',

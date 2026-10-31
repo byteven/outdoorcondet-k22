@@ -52,6 +52,7 @@ class RentalController extends Controller
                 'customer:id,user_id,phone_number',
                 'customer.user:id,name,email',
                 'payments',
+                'items:id,rental_id,name,rentable_type,rentable_id,quantity,return_condition,needs_maintenance',
             ])
             ->when(
                 $filters['search'] ?? null,
@@ -142,6 +143,7 @@ class RentalController extends Controller
             'customer.user:id,name,email',
             'customer',
             'items.rentable',
+            'items.maintenances',
             'payments',
         ]);
 
@@ -198,6 +200,17 @@ class RentalController extends Controller
                 'deposit_per_unit' => (float) $item->deposit_per_unit,
                 'deposit_subtotal' => (float) $item->deposit_subtotal,
                 'price_breakdown' => $item->price_breakdown,
+                'return_condition' => $item->return_condition,
+                'needs_maintenance' => (bool) $item->needs_maintenance,
+                'maintenances' => $item->maintenances->map(fn ($m) => [
+                    'id' => $m->id,
+                    'quantity' => $m->quantity,
+                    'reason' => $m->reason,
+                    'status' => $m->status,
+                    'notes' => $m->notes,
+                    'completed_at' => $m->completed_at?->toIso8601String(),
+                    'created_at' => $m->created_at?->toIso8601String(),
+                ]),
             ];
         });
 
@@ -282,12 +295,24 @@ class RentalController extends Controller
 
     /**
      * Catat pengembalian barang: set returned_at, denda keterlambatan,
-     * dan waktu pelepasan stok.
+     * waktu pelepasan stok, dan hasil checklist Return Inspector.
      */
-    public function confirmReturn(Rental $rental): RedirectResponse
+    public function confirmReturn(Request $request, Rental $rental): RedirectResponse
     {
+        $validated = $request->validate([
+            'inspections' => ['nullable', 'array'],
+            'inspections.*.rental_item_id' => ['required_with:inspections', 'integer', 'exists:rental_items,id'],
+            'inspections.*.condition' => ['required_with:inspections', 'in:good,damaged,lost'],
+            'inspections.*.needs_maintenance' => ['nullable', 'boolean'],
+            'inspections.*.maintenance_qty' => ['nullable', 'integer', 'min:1'],
+            'inspections.*.maintenance_reason' => ['nullable', 'in:cleaning,repair,inspection'],
+            'inspections.*.notes' => ['nullable', 'string', 'max:1000'],
+            'inspections.*.lost_qty' => ['nullable', 'integer', 'min:1'],
+            'inspections.*.product_variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
+        ]);
+
         try {
-            $this->workflow->confirmReturn($rental);
+            $this->workflow->confirmReturn($rental, $validated['inspections'] ?? []);
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }

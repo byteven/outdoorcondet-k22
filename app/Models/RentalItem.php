@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class RentalItem extends Model
@@ -41,5 +42,10 @@ class RentalItem extends Model
     public function rentable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function maintenances(): HasMany
+    {
+        return $this->hasMany(VariantMaintenance::class);
     }
 }

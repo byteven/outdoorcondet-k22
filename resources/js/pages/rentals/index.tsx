@@ -227,7 +227,7 @@ export default function RentalsIndex({ rentals, summary, filters }: Props) {
                 <SummaryCards items={summaryItems} />
 
                 {/* Filter and Search Bar */}
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-xs">
+                <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         {/* Search Input */}
                         <SearchInput
@@ -433,7 +433,7 @@ export default function RentalsIndex({ rentals, summary, filters }: Props) {
                                                 {/* Kode & Waktu Order */}
                                                 <TableCell className="font-medium">
                                                     <div className="flex flex-col">
-                                                        <span className="font-mono text-xs font-semibold text-primary">
+                                                        <span className="text-xs font-semibold text-primary">
                                                             {rental.rental_code}
                                                         </span>
                                                         <span className="text-[11px] text-muted-foreground">

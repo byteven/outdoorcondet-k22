@@ -67,4 +67,12 @@ class ProductVariant extends Model
     {
         return $this->hasMany(VariantDurationPrice::class);
     }
+
+    /**
+     * @return HasMany<VariantMaintenance, $this>
+     */
+    public function maintenances(): HasMany
+    {
+        return $this->hasMany(VariantMaintenance::class);
+    }
 }

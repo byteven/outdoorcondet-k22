@@ -78,6 +78,9 @@ test('an inactive email can be reused and restores the account', function () {
             'email' => $email,
             'password' => 'Baru12345',
             'phone_number' => '0812999888777',
+            'emergency_contact' => '6281234567890 (Orang Tua)',
+            'social_media' => 'https://instagram.com/udinsaputra',
+            'address' => 'Jl. Condet Raya No. 1',
         ])
         ->assertRedirect();
 

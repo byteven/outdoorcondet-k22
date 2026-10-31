@@ -3,7 +3,12 @@
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\MaintenanceController;
+use App\Http\Controllers\Admin\PackageController;
+use App\Http\Controllers\Admin\PosController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\RentalCalendarController;
 use App\Http\Controllers\Admin\RentalController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogDetailController;
@@ -37,7 +42,7 @@ Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/admin/dashboard');
 
     Route::prefix('admin')->name('admin.')->middleware('can:access-admin')->group(function () {
-        Route::inertia('dashboard', 'dashboard')->name('dashboard');
+        Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
         Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
@@ -59,9 +64,29 @@ Route::middleware(['auth'])->group(function () {
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
+        Route::get('packages', [PackageController::class, 'index'])->name('packages.index');
+        Route::post('packages', [PackageController::class, 'store'])->name('packages.store');
+        Route::put('packages/{package}', [PackageController::class, 'update'])->name('packages.update');
+        Route::delete('packages/{package}', [PackageController::class, 'destroy'])->name('packages.destroy');
+
+        Route::get('rentals', [RentalController::class, 'index'])->name('rentals.index');
+        Route::get('rentals/{rental}', [RentalController::class, 'show'])->name('rentals.show');
+        Route::get('rentals/{rental}/payment-proof', [RentalController::class, 'paymentProof'])->name('rentals.payment-proof');
         Route::post('rentals/{rental}/confirm-payment', [RentalController::class, 'confirmPayment'])->name('rentals.confirm-payment');
         Route::post('rentals/{rental}/reject-payment', [RentalController::class, 'rejectPayment'])->name('rentals.reject-payment');
         Route::post('rentals/{rental}/confirm-return', [RentalController::class, 'confirmReturn'])->name('rentals.confirm-return');
+        Route::post('rentals/{rental}/cancel', [RentalController::class, 'cancel'])->name('rentals.cancel');
+
+        Route::get('maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
+        Route::post('maintenances', [MaintenanceController::class, 'store'])->name('maintenances.store');
+        Route::post('maintenances/{maintenance}/mark-ready', [MaintenanceController::class, 'markReady'])->name('maintenances.mark-ready');
+
+        Route::get('calendar', [RentalCalendarController::class, 'index'])->name('calendar.index');
+
+        Route::get('pos', [PosController::class, 'index'])->name('pos.index');
+        Route::post('pos/availability', [PosController::class, 'checkAvailability'])->name('pos.availability');
+        Route::post('pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
+        Route::post('pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
     });
 });
 

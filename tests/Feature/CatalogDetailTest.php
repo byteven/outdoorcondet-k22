@@ -132,6 +132,7 @@ test('package detail page renders the package payload', function () {
     ]);
 
     $package->items()->create([
+        'product_id' => $variant->product_id,
         'product_variant_id' => $variant->id,
         'quantity' => 2,
     ]);
@@ -154,11 +155,69 @@ test('package detail page renders the package payload', function () {
             ->has('detail.items', 1)
             ->where('detail.items.0.name', $productName)
             ->where('detail.items.0.quantity', 2)
+            ->where('detail.items.0.allow_variant_selection', false)
+            ->where('detail.items.0.variant_name', 'OC-TND-4P')
             ->where('detail.items.0.variant_values', [
                 ['attribute' => 'Warna', 'value' => 'Hitam'],
                 ['attribute' => 'Kapasitas', 'value' => '60L'],
             ])
             ->where('availability', null));
+});
+
+test('package availability adds up active variants for free selection items', function () {
+    $selectableProduct = Product::factory()->create();
+    $fixedProduct = Product::factory()->create();
+
+    ProductVariant::factory()->create([
+        'product_id' => $selectableProduct->id,
+        'stock' => 5,
+        'is_active' => true,
+    ]);
+    ProductVariant::factory()->create([
+        'product_id' => $selectableProduct->id,
+        'stock' => 9,
+        'is_active' => true,
+    ]);
+    ProductVariant::factory()->create([
+        'product_id' => $selectableProduct->id,
+        'stock' => 100,
+        'is_active' => false,
+    ]);
+    $fixedVariant = ProductVariant::factory()->create([
+        'product_id' => $fixedProduct->id,
+        'stock' => 6,
+    ]);
+
+    $package = Package::create([
+        'name' => 'Paket Fleksibel',
+        'slug' => 'paket-fleksibel',
+        'daily_price' => 55000,
+        'deposit_per_package' => 150000,
+        'is_active' => true,
+    ]);
+
+    $package->items()->create([
+        'product_id' => $selectableProduct->id,
+        'allow_variant_selection' => true,
+        'product_variant_id' => null,
+        'quantity' => 2,
+    ]);
+    $package->items()->create([
+        'product_id' => $fixedProduct->id,
+        'product_variant_id' => $fixedVariant->id,
+        'quantity' => 3,
+    ]);
+
+    $this->get(route('packages.show', [
+        'packageSlug' => 'paket-fleksibel',
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-02',
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('availability', 2)
+            ->where('detail.items.0.allow_variant_selection', true)
+            ->where('detail.items.0.variant_name', null));
 });
 
 test('inactive products and unknown slugs return 404', function () {

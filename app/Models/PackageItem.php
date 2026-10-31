@@ -10,12 +10,14 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $package_id
- * @property int $product_variant_id
+ * @property int $product_id
+ * @property int|null $product_variant_id
+ * @property bool $allow_variant_selection
  * @property int $quantity
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['package_id', 'product_variant_id', 'quantity'])]
+#[Fillable(['package_id', 'product_id', 'product_variant_id', 'allow_variant_selection', 'quantity'])]
 class PackageItem extends Model
 {
     /**
@@ -26,6 +28,7 @@ class PackageItem extends Model
     protected function casts(): array
     {
         return [
+            'allow_variant_selection' => 'boolean',
             'quantity' => 'integer',
         ];
     }
@@ -36,6 +39,14 @@ class PackageItem extends Model
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
+    }
+
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     /**

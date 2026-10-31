@@ -93,6 +93,16 @@ test('updating a product allows keeping the same slug and sku', function () {
         ->assertSessionHasNoErrors();
 });
 
+test('updating a product requires at least one attribute value per variant', function () {
+    $product = seededProduct();
+    $payload = updateVariantPayload($product);
+    $payload['variants'][0]['values'] = [];
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.products.update', $product), $payload)
+        ->assertSessionHasErrors(['variants.0.values']);
+});
+
 test('updating a product replaces removed variants', function () {
     $product = seededProduct();
     $attribute = Attribute::where('name', 'Warna')->first()

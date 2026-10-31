@@ -13,6 +13,8 @@ type DetailAccordionProps = {
     items?: {
         name: string;
         quantity: number;
+        allow_variant_selection?: boolean;
+        variant_name?: string | null;
         variant_values: { attribute: string | null; value: string }[];
     }[];
     className?: string;
@@ -37,7 +39,12 @@ export function DetailAccordion({
     ].filter((section) => section.key !== 'items' || (items?.length ?? 0) > 0);
 
     return (
-        <div className={cn('overflow-hidden rounded-2xl border border-border bg-card', className)}>
+        <div
+            className={cn(
+                'overflow-hidden rounded-2xl border border-border bg-card',
+                className,
+            )}
+        >
             <Accordion sections={sections} />
         </div>
     );
@@ -98,6 +105,8 @@ function PackageItemsContent({
     items: {
         name: string;
         quantity: number;
+        allow_variant_selection?: boolean;
+        variant_name?: string | null;
         variant_values: { attribute: string | null; value: string }[];
     }[];
 }) {
@@ -108,13 +117,20 @@ function PackageItemsContent({
                     <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
                     <span>
                         {item.name}
-                        {item.variant_values.length > 0 && (
-                            <span className="font-medium text-muted-foreground">
+                        {item.allow_variant_selection ? (
+                            <span className="text-xs"> (varian bebas)</span>
+                        ) : item.variant_name ? (
+                            <span className="text-xs">
+                                {' '}
+                                ({item.variant_name})
+                            </span>
+                        ) : item.variant_values.length > 0 ? (
+                            <span className="text-xs">
                                 {' '}
                                 ({variantValuesLabel(item.variant_values)})
                             </span>
-                        )}
-                        <span className="font-medium text-muted-foreground">
+                        ) : null}
+                        <span className="font-medium text-primary">
                             {' '}
                             × {item.quantity}
                         </span>

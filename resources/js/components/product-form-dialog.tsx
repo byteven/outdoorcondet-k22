@@ -569,6 +569,15 @@ export function ProductFormDialog({
                                         errors={errors}
                                         serverErrors={serverErrors}
                                     />
+                                    <InputError
+                                        message={
+                                            errors.variants?.[i]?.values
+                                                ?.message ??
+                                            errors.variants?.[i]?.values?.root
+                                                ?.message ??
+                                            serverErrors[`variants.${i}.values`]
+                                        }
+                                    />
                                     <VariantDurationPricesInput
                                         control={control}
                                         register={register}
@@ -757,12 +766,12 @@ function VariantValuesInput({
     register: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setValue: any;
-    variantIndex: number;
-    attributes: AttributeOption[];
-    processing: boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     errors: any;
     serverErrors: Record<string, string>;
+    variantIndex: number;
+    attributes: AttributeOption[];
+    processing: boolean;
 }) {
     const { fields, append, remove } = useFieldArray({
         control,

@@ -1,11 +1,16 @@
 import { Link } from '@inertiajs/react';
 import {
+    Boxes,
+    CalendarDays,
     House,
     FolderTree,
     LayoutGrid,
     Package,
+    ReceiptText,
     SlidersHorizontal,
+    Store,
     Users,
+    Wrench,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -24,7 +29,10 @@ import { dashboard } from '@/routes/admin';
 import { index as attributesIndex } from '@/routes/admin/attributes';
 import { index as categoriesIndex } from '@/routes/admin/categories';
 import { index as customersIndex } from '@/routes/admin/customers';
+import { index as maintenancesIndex } from '@/routes/admin/maintenances';
+import { index as packagesIndex } from '@/routes/admin/packages';
 import { index as productsIndex } from '@/routes/admin/products';
+import { index as rentalsIndex } from '@/routes/admin/rentals';
 import { home } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -33,6 +41,29 @@ const dashboardNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+];
+
+const transactionNavItems: NavItem[] = [
+    {
+        title: 'Kasir (POS)',
+        href: '/admin/pos',
+        icon: Store,
+    },
+    {
+        title: 'Monitoring Rental',
+        href: rentalsIndex(),
+        icon: ReceiptText,
+    },
+    {
+        title: 'Return & Maintenance',
+        href: maintenancesIndex(),
+        icon: Wrench,
+    },
+    {
+        title: 'Kalender Rental',
+        href: '/admin/calendar',
+        icon: CalendarDays,
     },
 ];
 
@@ -57,6 +88,11 @@ const manageNavItems: NavItem[] = [
         href: productsIndex(),
         icon: Package,
     },
+    {
+        title: 'Paket',
+        href: packagesIndex(),
+        icon: Boxes,
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -78,6 +114,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={dashboardNavItems} />
+                <NavMain items={transactionNavItems} label="Transaksi" />
                 <NavMain items={manageNavItems} label="Kelola Data" />
             </SidebarContent>
 

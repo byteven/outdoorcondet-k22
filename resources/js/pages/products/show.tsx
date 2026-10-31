@@ -28,7 +28,7 @@ import {
     useActiveRental,
 } from "@/hooks/use-rental-dates";
 import { formatDateID } from "@/lib/rental-date";
-import { type DurationPrice, cheapestDailyVariant } from "@/lib/rental-pricing";
+import { type DurationPrice, cheapestDailyVariant, type RentalVariant } from "@/lib/rental-pricing";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
 import { show as showPackage } from "@/routes/packages";
@@ -61,8 +61,11 @@ type PackageDetail = {
     deposit_per_package: number;
     duration_prices: DurationPrice[];
     items: {
+        product_id: number;
         name: string;
         quantity: number;
+        allow_variant_selection: boolean;
+        variant_name: string | null;
         variant_values: DetailVariantValue[];
     }[];
 };
@@ -176,8 +179,8 @@ export default function CatalogDetailPage({
     const selectedVariant =
         detail.type === "alat"
             ? (detail.variants.find(
-                  (variant) => variant.id === selectedVariantId,
-              ) ?? null)
+                (variant) => variant.id === selectedVariantId,
+            ) ?? null)
             : null;
     const displayAvailability = selectedVariant?.available ?? availability;
     const isInCartForSelection =
@@ -336,7 +339,7 @@ export default function CatalogDetailPage({
                                         loading={isAvailabilityLoading}
                                         variantSelector={
                                             detail.type === "alat" &&
-                                            detail.variants.length > 0 ? (
+                                                detail.variants.length > 0 ? (
                                                 <VariantSelector
                                                     variants={detail.variants}
                                                     selectedId={

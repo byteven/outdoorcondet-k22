@@ -154,7 +154,8 @@ class LandingController extends Controller
         $query = Package::query()
             ->where('is_active', true)
             ->with([
-                'items:id,package_id,product_variant_id,quantity',
+                'items:id,package_id,product_id,product_variant_id,allow_variant_selection,quantity',
+                'items.product:id,name',
                 'items.variant:id,product_id,sku',
                 'items.variant.product:id,name',
             ])

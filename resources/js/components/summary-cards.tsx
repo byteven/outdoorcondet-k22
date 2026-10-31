@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export type SummaryCardItem = {
     key: string;
@@ -10,11 +11,17 @@ export type SummaryCardItem = {
 };
 
 /**
- * Tiga kartu ringkasan bernilai angka dengan ikon berwarna.
+ * Kartu ringkasan bernilai angka dengan ikon berwarna.
  */
-export function SummaryCards({ items }: { items: SummaryCardItem[] }) {
+export function SummaryCards({
+    items,
+    className,
+}: {
+    items: SummaryCardItem[];
+    className?: string;
+}) {
     return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-3', className)}>
             {items.map((card) => (
                 <div
                     key={card.key}

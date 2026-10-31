@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Package;
 use App\Models\PackageItem;
 use App\Models\ProductVariant;
 use App\Models\Rental;
@@ -107,38 +106,86 @@ class AvailabilityService
     /**
      * Ketersediaan paket = min floor(available(variant) / qty_per_paket) dari semua items.
      *
+     * Item dengan allow_variant_selection tanpa varian terpilih memakai total
+     * kapasitas semua varian aktif produknya. Pemanggil dapat mengirim varian
+     * pilihan customer lewat $selectedVariantIds (key = package_item id).
+     *
+     * @param  array<int, int>  $selectedVariantIds
      * @return int jumlah paket yang tersedia
      */
     public function availablePackageStock(
         int $packageId,
         CarbonInterface $pickupDate,
         CarbonInterface $returnDate,
+        array $selectedVariantIds = [],
     ): int {
-        $items = PackageItem::where('package_id', $packageId)->get();
+        $items = PackageItem::where('package_id', $packageId)->get([
+            'id',
+            'product_id',
+            'product_variant_id',
+            'allow_variant_selection',
+            'quantity',
+        ]);
 
         if ($items->isEmpty()) {
             return 0;
         }
 
-        $variantIds = $items
-            ->where('product_variant_id', '!=', null)
+        $fixedVariantIds = $items
+            ->where('allow_variant_selection', false)
             ->pluck('product_variant_id')
+            ->filter()
             ->all();
 
-        if (empty($variantIds)) {
-            return 0;
-        }
+        $selectableProductIds = $items
+            ->where('allow_variant_selection', true)
+            ->pluck('product_id')
+            ->filter()
+            ->unique()
+            ->all();
+
+        $selectableVariants = $selectableProductIds === []
+            ? collect()
+            : ProductVariant::query()
+                ->whereIn('product_id', $selectableProductIds)
+                ->where('is_active', true)
+                ->get(['id', 'product_id']);
+
+        $variantIds = array_values(array_unique([
+            ...$fixedVariantIds,
+            ...$selectableVariants->pluck('id')->all(),
+            ...array_values(array_filter($selectedVariantIds)),
+        ]));
 
         $availability = $this->batchAvailableStock($variantIds, $pickupDate, $returnDate);
+        $variantsByProduct = $selectableVariants->groupBy('product_id');
 
-        return $items->reduce(function (mixed $carry, PackageItem $item) use ($availability): int {
-            /** @var int $carry */
-            if ($item->product_variant_id === null) {
-                return $carry; // Skip jika variant tidak fixed
+        return $items->reduce(function (int $carry, PackageItem $item) use (
+            $availability,
+            $selectedVariantIds,
+            $variantsByProduct,
+        ): int {
+            if ($item->quantity < 1) {
+                return 0;
             }
 
-            $variantAvail = $availability[$item->product_variant_id] ?? 0;
-            $canFit = $item->quantity > 0 ? (int) floor($variantAvail / $item->quantity) : 0;
+            if ($item->allow_variant_selection) {
+                $selectedVariantId = $selectedVariantIds[$item->id] ?? null;
+
+                $canFit = $selectedVariantId !== null
+                    ? intdiv($availability[$selectedVariantId] ?? 0, $item->quantity)
+                    : (int) $variantsByProduct
+                        ->get($item->product_id, collect())
+                        ->sum(fn (ProductVariant $variant): int => intdiv(
+                            $availability[$variant->id] ?? 0,
+                            $item->quantity,
+                        ));
+            } else {
+                $canFit = intdiv(
+                    $availability[$item->product_variant_id] ?? 0,
+                    $item->quantity,
+                );
+            }
 
             return min($carry, $canFit);
         }, PHP_INT_MAX);
@@ -302,7 +349,7 @@ class AvailabilityService
         $now = now();
 
         $bufferedReturnDate = $returnDate->copy()->addDays($bufferDays)->toDateString();
-
+        
         $query
             ->whereIn('status', self::BLOCKING_STATUSES)
             // pending_payment: hanya blokir sampai payment_deadline_at belum lewat

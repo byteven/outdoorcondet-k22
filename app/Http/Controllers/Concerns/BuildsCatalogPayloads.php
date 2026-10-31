@@ -116,10 +116,16 @@ trait BuildsCatalogPayloads
             'item_count' => $package->items->count(),
             'items' => $package->items
                 ->map(fn ($item): array => [
-                    'name' => $item->variant?->product?->name
+                    'product_id' => (int) $item->product_id,
+                    'name' => $item->product?->name
+                        ?? $item->variant?->product?->name
                         ?? $item->variant?->sku
                         ?? 'Item',
                     'quantity' => (int) $item->quantity,
+                    'allow_variant_selection' => (bool) $item->allow_variant_selection,
+                    'variant_name' => $item->allow_variant_selection
+                        ? null
+                        : $item->variant?->sku,
                 ])
                 ->all(),
             'available' => $available,

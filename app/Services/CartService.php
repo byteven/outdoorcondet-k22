@@ -82,7 +82,14 @@ class CartService
                         ],
                         Package::class => [
                             'durationPrices:id,package_id,duration_days,price',
-                            'items:id,package_id,product_variant_id,quantity',
+                            'items:id,package_id,product_id,product_variant_id,allow_variant_selection,quantity',
+                            'items.product:id,name,is_active',
+                            'items.product.variants' => fn ($query) => $query
+                                ->where('is_active', true)
+                                ->select(['id', 'product_id', 'sku', 'is_active']),
+                            'items.product.variants.values:id,product_variant_id,attribute_id,value',
+                            'items.product.variants.values.attribute:id,name',
+                            'items.variant:id,product_id,sku',
                         ],
                     ]);
                 },
@@ -132,6 +139,8 @@ class CartService
     /**
      * Tambah item ke keranjang. Item yang sama menumpuk quantity-nya;
      * rentang tanggal di baris item diperbarui ke rentang yang diminta.
+     * Untuk baris paket, `selectedVariants` (key = package item id)
+     * mengisi pilihan varian bebas; yang tidak dikirim memakai default.
      */
     public function addItem(
         User $user,
@@ -140,11 +149,16 @@ class CartService
         int $quantity,
         string $pickupDate,
         string $returnDate,
+        array $selectedVariants = [],
     ): void {
-        DB::transaction(function () use ($user, $rentableType, $rentableId, $quantity, $pickupDate, $returnDate): void {
+        DB::transaction(function () use ($user, $rentableType, $rentableId, $quantity, $pickupDate, $returnDate, $selectedVariants): void {
             $range = $this->resolveRange($pickupDate, $returnDate);
             $rentableClass = self::rentableClass($rentableType);
             $rentable = $this->resolveRentable($rentableClass, $rentableId);
+
+            $variantSelections = $rentable instanceof Package
+                ? $this->resolvePackageSelections($rentable, $selectedVariants)
+                : null;
 
             $cartItem = CartItem::query()
                 ->where('user_id', $user->id)
@@ -153,7 +167,12 @@ class CartService
                 ->lockForUpdate()
                 ->first();
 
-            $available = $this->availableStock($rentable, $range['pickup'], $range['return']);
+            $available = $this->availableStock(
+                $rentable,
+                $range['pickup'],
+                $range['return'],
+                $variantSelections ?? [],
+            );
 
             if ($available < 1) {
                 throw ValidationException::withMessages([
@@ -173,6 +192,7 @@ class CartService
                     'quantity' => $newQuantity,
                     'pickup_date' => $range['pickup'],
                     'return_date' => $range['return'],
+                    'variant_selections' => $variantSelections,
                 ],
             );
         });
@@ -198,6 +218,7 @@ class CartService
                     $cartItem->rentable,
                     $cartItem->pickup_date,
                     $cartItem->return_date,
+                    $this->selectionsFor($cartItem),
                 );
 
             if ($quantity > $available) {
@@ -207,6 +228,48 @@ class CartService
             }
 
             $cartItem->quantity = $quantity;
+            $cartItem->save();
+        });
+    }
+
+    /**
+     * Ubah pilihan varian bebas pada satu baris paket di keranjang.
+     * Key harus package item id, value id varian aktif milik produk item
+     * tersebut; ketersediaan paket divalidasi ulang dengan pilihan baru.
+     */
+    public function updateItemSelections(User $user, CartItem $cartItem, array $selectedVariants): void
+    {
+        DB::transaction(function () use ($user, $cartItem, $selectedVariants): void {
+            $cartItem = $this->lockedItemFor($user, $cartItem->id);
+
+            $package = $cartItem->rentable;
+
+            if (! $package instanceof Package) {
+                throw ValidationException::withMessages([
+                    'selected_variants' => 'Item ini bukan paket.',
+                ]);
+            }
+
+            $selections = $this->resolvePackageSelections(
+                $package,
+                $selectedVariants,
+                strict: true,
+            );
+
+            $available = $this->availability->availablePackageStock(
+                $package->id,
+                $cartItem->pickup_date,
+                $cartItem->return_date,
+                $selections,
+            );
+
+            if ($cartItem->quantity > $available) {
+                throw ValidationException::withMessages([
+                    'selected_variants' => $this->stockMessage($available),
+                ]);
+            }
+
+            $cartItem->variant_selections = $selections;
             $cartItem->save();
         });
     }
@@ -241,6 +304,7 @@ class CartService
                         $cartItem->rentable,
                         $range['pickup'],
                         $range['return'],
+                        $this->selectionsFor($cartItem),
                     );
 
                 if ($cartItem->quantity > $available) {
@@ -422,12 +486,18 @@ class CartService
     }
 
     /**
-     * Item keranjang dari paket.
+     * Item keranjang dari paket: pilihan varian bebas tersimpan pada baris
+     * dan dikirim kembali sebagai preselect dropdown pemilihnya.
      */
     private function packagePayload(CartItem $cartItem): array
     {
         /** @var Package $package */
         $package = $cartItem->rentable;
+
+        $selections = $this->resolvePackageSelections(
+            $package,
+            $this->selectionsFor($cartItem),
+        );
 
         $payload = $this->itemPayload(
             $cartItem,
@@ -440,18 +510,77 @@ class CartService
             isRentable: $package->is_active,
         );
 
-        // Data untuk perhitungan stepper di frontend: kebutuhan varian
-        // per paket dan stok mentah tiap variannya.
-        $payload['variant_consumptions'] = $package->items
-            ->mapWithKeys(fn (PackageItem $item): array => [
-                $item->product_variant_id => $item->quantity,
-            ])
+        // Stok mentah seluruh varian yang relevan: varian tetap milik item
+        // paket dan seluruh varian aktif produk yang bebas dipilih, untuk
+        // rentang tanggal baris keranjang.
+        $variantIds = $package->items
+            ->flatMap(fn (PackageItem $item): array => match (true) {
+                $item->allow_variant_selection => $item->product?->variants
+                    ->where('is_active', true)
+                    ->modelKeys() ?? [],
+                $item->product_variant_id !== null => [$item->product_variant_id],
+                default => [],
+            })
+            ->unique()
+            ->values()
             ->all();
-        $payload['variant_available'] = $this->availability->batchAvailableStock(
-            $package->items->pluck('product_variant_id')->filter()->all(),
+
+        $variantAvailable = $this->availability->batchAvailableStock(
+            $variantIds,
             $cartItem->pickup_date,
             $cartItem->return_date,
         );
+
+        $payload['variant_available'] = $variantAvailable;
+
+        // Kebutuhan varian per satu unit paket: item tetap selalu, item
+        // bebas pilih memakai varian yang terpilih (untuk pensil stok
+        // lintas baris di frontend).
+        $payload['variant_consumptions'] = [];
+
+        foreach ($package->items as $item) {
+            $consumptionVariantId = $item->allow_variant_selection
+                ? ($selections[$item->id] ?? null)
+                : $item->product_variant_id;
+
+            if ($consumptionVariantId !== null) {
+                $payload['variant_consumptions'][(string) $consumptionVariantId] = $item->quantity;
+            }
+        }
+
+        // Data dropdown pemilih varian per item paket.
+        $payload['items'] = $package->items
+            ->map(fn (PackageItem $item): array => [
+                'id' => (int) $item->id,
+                'name' => $item->product?->name
+                    ?? $item->variant?->product?->name
+                    ?? $item->variant?->sku
+                    ?? 'Item',
+                'quantity' => (int) $item->quantity,
+                'allow_variant_selection' => (bool) $item->allow_variant_selection,
+                'variant_id' => $item->allow_variant_selection
+                    ? ($selections[$item->id] ?? null)
+                    : $item->product_variant_id,
+                'variant_options' => $item->allow_variant_selection
+                    ? $item->product?->variants
+                        ->where('is_active', true)
+                        ->sortBy('id')
+                        ->values()
+                        ->map(fn (ProductVariant $variant): array => [
+                            'id' => (int) $variant->id,
+                            'sku' => $variant->sku,
+                            'available' => (int) ($variantAvailable[$variant->id] ?? 0),
+                            'values' => $variant->values
+                                ->map(fn (ProductVariantValue $value): array => [
+                                    'attribute' => $value->attribute?->name,
+                                    'value' => $value->value,
+                                ])
+                                ->all(),
+                        ])
+                        ->all()
+                    : [],
+            ])
+            ->all();
 
         return $payload;
     }
@@ -560,12 +689,14 @@ class CartService
     }
 
     /**
-     * Stok tersedia untuk rentang tanggal keranjang.
+     * Stok tersedia untuk rentang tanggal keranjang. Pilihan varian paket
+     * (key = package item id) ikut meneruskan ketersediaan paket.
      */
     private function availableStock(
         ProductVariant|Package $rentable,
         CarbonInterface $pickupDate,
         CarbonInterface $returnDate,
+        array $selectedVariantIds = [],
     ): int {
         if ($rentable instanceof ProductVariant) {
             return $this->availability->availableStock(
@@ -579,7 +710,29 @@ class CartService
             $rentable->id,
             $pickupDate,
             $returnDate,
+            $selectedVariantIds,
         );
+    }
+
+    /**
+     * Pilihan varian tersimpan pada baris paket (key = package item id).
+     */
+    private function selectionsFor(CartItem $cartItem): array
+    {
+        return $cartItem->variant_selections ?? [];
+    }
+
+    /**
+     * Validasi pilihan varian paket; entry tidak valid dilengkapi default
+     * (varian aktif pertama) kecuali $strict — mis. saat customer mengubah
+     * pilihan langsung dari keranjang.
+     */
+    private function resolvePackageSelections(
+        Package $package,
+        array $requested,
+        bool $strict = false,
+    ): array {
+        return $package->resolveVariantSelections($requested, strict: $strict);
     }
 
     /**

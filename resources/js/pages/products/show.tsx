@@ -14,6 +14,7 @@ import { RentalPriceCard } from "@/components/detail/rental-price-card";
 import {
     VariantSelector,
     type DetailVariant,
+    type DetailVariantOption,
     type DetailVariantValue,
 } from "@/components/detail/variant-selector";
 import { LandingHeader } from "@/components/landing/landing-header";
@@ -28,7 +29,7 @@ import {
     useActiveRental,
 } from "@/hooks/use-rental-dates";
 import { formatDateID } from "@/lib/rental-date";
-import { type DurationPrice, cheapestDailyVariant, type RentalVariant } from "@/lib/rental-pricing";
+import { type DurationPrice, cheapestDailyVariant } from "@/lib/rental-pricing";
 import { home } from "@/routes";
 import { show as showProduct } from "@/routes/products";
 import { show as showPackage } from "@/routes/packages";
@@ -61,12 +62,14 @@ type PackageDetail = {
     deposit_per_package: number;
     duration_prices: DurationPrice[];
     items: {
+        id: number;
         product_id: number;
         name: string;
         quantity: number;
         allow_variant_selection: boolean;
         variant_name: string | null;
         variant_values: DetailVariantValue[];
+        variant_options: DetailVariantOption[];
     }[];
 };
 
@@ -112,6 +115,38 @@ export default function CatalogDetailPage({
         },
     );
     const isRangeVisit = useRef(false);
+
+    /**
+     * Pilihan varian customer per item paket (key = package item id).
+     * null berarti belum memilih — server memakai total kapasitas semua
+     * varian untuk menghitung ketersediaan paket.
+     */
+    const [packageItemSelections, setPackageItemSelections] = useState<
+        Record<number, number | null>
+    >({});
+
+    /**
+     * Pilihan varian bebas yang efektif (key = package item id): pilihan
+     * user, dengan fallback opsi pertama — selaras default server (varian
+     * aktif pertama produk). Setiap item bebas pilih minimal terikat satu
+     * varian, jadi hasil ini selalu terisi dan tidak bisa kosong.
+     */
+    const bundleSelections: Record<number, number> =
+        detail.type === "bundle"
+            ? Object.fromEntries(
+                  detail.items
+                      .filter(
+                          (item) =>
+                              item.allow_variant_selection &&
+                              item.variant_options.length > 0,
+                      )
+                      .map((item) => [
+                          item.id,
+                          packageItemSelections[item.id] ??
+                              item.variant_options[0].id,
+                      ]),
+              )
+            : {};
 
     useEffect(() => {
         const removeStartListener = router.on("start", () => {
@@ -198,6 +233,28 @@ export default function CatalogDetailPage({
         dailyPrice,
     } = useCatalogDetailPricing(detail, activeRental, selectedVariantId);
 
+    /**
+     * Query parameter pemilihan varian paket (key = package item id)
+     * untuk partial reload ketersediaan. Selection efektif selalu ada,
+     * jadi server menghitung ketersediaan paket varian yang sama dengan
+     * yang akan dipakai saat add-to-cart.
+     */
+    const buildSelectionQuery = (
+        selections: Record<number, number>,
+    ): { selected_variants?: Record<string, number> } => {
+        if (detail.type !== "bundle") {
+            return {};
+        }
+
+        const entries = Object.entries(selections).filter(
+            (entry): entry is [string, number] => entry[1] > 0,
+        );
+
+        return entries.length > 0
+            ? { selected_variants: Object.fromEntries(entries) }
+            : {};
+    };
+
     const handleRangeChange = (params: RentalRangeParams) => {
         setDateError(false);
         syncRentalRangePersistence(
@@ -212,7 +269,54 @@ export default function CatalogDetailPage({
 
         router.get(
             routeDetail(detail),
-            buildRentalRangeQuery(params.pickupDate, params.returnDate),
+            {
+                ...buildRentalRangeQuery(params.pickupDate, params.returnDate),
+                ...buildSelectionQuery(bundleSelections),
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["availability", "detail", "filters", "related"],
+                onFinish: () => {
+                    setIsRangeUpdating(false);
+                    isRangeVisit.current = false;
+                },
+            },
+        );
+    };
+
+    /**
+     * Pilih varian untuk satu item paket, lalu muat ulang ketersediaan
+     * paket bila rentang sudah aktif. Klik chip yang sama tidak
+     * membatalkan pilihan: tiap item bebas pilih wajib terikat minimal
+     * satu varian.
+     */
+    const handleItemVariantSelect = (itemId: number, variantId: number) => {
+        if (bundleSelections[itemId] === variantId) {
+            return;
+        }
+
+        const next = {
+            ...bundleSelections,
+            [itemId]: variantId,
+        };
+
+        setPackageItemSelections(next);
+
+        if (!pickupDate || !returnDate || availability === null) {
+            return;
+        }
+
+        isRangeVisit.current = true;
+        setIsRangeUpdating(true);
+
+        router.get(
+            routeDetail(detail),
+            {
+                ...buildRentalRangeQuery(pickupDate, returnDate),
+                ...buildSelectionQuery(next),
+            },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -253,7 +357,10 @@ export default function CatalogDetailPage({
 
         router.get(
             routeDetail(detail),
-            buildRentalRangeQuery(pickupDate, returnDate),
+            {
+                ...buildRentalRangeQuery(pickupDate, returnDate),
+                ...buildSelectionQuery(bundleSelections),
+            },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -261,7 +368,7 @@ export default function CatalogDetailPage({
                 only: ["availability", "detail", "filters", "related"],
             },
         );
-    }, [availability, detail, pickupDate, returnDate]);
+    }, [packageItemSelections, availability, detail, pickupDate, returnDate]);
 
     const unavailableNoticeKey = useRef<string | null>(null);
 
@@ -276,7 +383,15 @@ export default function CatalogDetailPage({
             return;
         }
 
-        const key = `${selectedVariantId ?? "product"}-${toRentalQueryDate(pickupDate)}-${toRentalQueryDate(returnDate)}`;
+        const bundleSelectionKey =
+            detail.type === "bundle"
+                ? Object.entries(bundleSelections)
+                      .sort(([a], [b]) => Number(a) - Number(b))
+                      .map(([itemId, variantId]) => `${itemId}:${variantId}`)
+                      .join(",")
+                : "";
+
+        const key = `${selectedVariantId ?? "product"}${bundleSelectionKey ? `-sel-${bundleSelectionKey}` : ""}-${toRentalQueryDate(pickupDate)}-${toRentalQueryDate(returnDate)}`;
 
         if (displayAvailability > 0) {
             unavailableNoticeKey.current = null;
@@ -297,6 +412,7 @@ export default function CatalogDetailPage({
         detail.name,
         displayAvailability,
         isAvailabilityLoading,
+        packageItemSelections,
         pickupDate,
         returnDate,
         selectedVariantId,
@@ -339,7 +455,7 @@ export default function CatalogDetailPage({
                                         loading={isAvailabilityLoading}
                                         variantSelector={
                                             detail.type === "alat" &&
-                                                detail.variants.length > 0 ? (
+                                            detail.variants.length > 0 ? (
                                                 <VariantSelector
                                                     variants={detail.variants}
                                                     selectedId={
@@ -349,6 +465,16 @@ export default function CatalogDetailPage({
                                                         setSelectedVariantId(
                                                             variantId,
                                                         )
+                                                    }
+                                                />
+                                            ) : detail.type === "bundle" ? (
+                                                <PackageItemVariantSelectors
+                                                    items={detail.items}
+                                                    selections={
+                                                        bundleSelections
+                                                    }
+                                                    onSelect={
+                                                        handleItemVariantSelect
                                                     }
                                                 />
                                             ) : undefined
@@ -375,6 +501,11 @@ export default function CatalogDetailPage({
                                                 }
                                                 selectedVariantId={
                                                     selectedVariantId
+                                                }
+                                                selectedVariants={
+                                                    detail.type === "bundle"
+                                                        ? bundleSelections
+                                                        : undefined
                                                 }
                                                 loading={isAvailabilityLoading}
                                                 onMissingDates={() =>
@@ -473,6 +604,48 @@ function routeDetail(detail: CatalogDetail): string {
     return detail.type === "alat"
         ? showProduct.url({ productSlug: detail.slug })
         : showPackage.url({ packageSlug: detail.slug });
+}
+
+/**
+ * Chip pemilih varian untuk item paket yang mengizinkan pelanggan
+ * memilih varian sendiri ("varian bebas"), satu kelompok chip per item.
+ */
+function PackageItemVariantSelectors({
+    items,
+    selections,
+    onSelect,
+}: {
+    items: {
+        id: number;
+        name: string;
+        allow_variant_selection: boolean;
+        variant_options: DetailVariantOption[];
+    }[];
+    selections: Record<number, number>;
+    onSelect: (itemId: number, variantId: number) => void;
+}) {
+    const selectableItems = items.filter(
+        (item) =>
+            item.allow_variant_selection && item.variant_options.length > 0,
+    );
+
+    if (selectableItems.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-col gap-4">
+            {selectableItems.map((item) => (
+                <VariantSelector
+                    key={item.id}
+                    label={`Varian ${item.name}`}
+                    variants={item.variant_options}
+                    selectedId={selections[item.id] ?? null}
+                    onSelect={(variantId) => onSelect(item.id, variantId)}
+                />
+            ))}
+        </div>
+    );
 }
 
 function detailCategoryName(detail: CatalogDetail): string | null {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\BuildsCatalogPayloads;
 use App\Models\CartItem;
 use App\Models\Package;
+use App\Models\PackageItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\AvailabilityService;
@@ -85,6 +86,16 @@ class CatalogDetailController extends Controller
                 'durationPrices:id,package_id,duration_days,price',
                 'items:id,package_id,product_id,product_variant_id,allow_variant_selection,quantity',
                 'items.product:id,name',
+                'items.product.variants' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->select([
+                        'id',
+                        'product_id',
+                        'sku',
+                        'is_active',
+                    ]),
+                'items.product.variants.values:id,product_variant_id,attribute_id,value',
+                'items.product.variants.values.attribute:id,name',
                 'items.variant:id,product_id,sku',
                 'items.variant.product:id,name',
                 'items.variant.values:id,product_variant_id,attribute_id,value',
@@ -94,15 +105,22 @@ class CatalogDetailController extends Controller
 
         $range = $this->resolveRentalRange($request);
         $availability = $this->resolveAvailability($range['pickup'], $range['return']);
+        $selectedVariantIds = $this->resolveSelectedVariants($package, $request);
+        $variantAvailability = $availability?->batchAvailableStock(
+            $this->selectableVariantIds($package),
+            $range['pickup'],
+            $range['return'],
+        );
 
         return Inertia::render('products/show', [
             'filters' => $this->filterDates($range['pickup'], $range['return']),
-            'detail' => $this->packagePayload($package),
+            'detail' => $this->packagePayload($package, $variantAvailability),
             'availability' => $this->availableForPackage(
                 $package,
                 $availability,
                 $range['pickup'],
                 $range['return'],
+                $selectedVariantIds,
             ),
             'in_cart_ids' => $this->inCartIds($request, Package::class, [$package->id]),
             'related' => $this->relatedProducts(null, $range, $availability),
@@ -198,9 +216,10 @@ class CatalogDetailController extends Controller
     /**
      * Build the full package payload consumed by the detail page.
      *
+     * @param  array<int, int>|null  $variantAvailability  stok tersedia per variant id
      * @return array<string, mixed>
      */
-    private function packagePayload(Package $package): array
+    private function packagePayload(Package $package, ?array $variantAvailability = null): array
     {
         return [
             'type' => 'bundle',
@@ -221,19 +240,42 @@ class CatalogDetailController extends Controller
                 ->all(),
             'items' => $package->items
                 ->map(fn ($item): array => [
+                    'id' => (int) $item->id,
                     'product_id' => (int) $item->product_id,
                     'name' => $item->product?->name ?? $item->variant?->product?->name ?? $item->variant?->sku ?? 'Item',
                     'quantity' => (int) $item->quantity,
                     'allow_variant_selection' => (bool) $item->allow_variant_selection,
                     'variant_name' => $item->allow_variant_selection
                         ? null
-                        : $item->variant?->sku,
+                        : $this->variantItemLabel($item->variant),
                     'variant_values' => $item->variant?->values
                         ->map(fn ($value): array => [
                             'attribute' => $value->attribute?->name,
                             'value' => $value->value,
                         ])
                         ->all(),
+                    // Opsi varian yang boleh dipilih customer saat item
+                    // mengizinkan pemilihan bebas; kosong untuk item varian
+                    // tetap.
+                    'variant_options' => $item->allow_variant_selection
+                        ? $item->product?->variants
+                            ->sortBy('id')
+                            ->values()
+                            ->map(fn ($variant): array => [
+                                'id' => (int) $variant->id,
+                                'sku' => $variant->sku,
+                                'available' => $variantAvailability === null
+                                    ? null
+                                    : (int) ($variantAvailability[$variant->id] ?? 0),
+                                'values' => $variant->values
+                                    ->map(fn ($value): array => [
+                                        'attribute' => $value->attribute?->name,
+                                        'value' => $value->value,
+                                    ])
+                                    ->all(),
+                            ])
+                            ->all()
+                        : [],
                 ])
                 ->values()
                 ->all(),
@@ -241,19 +283,107 @@ class CatalogDetailController extends Controller
     }
 
     /**
+     * Label varian untuk item paket: nilai atribut varian, bukan kode sku.
+     * Contoh: "Bahan Material: Stainless Steel". Fallback ke sku saat
+     * varian tidak punya atribut.
+     */
+    private function variantItemLabel(?ProductVariant $variant): ?string
+    {
+        if ($variant === null) {
+            return null;
+        }
+
+        $label = $variant->values
+            ->filter(fn ($value): bool => $value->value !== null && $value->value !== '')
+            ->map(fn ($value): string => $value->attribute?->name !== null
+                ? "{$value->attribute->name}: {$value->value}"
+                : $value->value)
+            ->implode(' / ');
+
+        return $label !== '' ? $label : $variant->sku;
+    }
+
+    /**
+     * Id varian aktif milik produk dari item paket yang boleh dipilih bebas.
+     *
+     * @return array<int, int>
+     */
+    private function selectableVariantIds(Package $package): array
+    {
+        return $package->items
+            ->filter(fn (PackageItem $item): bool => $item->allow_variant_selection)
+            ->flatMap(fn (PackageItem $item): array => $item->product?->variants
+                ->filter(fn ($variant): bool => (bool) $variant->is_active)
+                ->modelKeys() ?? [])
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Pilihan varian customer untuk item paket, dari query string
+     * `selected_variants[<package_item_id>] `. Id yang tidak aktif atau
+     * bukan milik produk item paket diabaikan.
+     *
+     * @return array<int, int> key = package item id, value = product variant id
+     */
+    private function resolveSelectedVariants(Package $package, Request $request): array
+    {
+        $requested = $request->query('selected_variants');
+
+        if (! is_array($requested)) {
+            return [];
+        }
+
+        $resolved = [];
+
+        foreach ($package->items as $item) {
+            if (! $item->allow_variant_selection) {
+                continue;
+            }
+
+            $variantId = $requested[$item->id] ?? null;
+
+            if (! is_numeric($variantId)) {
+                continue;
+            }
+
+            $variantId = (int) $variantId;
+
+            $belongs = $item->product?->variants
+                ->filter(fn ($variant): bool => (bool) $variant->is_active)
+                ->contains('id', $variantId) ?? false;
+
+            if ($belongs) {
+                $resolved[$item->id] = $variantId;
+            }
+        }
+
+        return $resolved;
+    }
+
+    /**
      * Available stock for a package rental range.
+     *
+     * @param  array<int, int>  $selectedVariantIds
      */
     private function availableForPackage(
         Package $package,
         ?AvailabilityService $availability,
         ?Carbon $pickupDate,
         ?Carbon $returnDate,
+        array $selectedVariantIds = [],
     ): ?int {
         if (! $availability || ! $pickupDate || ! $returnDate) {
             return null;
         }
 
-        return $availability->availablePackageStock($package->id, $pickupDate, $returnDate);
+        return $availability->availablePackageStock(
+            $package->id,
+            $pickupDate,
+            $returnDate,
+            $selectedVariantIds,
+        );
     }
 
     /**

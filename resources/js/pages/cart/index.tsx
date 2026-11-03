@@ -28,6 +28,7 @@ import { parseRentalQueryDate } from "@/hooks/use-rental-dates";
 import { useCartRentalDates } from "@/hooks/use-cart-rental-dates";
 import {
     destroy as cartDestroy,
+    packageVariant as cartPackageVariant,
     update as cartUpdate,
     variant as cartVariant,
 } from "@/routes/cart";
@@ -50,6 +51,23 @@ type CartItemVariantOption = {
     values: CartItemVariantValue[];
 };
 
+type CartItemPackageVariantOption = {
+    id: number;
+    sku: string;
+    available: number;
+    values: CartItemVariantValue[];
+};
+
+/** Satu item penyusun paket pada baris keranjang bertipe bundle. */
+type CartItemPackageItem = {
+    id: number;
+    name: string;
+    quantity: number;
+    allow_variant_selection: boolean;
+    variant_id: number | null;
+    variant_options: CartItemPackageVariantOption[];
+};
+
 type CartItemPayload = {
     id: number;
     type: CartItemType;
@@ -66,6 +84,7 @@ type CartItemPayload = {
     is_out_of_stock: boolean;
     variant_consumptions?: Record<string, number>;
     variant_available?: Record<string, number>;
+    items?: CartItemPackageItem[];
     is_rentable: boolean;
     total_days: number;
     pickup_date: string;
@@ -183,6 +202,43 @@ export default function CartPage({ cart }: Props) {
         );
     };
 
+    /**
+     * Ubah pilihan varian bebas pada satu baris paket. Server menolak bila
+     * stok varian yang dipilih tidak cukup, dan pilihan tersimpan pada
+     * baris keranjang (key = package item id).
+     */
+    const handlePackageVariantChange = (
+        item: CartItemPayload,
+        selections: Record<string, number | undefined>,
+    ) => {
+        const selected_variants = Object.fromEntries(
+            Object.entries(selections).filter(
+                (entry): entry is [string, number] => entry[1] !== undefined,
+            ),
+        );
+
+        setBusyItemId(item.id);
+
+        router.patch(
+            cartPackageVariant.url({ cartItem: item.id }),
+            { selected_variants },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => setBusyItemId(null),
+                onError: (errors) => {
+                    const message =
+                        errors.selected_variants ??
+                        Object.values(errors)[0];
+
+                    if (typeof message === "string") {
+                        toast.error(message);
+                    }
+                },
+            },
+        );
+    };
+
     const handleCheckout = () => {
         if (checkoutDisabled) {
             return;
@@ -280,6 +336,9 @@ export default function CartPage({ cart }: Props) {
                                         busyItemId={busyItemId}
                                         onQuantityChange={handleQuantityChange}
                                         onVariantChange={handleVariantChange}
+                                        onPackageVariantChange={
+                                            handlePackageVariantChange
+                                        }
                                         onRemove={handleRemoveItem}
                                     />
                                 </div>
@@ -542,6 +601,10 @@ type CartItemListProps = {
     busyItemId: number | null;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
     onVariantChange: (item: CartItemPayload, variantId: number) => void;
+    onPackageVariantChange: (
+        item: CartItemPayload,
+        selections: Record<string, number | undefined>,
+    ) => void;
     onRemove: (item: CartItemPayload) => void;
 };
 
@@ -550,6 +613,7 @@ function CartItemList({
     busyItemId,
     onQuantityChange,
     onVariantChange,
+    onPackageVariantChange,
     onRemove,
 }: CartItemListProps) {
     return (
@@ -562,6 +626,7 @@ function CartItemList({
                         busyItemId={busyItemId}
                         onQuantityChange={onQuantityChange}
                         onVariantChange={onVariantChange}
+                        onPackageVariantChange={onPackageVariantChange}
                         onRemove={onRemove}
                     />
                 </li>
@@ -576,6 +641,10 @@ type CartItemCardProps = {
     busyItemId: number | null;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
     onVariantChange: (item: CartItemPayload, variantId: number) => void;
+    onPackageVariantChange: (
+        item: CartItemPayload,
+        selections: Record<string, number | undefined>,
+    ) => void;
     onRemove: (item: CartItemPayload) => void;
 };
 
@@ -585,6 +654,7 @@ function CartItemCard({
     busyItemId,
     onQuantityChange,
     onVariantChange,
+    onPackageVariantChange,
     onRemove,
 }: CartItemCardProps) {
     const firstItem = group.items[0];
@@ -630,6 +700,7 @@ function CartItemCard({
                         busy={busyItemId === item.id}
                         onQuantityChange={onQuantityChange}
                         onVariantChange={onVariantChange}
+                        onPackageVariantChange={onPackageVariantChange}
                         onRemove={onRemove}
                     />
                 ))}
@@ -645,6 +716,10 @@ type CartItemVariantRowProps = {
     busy: boolean;
     onQuantityChange: (item: CartItemPayload, quantity: number) => void;
     onVariantChange: (item: CartItemPayload, variantId: number) => void;
+    onPackageVariantChange: (
+        item: CartItemPayload,
+        selections: Record<string, number | undefined>,
+    ) => void;
     onRemove: (item: CartItemPayload) => void;
 };
 
@@ -654,6 +729,7 @@ function CartItemVariantRow({
     busy,
     onQuantityChange,
     onVariantChange,
+    onPackageVariantChange,
     onRemove,
 }: CartItemVariantRowProps) {
     return (
@@ -702,7 +778,16 @@ function CartItemVariantRow({
                 </div>
             </div>
 
-            {/* Row 2: satu-satunya garis. Deposit kiri, harga sewa kanan */}
+            {/* Row 2: pilihan varian bebas per item paket (baris bundle). */}
+            {item.type === "bundle" && (
+                <PackageVariantSelectors
+                    item={item}
+                    busy={busy}
+                    onSelectionChange={onPackageVariantChange}
+                />
+            )}
+
+            {/* Row 3: satu-satunya garis. Deposit kiri, harga sewa kanan */}
             <div className="flex items-baseline justify-between gap-3 border-t border-border/60 pt-3">
                 <p className="text-xs text-muted-foreground">
                     Deposit {formatRupiah(item.deposit_subtotal)}
@@ -711,6 +796,115 @@ function CartItemVariantRow({
                     {formatRupiah(item.rental_subtotal)}
                 </p>
             </div>
+        </div>
+    );
+}
+
+/**
+ * Dropdown pemilih varian bebas untuk baris paket: preselect dari
+ * pilihan yang tersimpan pada baris keranjang, satu dropdown per item
+ * paket yang mengizinkan pemilihan — gaya yang sama dengan pemilih
+ * varian baris produk biasa. Opsi nonaktif bila stok varian tidak
+ * mencukupi quantity keranjang.
+ */
+function PackageVariantSelectors({
+    item,
+    busy,
+    onSelectionChange,
+}: {
+    item: CartItemPayload;
+    busy: boolean;
+    onSelectionChange: (
+        item: CartItemPayload,
+        selections: Record<string, number | undefined>,
+    ) => void;
+}) {
+    const selectable = (item.items ?? []).filter(
+        (sub) =>
+            sub.allow_variant_selection && sub.variant_options.length > 0,
+    );
+
+    if (selectable.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-col gap-3">
+            {selectable.map((sub) => {
+                const minAvailable = sub.quantity * item.quantity;
+
+                return (
+                    <div key={sub.id} className="flex flex-col gap-1.5">
+                        <p className="text-xs text-muted-foreground">
+                            Varian {sub.name}
+                        </p>
+                        <Select
+                            value={
+                                sub.variant_id !== null
+                                    ? String(sub.variant_id)
+                                    : undefined
+                            }
+                            disabled={busy}
+                            onValueChange={(value) => {
+                                const variantId = Number(value);
+
+                                if (variantId === sub.variant_id) {
+                                    return;
+                                }
+
+                                const selections = Object.fromEntries(
+                                    selectable
+                                        .filter(
+                                            (other) =>
+                                                other.variant_id !== null,
+                                        )
+                                        .map((other) => [
+                                            other.id,
+                                            other.id === sub.id
+                                                ? variantId
+                                                : other.variant_id!,
+                                        ]),
+                                );
+
+                                onSelectionChange(item, selections);
+                            }}
+                        >
+                            <SelectTrigger
+                                size="sm"
+                                className="w-fit max-w-full text-xs"
+                                aria-label={`Varian ${sub.name}`}
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {sub.variant_options.map((option) => {
+                                    const label =
+                                        option.values
+                                            .map((value) => value.value)
+                                            .join(" / ") || "Varian";
+                                    const isUnavailable =
+                                        option.available < minAvailable;
+
+                                    return (
+                                        <SelectItem
+                                            key={option.id}
+                                            value={String(option.id)}
+                                            disabled={isUnavailable}
+                                            title={
+                                                isUnavailable
+                                                    ? "Stok varian ini tidak cukup untuk quantity keranjang"
+                                                    : undefined
+                                            }
+                                        >
+                                            {label}
+                                        </SelectItem>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                );
+            })}
         </div>
     );
 }

@@ -156,7 +156,7 @@ test('package detail page renders the package payload', function () {
             ->where('detail.items.0.name', $productName)
             ->where('detail.items.0.quantity', 2)
             ->where('detail.items.0.allow_variant_selection', false)
-            ->where('detail.items.0.variant_name', 'OC-TND-4P')
+            ->where('detail.items.0.variant_name', 'Warna: Hitam / Kapasitas: 60L')
             ->where('detail.items.0.variant_values', [
                 ['attribute' => 'Warna', 'value' => 'Hitam'],
                 ['attribute' => 'Kapasitas', 'value' => '60L'],
@@ -217,7 +217,78 @@ test('package availability adds up active variants for free selection items', fu
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('availability', 2)
             ->where('detail.items.0.allow_variant_selection', true)
-            ->where('detail.items.0.variant_name', null));
+            ->where('detail.items.0.variant_name', null)
+            ->has('detail.items.0.variant_options', 2)
+            ->where('detail.items.0.variant_options.0.available', 5)
+            ->where('detail.items.0.variant_options.1.available', 9));
+});
+
+test('selected variant per package item narrows package availability', function () {
+    $selectableProduct = Product::factory()->create();
+    $fixedProduct = Product::factory()->create();
+
+    $bigVariant = ProductVariant::factory()->create([
+        'product_id' => $selectableProduct->id,
+        'stock' => 9,
+        'is_active' => true,
+    ]);
+    $smallVariant = ProductVariant::factory()->create([
+        'product_id' => $selectableProduct->id,
+        'stock' => 3,
+        'is_active' => true,
+    ]);
+    $fixedVariant = ProductVariant::factory()->create([
+        'product_id' => $fixedProduct->id,
+        'stock' => 50,
+        'is_active' => true,
+    ]);
+
+    $package = Package::create([
+        'name' => 'Paket Fleksibel Pilihan',
+        'slug' => 'paket-fleksibel-pilihan',
+        'daily_price' => 55000,
+        'deposit_per_package' => 150000,
+        'is_active' => true,
+    ]);
+
+    $freeItem = $package->items()->create([
+        'product_id' => $selectableProduct->id,
+        'allow_variant_selection' => true,
+        'product_variant_id' => null,
+        'quantity' => 1,
+    ]);
+    $package->items()->create([
+        'product_id' => $fixedProduct->id,
+        'product_variant_id' => $fixedVariant->id,
+        'quantity' => 1,
+    ]);
+
+    $dates = [
+        'pickup_date' => '2026-11-01',
+        'return_date' => '2026-11-02',
+    ];
+
+    // Tanpa pilihan: kapasitas gabungan varian aktif.
+    $this->get(route('packages.show', ['packageSlug' => $package->slug] + $dates))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('availability', 12));
+
+    // Pilih varian kecil: kapasitas paket mengikuti varian terpilih.
+    $this->get(route('packages.show', [
+        'packageSlug' => $package->slug,
+    ] + $dates + ['selected_variants' => [$freeItem->id => $smallVariant->id]]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('availability', 3));
+
+    // Pilihan varian milik paket lain tidak berpengaruh.
+    $this->get(route('packages.show', [
+        'packageSlug' => $package->slug,
+    ] + $dates + ['selected_variants' => [$freeItem->id => $fixedVariant->id]]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('availability', 12));
 });
 
 test('inactive products and unknown slugs return 404', function () {

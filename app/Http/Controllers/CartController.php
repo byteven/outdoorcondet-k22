@@ -40,6 +40,8 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'min:1', 'max:100'],
             'pickup_date' => ['required', 'date_format:Y-m-d'],
             'return_date' => ['required', 'date_format:Y-m-d'],
+            'selected_variants' => ['nullable', 'array'],
+            'selected_variants.*' => ['integer', 'min:1'],
         ]);
 
         $this->cartService->addItem(
@@ -49,6 +51,7 @@ class CartController extends Controller
             (int) $validated['quantity'],
             $validated['pickup_date'],
             $validated['return_date'],
+            $validated['selected_variants'] ?? [],
         );
 
         Inertia::flash('toast', [
@@ -97,6 +100,28 @@ class CartController extends Controller
             $request->user(),
             $cartItem,
             (int) $validated['variant_id'],
+        );
+
+        return redirect()->route('cart.index');
+    }
+
+    /**
+     * Ubah pilihan varian bebas satu baris paket di keranjang.
+     * Key = package item id, value = product variant id.
+     */
+    public function updatePackageVariant(Request $request, CartItem $cartItem): RedirectResponse
+    {
+        $this->authorizeOwner($request, $cartItem);
+
+        $validated = $request->validate([
+            'selected_variants' => ['required', 'array'],
+            'selected_variants.*' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $this->cartService->updateItemSelections(
+            $request->user(),
+            $cartItem,
+            $validated['selected_variants'],
         );
 
         return redirect()->route('cart.index');

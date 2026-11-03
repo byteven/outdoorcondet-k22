@@ -20,7 +20,16 @@ function consumptionsOf(
         return item.variant_id === null ? [] : [[String(item.variant_id), 1]];
     }
 
-    return Object.entries(item.variant_consumptions ?? {});
+    // Baris paket dengan pemilihan varian bebas belum terikat varian,
+    // sehingga bisa saja tanpa kebutuhan varian tetap sama sekali.
+    return Object.entries(item.variant_consumptions ?? {})
+        .filter(
+            ([variantId, perUnit]) =>
+                variantId !== "" && Number.isFinite(perUnit) && perUnit >= 1,
+        )
+        .map(
+            ([variantId, perUnit]) => [variantId, perUnit] as [string, number],
+        );
 }
 
 /**
@@ -49,6 +58,18 @@ export function cartLineStock(
         return { remaining: 0, max: item.quantity };
     }
 
+    const consumptions = consumptionsOf(item);
+
+    if (consumptions.length === 0) {
+        // Baris tanpa kebutuhan varian tetap (mis. paket dengan semua item
+        // bebas pilih varian) tidak bisa dibatasi per varian — pakai ketersediaan
+        // paket yang sudah dihitung server (termasuk kapasitas semua varian).
+        return {
+            remaining: item.available,
+            max: Math.max(item.quantity, item.available),
+        };
+    }
+
     const demandByVariant = new Map<string, number>();
 
     for (const other of allItems) {
@@ -66,7 +87,7 @@ export function cartLineStock(
 
     let remaining = Number.POSITIVE_INFINITY;
 
-    for (const [variantId, perUnit] of consumptionsOf(item)) {
+    for (const [variantId, perUnit] of consumptions) {
         if (perUnit < 1) {
             continue;
         }
@@ -81,7 +102,9 @@ export function cartLineStock(
     }
 
     if (!Number.isFinite(remaining)) {
-        remaining = 0;
+        // Jangan pernah tampilkan 0 karena data kebutuhan yang tidak
+        // lengkap; fallback ke ketersediaan dari server.
+        remaining = item.available;
     }
 
     return { remaining, max: Math.max(item.quantity, remaining) };

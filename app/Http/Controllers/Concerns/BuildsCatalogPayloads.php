@@ -179,7 +179,7 @@ trait BuildsCatalogPayloads
     }
 
     /**
-     * Available stock for a single image record helper (ImagePayload menu).
+     * Path gambar galeri produk, diurutkan gambar utama lebih dulu.
      */
     protected function galleryImages(Collection $images): array
     {

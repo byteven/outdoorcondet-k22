@@ -6,26 +6,35 @@ export type DetailVariantValue = {
     value: string;
 };
 
-export type DetailVariant = RentalVariant & {
+/** Opsi varian minimal yang dibutuhkan chip pemilih varian. */
+export type DetailVariantOption = {
+    id: number;
     sku: string;
     available: number | null;
     values: DetailVariantValue[];
 };
 
+export type DetailVariant = RentalVariant & DetailVariantOption;
+
 type VariantSelectorProps = {
-    variants: DetailVariant[];
+    /** Label kelompok chip, mis. "Varian Tenda". */
+    label?: string;
+    variants: DetailVariantOption[];
     selectedId: number | null;
     onSelect: (id: number) => void;
 };
 
 export function VariantSelector({
+    label,
     variants,
     selectedId,
     onSelect,
 }: VariantSelectorProps) {
     return (
         <div className="flex flex-col gap-2.5">
-            <p className="text-sm font-medium">{variantGroupLabel(variants)}</p>
+            <p className="text-sm font-medium">
+                {label ?? variantGroupLabel(variants)}
+            </p>
             <div className="flex flex-wrap gap-2" role="group">
                 {variants.map((variant) => {
                     const isSelected = variant.id === selectedId;
@@ -62,7 +71,7 @@ export function VariantSelector({
     );
 }
 
-function variantGroupLabel(variants: DetailVariant[]): string {
+function variantGroupLabel(variants: DetailVariantOption[]): string {
     const attributeNames = new Set(
         variants.flatMap((variant) =>
             variant.values
@@ -80,7 +89,7 @@ function variantGroupLabel(variants: DetailVariant[]): string {
     return "Varian";
 }
 
-function variantChipLabel(variant: DetailVariant): string {
+function variantChipLabel(variant: DetailVariantOption): string {
     const label = variant.values
         .map((value) => value.value)
         .join(" / ")

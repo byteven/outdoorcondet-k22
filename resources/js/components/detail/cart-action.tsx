@@ -36,6 +36,8 @@ type CartActionProps = {
     inCart: boolean;
     availability: number | null;
     selectedVariantId?: number | null;
+    /** Pilihan varian bebas paket (key = package item id) untuk baris paket. */
+    selectedVariants?: Record<number, number>;
     loading?: boolean;
     onMissingDates?: () => void;
 };
@@ -54,6 +56,7 @@ export function CartAction({
     inCart,
     availability,
     selectedVariantId = null,
+    selectedVariants,
     loading = false,
     onMissingDates,
 }: CartActionProps) {
@@ -96,6 +99,9 @@ export function CartAction({
                 quantity: 1,
                 pickup_date: toRentalQueryDate(pickupDate!),
                 return_date: toRentalQueryDate(returnDate!),
+                ...(detail.type === "bundle" && selectedVariants
+                    ? { selected_variants: { ...selectedVariants } }
+                    : {}),
             },
             {
                 preserveScroll: true,

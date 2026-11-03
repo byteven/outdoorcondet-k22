@@ -2,6 +2,7 @@
 
 use App\Models\CartItem;
 use App\Models\Category;
+use App\Models\Package;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -454,6 +455,271 @@ test('cart page exposes sibling variants as switch options', function () {
             ->where('cart.items.0.product_id', $product->id)
             ->has('cart.items.0.variant_options', 2)
         );
+});
+
+test('package cart row with a fixed variant item exposes only that variant demand', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $product = Product::factory()->create(['category_id' => $category->id]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'stock' => 2,
+    ]);
+
+    $package = Package::factory()->create();
+    $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'allow_variant_selection' => false,
+        'quantity' => 1,
+    ]);
+
+    CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => Package::class,
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => now()->addDays(2)->startOfDay(),
+        'return_date' => now()->addDays(4)->startOfDay(),
+    ]);
+
+    $this->get(route('cart.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('cart.items.0.type', 'bundle')
+            ->where('cart.items.0.variant_consumptions', fn ($consumptions) => ! $consumptions->has('')
+                && (string) $variant->id === (string) $consumptions->keys()->first())
+            ->where('cart.items.0.variant_available', fn ($available) => (int) $available->get((string) $variant->id, 0) >= 1)
+        );
+});
+
+test('package cart row with a free variant selection item stays available', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    // "Tenda" bebas pilih varian: customer siapa pun memilih saat checkout.
+    $category = Category::factory()->create();
+    $tenda = Product::factory()->create(['category_id' => $category->id]);
+    $tendaVariantA = ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 8,
+    ]);
+    ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 6,
+    ]);
+
+    // Item tetap di paket yang sama, qty melebihi satu paket saja.
+    $kompor = Product::factory()->create(['category_id' => $category->id]);
+    $komporVariant = ProductVariant::factory()->create([
+        'product_id' => $kompor->id,
+        'stock' => 3,
+    ]);
+
+    $package = Package::factory()->create();
+    $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $tenda->id,
+        'product_variant_id' => null,
+        'allow_variant_selection' => true,
+        'quantity' => 3,
+    ]);
+    $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $kompor->id,
+        'product_variant_id' => $komporVariant->id,
+        'allow_variant_selection' => false,
+        'quantity' => 1,
+    ]);
+
+    CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => Package::class,
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => now()->addDays(2)->startOfDay(),
+        'return_date' => now()->addDays(4)->startOfDay(),
+    ]);
+
+    // Baris tanpa pilihan tersimpan ikut terikat varian default (varian
+    // aktif pertama tenda) plus kebutuhan varian tetap kompor.
+    $this->get(route('cart.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('cart.items.0.type', 'bundle')
+            ->where('cart.items.0.available', fn (int $available) => $available >= 1)
+            ->where('cart.items.0.is_out_of_stock', false)
+            ->where('cart.items.0.variant_consumptions', fn ($consumptions) => ! $consumptions->has('')
+                && (int) $consumptions->get((string) $tendaVariantA->id, 0) === 3
+                && (int) $consumptions->get((string) $komporVariant->id, 0) === 1)
+        );
+});
+
+test('cart page exposes free variant chip options for package rows', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $tenda = Product::factory()->create(['category_id' => $category->id]);
+    $variantA = ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 8,
+    ]);
+    ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 6,
+    ]);
+
+    $package = Package::factory()->create();
+    $freeItem = $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $tenda->id,
+        'product_variant_id' => null,
+        'allow_variant_selection' => true,
+        'quantity' => 1,
+    ]);
+
+    CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => Package::class,
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => now()->addDays(2)->startOfDay(),
+        'return_date' => now()->addDays(4)->startOfDay(),
+        'variant_selections' => [$freeItem->id => $variantA->id],
+    ]);
+
+    // Pilihan tersimpan dikirim balik sebagai preselect chip, dan opsi
+    // tetangganya tampil lengkap dengan stok per rentang tanggal baris.
+    $this->get(route('cart.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('cart.items.0.items.0.variant_id', $variantA->id)
+            ->has('cart.items.0.items.0.variant_options', 2)
+            ->where('cart.items.0.items.0.variant_options.0.id', $variantA->id)
+        );
+});
+
+test('customer can change free variant selections of a package cart row', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $tenda = Product::factory()->create(['category_id' => $category->id]);
+    $variantSmall = ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 4,
+    ]);
+    $variantLarge = ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 4,
+    ]);
+
+    $package = Package::factory()->create();
+    $freeItem = $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $tenda->id,
+        'product_variant_id' => null,
+        'allow_variant_selection' => true,
+        'quantity' => 2,
+    ]);
+
+    $cartItem = CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => Package::class,
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => now()->addDays(2)->startOfDay(),
+        'return_date' => now()->addDays(4)->startOfDay(),
+        'variant_selections' => [$freeItem->id => $variantSmall->id],
+    ]);
+
+    $this->patch(route('cart.package-variant', ['cartItem' => $cartItem->id]), [
+        'selected_variants' => [$freeItem->id => $variantLarge->id],
+    ])->assertRedirect(route('cart.index'));
+
+    expect(CartItem::query()->find($cartItem->id)->variant_selections)->toBe([
+        $freeItem->id => $variantLarge->id,
+    ]);
+});
+
+test('changing package variant selections beyond available stock is rejected', function () {
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $this->actingAs($customer);
+
+    $category = Category::factory()->create();
+    $tenda = Product::factory()->create(['category_id' => $category->id]);
+    $variantSmall = ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 4,
+    ]);
+    // Stok varian target hanya cukup untuk 0 paket (butuh 2 unit per paket).
+    $variantTight = ProductVariant::factory()->create([
+        'product_id' => $tenda->id,
+        'stock' => 1,
+    ]);
+
+    $package = Package::factory()->create();
+    $freeItem = $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $tenda->id,
+        'product_variant_id' => null,
+        'allow_variant_selection' => true,
+        'quantity' => 2,
+    ]);
+
+    $cartItem = CartItem::factory()->create([
+        'user_id' => $customer->id,
+        'rentable_type' => Package::class,
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => now()->addDays(2)->startOfDay(),
+        'return_date' => now()->addDays(4)->startOfDay(),
+        'variant_selections' => [$freeItem->id => $variantSmall->id],
+    ]);
+
+    $this->patch(route('cart.package-variant', ['cartItem' => $cartItem->id]), [
+        'selected_variants' => [$freeItem->id => $variantTight->id],
+    ])->assertRedirect()
+        ->assertSessionHasErrors(['selected_variants']);
+
+    expect(CartItem::query()->find($cartItem->id)->variant_selections)->toBe([
+        $freeItem->id => $variantSmall->id,
+    ]);
+});
+
+test('another user package cart row is not reachable for variant selection', function () {
+    $this->actingAs(User::factory()->create(['role' => UserRole::Customer]));
+    $owner = User::factory()->create(['role' => UserRole::Customer]);
+
+    $category = Category::factory()->create();
+    $product = Product::factory()->create(['category_id' => $category->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $product->id]);
+
+    $package = Package::factory()->create();
+    $package->items()->create([
+        'package_id' => $package->id,
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'allow_variant_selection' => false,
+        'quantity' => 1,
+    ]);
+
+    $cartItem = CartItem::factory()->create([
+        'user_id' => $owner->id,
+        'rentable_type' => Package::class,
+        'rentable_id' => $package->id,
+        'quantity' => 1,
+        'pickup_date' => now()->addDays(2)->startOfDay(),
+        'return_date' => now()->addDays(4)->startOfDay(),
+    ]);
+
+    $this->patch(route('cart.package-variant', ['cartItem' => $cartItem->id]), [
+        'selected_variants' => [999 => $variant->id],
+    ])->assertNotFound();
 });
 
 // -------------------------------------------------------------------------

@@ -30,6 +30,13 @@ return new class extends Migration
             ),
         ]);
 
+        // MySQL keeps the composite unique index as the index backing the
+        // package_id foreign key, so a dedicated index must exist before
+        // the unique index can be dropped.
+        Schema::table('package_items', function (Blueprint $table) {
+            $table->index('package_id');
+        });
+
         Schema::table('package_items', function (Blueprint $table) {
             $table->dropUnique(['package_id', 'product_variant_id']);
         });
@@ -48,6 +55,10 @@ return new class extends Migration
         Schema::table('package_items', function (Blueprint $table) {
             $table->unsignedBigInteger('product_variant_id')->nullable(false)->change();
             $table->unique(['package_id', 'product_variant_id']);
+        });
+
+        Schema::table('package_items', function (Blueprint $table) {
+            $table->dropIndex(['package_id']);
             $table->dropConstrainedForeignId('product_id');
             $table->dropColumn('allow_variant_selection');
         });

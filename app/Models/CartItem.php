@@ -12,17 +12,18 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $user_id
- * @property class-string<\Illuminate\Database\Eloquent\Model> $rentable_type
+ * @property class-string<Model> $rentable_type
  * @property int $rentable_id
  * @property int $quantity
  * @property Carbon $pickup_date
  * @property Carbon $return_date
+ * @property array<string, int>|null $variant_selections
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property User $user
  * @property ProductVariant|Package $rentable
  */
-#[Fillable(['user_id', 'rentable_type', 'rentable_id', 'quantity', 'pickup_date', 'return_date'])]
+#[Fillable(['user_id', 'rentable_type', 'rentable_id', 'quantity', 'pickup_date', 'return_date', 'variant_selections'])]
 class CartItem extends Model
 {
     /** @use HasFactory<CartItemFactory> */
@@ -39,6 +40,7 @@ class CartItem extends Model
             'quantity' => 'integer',
             'pickup_date' => 'date:Y-m-d',
             'return_date' => 'date:Y-m-d',
+            'variant_selections' => 'array',
         ];
     }
 

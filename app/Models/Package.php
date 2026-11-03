@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @property int $id
@@ -62,18 +63,6 @@ class Package extends Model
     }
 
     /**
-     * Scope a query to only include active packages.
-     *
-     * @param  Builder<Package>  $query
-     * @return Builder<Package>
-     */
-    #[Scope]
-    protected function active(Builder $query): Builder
-    {
-        return $query->where('is_active', true);
-    }
-
-    /**
      * Scope a query to search packages by name, slug, or description.
      *
      * @param  Builder<Package>  $query
@@ -87,6 +76,59 @@ class Package extends Model
                 ->orWhere('slug', 'like', "%{$search}%")
                 ->orWhere('description', 'like', "%{$search}%");
         });
+    }
+
+    /**
+     * Pilihan varian untuk item "bebas pilih varian" di paket ini.
+     *
+     * Key hasil = package item id, value = id varian aktif terpilih.
+     * Id yang tidak valid diabaikan dan item tanpa pilihan memakai varian
+     * aktif pertama produknya. Saat $strict, entry yang tidak valid memicu
+     * ValidationException (mis. saat customer mengubah pilihan di keranjang).
+     *
+     * @param  array<array-key, mixed>  $requested
+     * @return array<int, int>
+     */
+    public function resolveVariantSelections(
+        array $requested,
+        bool $strict = false,
+    ): array {
+        $resolved = [];
+
+        foreach ($this->items as $item) {
+            if (! $item->allow_variant_selection) {
+                continue;
+            }
+
+            $variants = $item->product?->variants
+                ->where('is_active', true)
+                ->sortBy('id')
+                ->values();
+
+            if ($variants->isEmpty()) {
+                continue;
+            }
+
+            $requestedId = is_numeric($requested[$item->id] ?? null)
+                ? (int) $requested[$item->id]
+                : null;
+
+            $chosen = $variants->firstWhere('id', $requestedId);
+
+            if ($chosen === null) {
+                if ($strict) {
+                    throw ValidationException::withMessages([
+                        'selected_variants' => 'Pilihan varian tidak valid.',
+                    ]);
+                }
+
+                $chosen = $variants->first();
+            }
+
+            $resolved[$item->id] = $chosen->id;
+        }
+
+        return $resolved;
     }
 
     /**

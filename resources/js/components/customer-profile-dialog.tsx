@@ -299,7 +299,10 @@ export function CustomerProfileDialog({
                 preserveState: true,
                 onStart: () => setProcessing(true),
                 onFinish: () => setProcessing(false),
-                onSuccess: () => setEditing(null),
+                onSuccess: () => {
+                    setEditing(null);
+                    router.reload();
+                },
             },
         );
     };
@@ -541,6 +544,9 @@ export function CustomerProfileDialog({
                                 preserveState: true,
                                 onStart: () => setDeleting(true),
                                 onFinish: () => setDeleting(false),
+                                onSuccess: () => {
+                                    router.reload();
+                                },
                             });
                         }}
                     />

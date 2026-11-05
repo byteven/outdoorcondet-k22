@@ -84,6 +84,7 @@ export function ConfirmPaymentDialog({
                     );
                     onOpenChange(false);
                     onSuccess?.();
+                    router.reload();
                 },
                 onError: (errors) => {
                     const message =
@@ -222,6 +223,7 @@ export function RejectPaymentDialog({
                     setReason('');
                     onOpenChange(false);
                     onSuccess?.();
+                    router.reload();
                 },
                 onError: (errors) => {
                     const message =
@@ -428,6 +430,7 @@ export function ConfirmReturnDialog({
                     );
                     onOpenChange(false);
                     onSuccess?.();
+                    router.reload();
                 },
                 onError: (errors) => {
                     const message =
@@ -914,6 +917,7 @@ export function CancelRentalDialog({
                     setReason('');
                     onOpenChange(false);
                     onSuccess?.();
+                    router.reload();
                 },
                 onError: (errors) => {
                     const message =

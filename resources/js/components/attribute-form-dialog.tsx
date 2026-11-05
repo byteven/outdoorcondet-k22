@@ -87,6 +87,7 @@ export function AttributeFormDialog() {
                 onSuccess: () => {
                     setOpen(false);
                     reset();
+                    router.reload();
                 },
             },
         );

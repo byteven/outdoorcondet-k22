@@ -101,7 +101,7 @@ export function ProductDetailDialog({
             resetForm(product);
             setMode('view');
         }
-    }, [product?.id, reset]);
+    }, [product, reset]);
 
     if (!product) {
         return (
@@ -248,6 +248,7 @@ export function ProductDetailDialog({
             onFinish: () => setProcessing(false),
             onSuccess: () => {
                 setMode('view');
+                router.reload();
             },
         });
     };
@@ -452,7 +453,10 @@ export function ProductDetailDialog({
                                         preserveState: true,
                                         onStart: () => setDeleting(true),
                                         onFinish: () => setDeleting(false),
-                                        onSuccess: () => onClose(),
+                                        onSuccess: () => {
+                                            onClose();
+                                            router.reload();
+                                        },
                                     });
                                 }}
                             />
@@ -960,7 +964,10 @@ export function ProductDetailDialog({
                                         preserveState: true,
                                         onStart: () => setDeleting(true),
                                         onFinish: () => setDeleting(false),
-                                        onSuccess: () => onClose(),
+                                        onSuccess: () => {
+                                            onClose();
+                                            router.reload();
+                                        },
                                     });
                                 }}
                             />

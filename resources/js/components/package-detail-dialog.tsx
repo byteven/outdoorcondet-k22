@@ -229,7 +229,10 @@ export function PackageDetailDialog({
                                 preserveState: true,
                                 onStart: () => setDeleting(true),
                                 onFinish: () => setDeleting(false),
-                                onSuccess: () => onClose(),
+                                onSuccess: () => {
+                                    onClose();
+                                    router.reload();
+                                },
                             });
                         }}
                     />

@@ -86,7 +86,7 @@ export function AttributeDetailDialog({
                 description: attribute.description ?? '',
             });
         }
-    }, [attribute?.id, reset]);
+    }, [attribute, reset]);
 
     if (!attribute) {
         return (
@@ -110,6 +110,7 @@ export function AttributeDetailDialog({
                 onFinish: () => setProcessing(false),
                 onSuccess: () => {
                     onClose();
+                    router.reload();
                 },
             },
         );
@@ -212,7 +213,10 @@ export function AttributeDetailDialog({
                                 preserveState: true,
                                 onStart: () => setDeleting(true),
                                 onFinish: () => setDeleting(false),
-                                onSuccess: () => onClose(),
+                                onSuccess: () => {
+                                    onClose();
+                                    router.reload();
+                                },
                             });
                         }}
                     />

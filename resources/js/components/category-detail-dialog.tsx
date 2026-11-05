@@ -94,7 +94,7 @@ export function CategoryDetailDialog({
                 description: category.description ?? '',
             });
         }
-    }, [category?.id, reset]);
+    }, [category, reset]);
 
     if (!category) {
         return (
@@ -119,6 +119,7 @@ export function CategoryDetailDialog({
                 onFinish: () => setProcessing(false),
                 onSuccess: () => {
                     onClose();
+                    router.reload();
                 },
             },
         );
@@ -238,7 +239,10 @@ export function CategoryDetailDialog({
                                 preserveState: true,
                                 onStart: () => setDeleting(true),
                                 onFinish: () => setDeleting(false),
-                                onSuccess: () => onClose(),
+                                onSuccess: () => {
+                                    onClose();
+                                    router.reload();
+                                },
                             });
                         }}
                     />

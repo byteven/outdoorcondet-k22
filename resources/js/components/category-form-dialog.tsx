@@ -98,6 +98,7 @@ export function CategoryFormDialog() {
                 onSuccess: () => {
                     setOpen(false);
                     reset();
+                    router.reload();
                 },
             },
         );

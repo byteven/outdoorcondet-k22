@@ -2,7 +2,8 @@ import { router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { FormattedNumberInput } from '@/components/ui/formatted-number-input';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
 import {
@@ -223,7 +224,10 @@ export function ProductFormDialog({
             forceFormData: true,
             onStart: () => setProcessing(true),
             onFinish: () => setProcessing(false),
-            onSuccess: () => closeDialog(false),
+            onSuccess: () => {
+                closeDialog(false);
+                router.reload();
+            },
         });
     };
 
@@ -484,15 +488,17 @@ export function ProductFormDialog({
                                                     *
                                                 </span>
                                             </Label>
-                                            <Input
-                                                id={`variant-price-${i}`}
-                                                type="number"
-                                                min={0}
-                                                step={500}
-                                                disabled={processing}
-                                                {...register(
-                                                    `variants.${i}.rental_price_per_day`,
-                                                    { valueAsNumber: true },
+                                            <Controller
+                                                control={control}
+                                                name={`variants.${i}.rental_price_per_day`}
+                                                render={({ field }) => (
+                                                    <FormattedNumberInput
+                                                        id={`variant-price-${i}`}
+                                                        value={field.value}
+                                                        onValueChange={field.onChange}
+                                                        disabled={processing}
+                                                        placeholder="Contoh: 35.000"
+                                                    />
                                                 )}
                                             />
                                             <InputError
@@ -512,16 +518,17 @@ export function ProductFormDialog({
                                             >
                                                 Harga deposit / unit (Rp)
                                             </Label>
-                                            <Input
-                                                id={`variant-deposit-${i}`}
-                                                type="number"
-                                                min={0}
-                                                step={1000}
-                                                placeholder="Contoh: 50000"
-                                                disabled={processing}
-                                                {...register(
-                                                    `variants.${i}.deposit_per_unit`,
-                                                    { valueAsNumber: true },
+                                            <Controller
+                                                control={control}
+                                                name={`variants.${i}.deposit_per_unit`}
+                                                render={({ field }) => (
+                                                    <FormattedNumberInput
+                                                        id={`variant-deposit-${i}`}
+                                                        value={field.value}
+                                                        onValueChange={field.onChange}
+                                                        disabled={processing}
+                                                        placeholder="Contoh: 50.000"
+                                                    />
                                                 )}
                                             />
                                             <InputError
@@ -946,16 +953,17 @@ function VariantDurationPricesInput({
                     </div>
                     <div className="grid gap-1">
                         <Label className="text-xs">Harga Total (Rp)</Label>
-                        <Input
-                            id={`variant-duration-price-${variantIndex}-${j}`}
-                            type="number"
-                            min={0}
-                            step={500}
-                            placeholder="Contoh: 50000"
-                            disabled={processing}
-                            {...register(
-                                `variants.${variantIndex}.duration_prices.${j}.price`,
-                                { valueAsNumber: true },
+                        <Controller
+                            control={control}
+                            name={`variants.${variantIndex}.duration_prices.${j}.price`}
+                            render={({ field }) => (
+                                <FormattedNumberInput
+                                    id={`variant-duration-price-${variantIndex}-${j}`}
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                    disabled={processing}
+                                    placeholder="Contoh: 50.000"
+                                />
                             )}
                         />
                     </div>

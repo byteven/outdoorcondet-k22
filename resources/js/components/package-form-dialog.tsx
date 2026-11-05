@@ -2,7 +2,8 @@ import { router, usePage } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { FormattedNumberInput } from '@/components/ui/formatted-number-input';
 import { FormStepper } from '@/components/form-stepper';
 import InputError from '@/components/input-error';
 import {
@@ -83,10 +84,8 @@ export function PackageFormDialog({
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
     const [removeImage, setRemoveImage] = useState(false);
-    const serverErrors = (usePage().props.errors.packageForm ?? {}) as Record<
-        string,
-        string
-    >;
+    const serverErrors =
+        (usePage().props.errors?.packageForm ?? {}) as Record<string, string>;
 
     const open = isControlled ? controlledOpen : internalOpen;
     const isEdit = packageRow !== null;
@@ -162,35 +161,7 @@ export function PackageFormDialog({
         setImageFile(null);
         setImageError(null);
         setRemoveImage(false);
-    }, [open, packageRow?.id, reset]);
-
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        const keys = Object.keys(serverErrors);
-
-        if (
-            keys.some((key) =>
-                [
-                    'name',
-                    'slug',
-                    'description',
-                    'daily_price',
-                    'deposit_per_package',
-                    'image',
-                    'is_active',
-                ].includes(key),
-            )
-        ) {
-            setStep(0);
-        } else if (keys.some((key) => key.startsWith('items'))) {
-            setStep(1);
-        } else if (keys.some((key) => key.startsWith('duration_prices'))) {
-            setStep(2);
-        }
-    }, [serverErrors, open]);
+    }, [open, packageRow, reset]);
 
     const setOpen = (next: boolean) => {
         if (!isControlled) {
@@ -213,22 +184,20 @@ export function PackageFormDialog({
     };
 
     const nextStep = async () => {
-        const fields =
-            step === 0
-                ? ([
-                      'name',
-                      'slug',
-                      'description',
-                      'daily_price',
-                      'deposit_per_package',
-                  ] as const)
-                : step === 1
-                  ? (['items'] as const)
-                  : (['duration_prices'] as const);
-        const valid = await validate(fields as Parameters<typeof validate>[0]);
+        if (step === 0) {
+            const valid = await validate(['name', 'slug', 'description']);
+            if (valid) {
+                setStep(1);
+            }
+            return;
+        }
 
-        if (valid) {
-            setStep((current) => Math.min(current + 1, STEPS.length - 1));
+        if (step === 1) {
+            const valid = await validate('items');
+            if (valid) {
+                setStep(2);
+            }
+            return;
         }
     };
 
@@ -309,7 +278,37 @@ export function PackageFormDialog({
             preserveState: true,
             onStart: () => setProcessing(true),
             onFinish: () => setProcessing(false),
-            onSuccess: () => closeDialog(false),
+            onError: (errs: Record<string, string>) => {
+                const keys = Object.keys(errs);
+                if (
+                    keys.some((key) =>
+                        [
+                            'name',
+                            'slug',
+                            'description',
+                            'image',
+                            'is_active',
+                        ].includes(key),
+                    )
+                ) {
+                    setStep(0);
+                } else if (keys.some((key) => key.startsWith('items'))) {
+                    setStep(1);
+                } else if (
+                    keys.some(
+                        (key) =>
+                            key.startsWith('duration_prices') ||
+                            key === 'daily_price' ||
+                            key === 'deposit_per_package',
+                    )
+                ) {
+                    setStep(2);
+                }
+            },
+            onSuccess: () => {
+                closeDialog(false);
+                router.reload();
+            },
         };
 
         if (isEdit && packageRow) {
@@ -869,15 +868,18 @@ export function PackageFormDialog({
                                             *
                                         </span>
                                     </Label>
-                                    <Input
-                                        id="package-daily-price"
-                                        type="number"
-                                        min={0}
-                                        step={500}
-                                        disabled={processing}
-                                        {...register('daily_price', {
-                                            valueAsNumber: true,
-                                        })}
+                                    <Controller
+                                        control={control}
+                                        name="daily_price"
+                                        render={({ field }) => (
+                                            <FormattedNumberInput
+                                                id="package-daily-price"
+                                                value={field.value}
+                                                onValueChange={field.onChange}
+                                                disabled={processing}
+                                                placeholder="Contoh: 95.000"
+                                            />
+                                        )}
                                     />
                                     <InputError
                                         message={
@@ -890,16 +892,18 @@ export function PackageFormDialog({
                                     <Label htmlFor="package-deposit">
                                         Deposit per paket (Rp)
                                     </Label>
-                                    <Input
-                                        id="package-deposit"
-                                        type="number"
-                                        min={0}
-                                        step={1000}
-                                        placeholder="Contoh: 150000"
-                                        disabled={processing}
-                                        {...register('deposit_per_package', {
-                                            valueAsNumber: true,
-                                        })}
+                                    <Controller
+                                        control={control}
+                                        name="deposit_per_package"
+                                        render={({ field }) => (
+                                            <FormattedNumberInput
+                                                id="package-deposit"
+                                                value={field.value}
+                                                onValueChange={field.onChange}
+                                                disabled={processing}
+                                                placeholder="Contoh: 150.000"
+                                            />
+                                        )}
                                     />
                                     <InputError
                                         message={
@@ -958,17 +962,17 @@ export function PackageFormDialog({
                                             <Label className="text-xs">
                                                 Harga total (Rp)
                                             </Label>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                step={500}
-                                                placeholder="Contoh: 140000"
-                                                disabled={processing}
-                                                {...register(
-                                                    `duration_prices.${i}.price`,
-                                                    {
-                                                        valueAsNumber: true,
-                                                    },
+                                            <Controller
+                                                control={control}
+                                                name={`duration_prices.${i}.price`}
+                                                render={({ field }) => (
+                                                    <FormattedNumberInput
+                                                        id={`package-duration-price-${i}`}
+                                                        value={field.value}
+                                                        onValueChange={field.onChange}
+                                                        disabled={processing}
+                                                        placeholder="Contoh: 140.000"
+                                                    />
                                                 )}
                                             />
                                             <InputError

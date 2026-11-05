@@ -138,6 +138,7 @@ export function CustomerFormDialog() {
                 onSuccess: () => {
                     setOpen(false);
                     reset();
+                    router.reload();
                 },
             },
         );

@@ -41,6 +41,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { FormattedNumberInput } from '@/components/ui/formatted-number-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -1406,11 +1407,10 @@ export default function PosIndex({
                                     {paymentMethod === 'cash' && (
                                         <div className="space-y-2 pt-1">
                                             <Label className="text-xs font-semibold text-foreground">Uang Diterima dari Pelanggan</Label>
-                                            <Input
-                                                type="text"
-                                                placeholder="Rp 0"
-                                                value={cashTendered}
-                                                onChange={(e) => setCashTendered(e.target.value)}
+                                            <FormattedNumberInput
+                                                placeholder="Contoh: 100.000"
+                                                value={numericCashTendered}
+                                                onValueChange={(val) => setCashTendered(val.toString())}
                                                 className="font-bold text-sm"
                                             />
 

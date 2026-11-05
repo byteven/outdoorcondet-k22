@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePoll } from '@inertiajs/react';
 import {
     CheckCircle2,
     ExternalLink,
@@ -103,6 +103,8 @@ export default function MaintenanceIndex({
     variants,
     filters,
 }: Props) {
+    usePoll(3000, { only: ['maintenances', 'summary'] });
+
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || 'in_maintenance');
     const [reason, setReason] = useState(filters.reason || 'all');
@@ -167,6 +169,7 @@ export default function MaintenanceIndex({
                 onSuccess: () => {
                     setShowMarkReadyDialog(false);
                     setSelectedMaintenance(null);
+                    router.reload();
                 },
                 onError: () => {
                     toast.error('Gagal menandai unit siap. Silakan coba lagi.');
@@ -213,6 +216,7 @@ export default function MaintenanceIndex({
                     setCreateReason('cleaning');
                     setCreateCustomReason('');
                     setCreateNotes('');
+                    router.reload();
                 },
                 onError: (errs) => {
                     const msg = Object.values(errs)[0] || 'Gagal menambahkan perawatan.';

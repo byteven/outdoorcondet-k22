@@ -63,24 +63,28 @@ export function PaymentProofDialog({
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
         const selected = event.target.files?.[0] ?? null;
         setFileError(null);
-        setFile(selected);
 
         if (selected) {
             const error = validateFile(selected);
 
             if (error) {
                 setFileError(error);
+                setFile(null); // Reset file agar bisa klik ulang
                 setPreviewImage(null);
+                // Reset input value agar bisa pilih file yang sama lagi
+                event.target.value = '';
 
                 return;
             }
 
+            setFile(selected);
             const reader = new FileReader();
             reader.onload = () => {
                 setPreviewImage(reader.result as string);
             };
             reader.readAsDataURL(selected);
         } else {
+            setFile(null);
             setPreviewImage(null);
         }
     };
@@ -139,10 +143,11 @@ export function PaymentProofDialog({
                         <div
                             className={cn(
                                 "relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border p-6 cursor-pointer transition-colors hover:bg-muted/50",
-                                hasImage && 'border-transparent bg-muted/50'
+                                hasImage && 'border-transparent bg-muted/50',
+                                fileError && 'border-destructive'
                             )}
                             onClick={() => {
-                                if (!file && !hasImage) {
+                                if (!uploading) {
                                     document
                                         .getElementById('payment-proof-input')
                                         ?.click();
@@ -196,7 +201,7 @@ export function PaymentProofDialog({
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.pdf"
                                 onChange={handleFileChange}
-                                disabled={uploading || file !== null}
+                                disabled={uploading}
                                 className="hidden"
                             />
                         </div>

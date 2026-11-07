@@ -227,7 +227,14 @@ export function RentalRange({
         }
 
         setRange({ from: range.from });
-        onSearch?.({ origin: "clear" });
+        onSearch?.({
+            pickupDate: range.from,
+            billingStartDate: getBillingStartDate(
+                range.from,
+                STORE_PICKUP_TIME,
+            ),
+            origin: "clear",
+        });
     };
 
     return (
@@ -546,6 +553,9 @@ function ClearDateButton({
         <span
             role="button"
             tabIndex={0}
+            onPointerDown={(event) => {
+                event.stopPropagation();
+            }}
             onClick={onClick}
             onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {

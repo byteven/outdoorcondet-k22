@@ -32,7 +32,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     ];
 
     return (
-        <div className="px-4 py-6">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:gap-12">
                 <aside className="w-full shrink-0 lg:w-56">
                     <Heading

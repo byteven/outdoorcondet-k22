@@ -16,10 +16,10 @@ use Illuminate\Support\Str;
 class ProductSeeder extends Seeder
 {
     /**
-     * Sumber gambar dummy yang ikut git (`public/images/seeder-img-products`).
+     * Sumber gambar dummy yang ikut git (`storage/app/public/seed/products`).
      * Saat seed, file disalin ke disk public agar URL `/storage/...` tetap sama.
      */
-    private const SOURCE_FOLDER = 'images/seeder-img-products';
+    private const SOURCE_FOLDER = 'seed/products';
 
     /**
      * Folder relatif (dari storage/app/public) tempat gambar seed disimpan.
@@ -92,23 +92,41 @@ class ProductSeeder extends Seeder
     }
 
     /**
-     * Sisipkan satu gambar primary per produk.
-     * File sumber di-commit; salinan hidup di storage public (tidak di git).
+     * Sisipkan gambar per produk.
+     * - File primary: produk-{number}.webp
+     * - File secondary (opsional): produk-{number}{number}.webp (contoh: produk-0101.webp untuk produk 1)
+     * File sumber di-commit di storage/app/public/seed/products.
      */
     private function seedImage(Product $product, int $number): void
     {
         $filename = sprintf('produk-%02d.webp', $number);
-        $sourcePath = public_path(self::SOURCE_FOLDER.'/'.$filename);
-        $imagePath = self::IMAGE_FOLDER.'/'.$filename;
+        $secondaryFilename = sprintf('produk-%02d%02d.webp', $number, $number);
+        
+        $sourcePath = storage_path('app/public/' . self::SOURCE_FOLDER . '/' . $filename);
+        $secondarySourcePath = storage_path('app/public/' . self::SOURCE_FOLDER . '/' . $secondaryFilename);
+        
+        $imagePath = self::IMAGE_FOLDER . '/' . $filename;
+        $secondaryImagePath = self::IMAGE_FOLDER . '/' . $secondaryFilename;
 
+        // Primary image
         if (File::isFile($sourcePath)) {
             Storage::disk('public')->put($imagePath, File::get($sourcePath));
+            
+            ProductImage::query()->updateOrCreate(
+                ['product_id' => $product->id, 'is_primary' => true],
+                ['image_path' => $imagePath],
+            );
         }
 
-        ProductImage::query()->updateOrCreate(
-            ['product_id' => $product->id, 'is_primary' => true],
-            ['image_path' => $imagePath],
-        );
+        // Secondary image (jika ada)
+        if (File::isFile($secondarySourcePath)) {
+            Storage::disk('public')->put($secondaryImagePath, File::get($secondarySourcePath));
+            
+            ProductImage::query()->updateOrCreate(
+                ['product_id' => $product->id, 'image_path' => $secondaryImagePath],
+                ['is_primary' => false],
+            );
+        }
     }
 
     /**
@@ -159,8 +177,8 @@ class ProductSeeder extends Seeder
      * - Nama produk = nama generik (tanpa kapasitas/ukuran di nama).
      * - Kapasitas / ukuran dimasukkan sebagai atribut varian.
      *
-     * Produk ke-15 (Tenda Dome) sengaja dipakai di RentalTestSeeder
-     * untuk simulasi rental tanggal 20-23 November 2026.
+     * Produk ke-15 (Tenda Tunnel) sengaja dipakai di RentalTestSeeder
+     * untuk simulasi rental tanggal 20-23 Januari 2027 (stok kosong di rentang ini).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -464,7 +482,7 @@ class ProductSeeder extends Seeder
             ],
 
             // ── 15. Tenda Tunnel ─ RESERVED untuk RentalTestSeeder ──────────
-            // SKU varian: OC-TND-TUN (dipakai di RentalTestSeeder Nov 20-23)
+            // SKU varian: OC-TND-TUN (dipakai di RentalTestSeeder Jan 20-23)
             [
                 'name' => 'Tenda Tunnel',
                 'category' => 'Tenda & Shelter',

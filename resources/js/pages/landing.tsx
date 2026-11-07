@@ -61,7 +61,7 @@ export default function Landing({ catalog, filters }: Props) {
     };
 
     useEffect(() => {
-        if (!activeRental) {
+        if (!activeRental?.returnDate) {
             return;
         }
 

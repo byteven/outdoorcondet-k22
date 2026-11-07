@@ -322,10 +322,11 @@ export default function CartPage({ cart }: Props) {
                                             )
                                         }
                                         initialReturnDate={
-                                            activeRental?.returnDate ??
-                                            parseRentalQueryDate(
-                                                serverReturnKey,
-                                            )
+                                            activeRental
+                                                ? activeRental.returnDate
+                                                : parseRentalQueryDate(
+                                                    serverReturnKey,
+                                                )
                                         }
                                         hideButton
                                         onSearch={handleRangeChange}
@@ -437,47 +438,47 @@ function CheckoutSummaryCard({
                 </div>
             </div>
 
-        <div className="mt-6 space-y-3">
-            <div className="rounded-xl bg-background">
-                <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mt-6 space-y-3">
+                <div className="rounded-xl bg-background">
+                    <div className="mb-3 flex items-center justify-between gap-3">
 
-                    <QrisLogo className="h-5" />
+                        <QrisLogo className="h-5" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <PaymentMethodCard
+                            value="full"
+                            checked={paymentType === "full"}
+                            label="Bayar Penuh"
+                            onChange={onPaymentTypeChange}
+                        />
+                        <PaymentMethodCard
+                            value="down_payment"
+                            checked={paymentType === "down_payment"}
+                            label="DP 50%"
+                            onChange={onPaymentTypeChange}
+                        />
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <PaymentMethodCard
-                        value="full"
-                        checked={paymentType === "full"}
-                        label="Bayar Penuh"
-                        onChange={onPaymentTypeChange}
-                    />
-                    <PaymentMethodCard
-                        value="down_payment"
-                        checked={paymentType === "down_payment"}
-                        label="DP 50%"
-                        onChange={onPaymentTypeChange}
-                    />
+                <div>
+                    <Button
+                        type="button"
+                        className="w-full rounded-full transition-none mt-3"
+                        disabled={checkoutDisabled}
+                        onClick={onOpenConfirm}
+                    >
+                        {isCheckingOut ? "Memproses..." : "Checkout Sekarang"}
+                    </Button>
+
+                    {!allItemsReady && hasItems && (
+                        <p className="mt-2 text-center text-xs text-destructive">
+                            Tidak bisa checkout: ada item yang tidak tersedia untuk
+                            tanggal ini.
+                        </p>
+                    )}
                 </div>
             </div>
-
-            <div>
-                <Button
-                    type="button"
-                    className="w-full rounded-full transition-none mt-3"
-                    disabled={checkoutDisabled}
-                    onClick={onOpenConfirm}
-                >
-                    {isCheckingOut ? "Memproses..." : "Checkout Sekarang"}
-                </Button>
-
-                {!allItemsReady && hasItems && (
-                    <p className="mt-2 text-center text-xs text-destructive">
-                        Tidak bisa checkout: ada item yang tidak tersedia untuk
-                        tanggal ini.
-                    </p>
-                )}
-            </div>
-        </div>
         </div>
     );
 }
@@ -496,14 +497,14 @@ function PaymentMethodCard({
     onChange,
 }: PaymentMethodCardProps) {
     return (
-       <label
-    className={cn(
-        "flex cursor-pointer select-none items-center gap-2.5 rounded-full border px-3 py-3 transition-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-        checked
-            ? "border-primary"
-            : "border-input bg-background hover:opacity-75",
-    )}
->
+        <label
+            className={cn(
+                "flex cursor-pointer select-none items-center gap-2.5 rounded-full border px-3 py-3 transition-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                checked
+                    ? "border-primary"
+                    : "border-input bg-background hover:opacity-75",
+            )}
+        >
             <input
                 type="radio"
                 name="payment-type"
@@ -742,7 +743,7 @@ function CartItemVariantRow({
             {/* Row 1: varian + stok (kiri) | stepper + hapus (kanan) */}
             <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col items-start gap-1.5">
-             
+
                     <CartItemVariant
                         item={item}
                         busy={busy}
@@ -752,7 +753,7 @@ function CartItemVariantRow({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-                   
+
                     <Button
                         type="button"
                         variant="ghost"
@@ -764,7 +765,7 @@ function CartItemVariantRow({
                     >
                         <Trash2Icon className="size-4" />
                     </Button>
-                     <QuantityStepper
+                    <QuantityStepper
                         value={item.quantity}
                         min={1}
                         max={cartLineStock(item, allItems).max}
@@ -1022,7 +1023,7 @@ function CartItemStock({
         return (
             <p className="flex items-center gap-1.5 text-xs text-destructive">
                 <CalendarXIcon className="size-3.5 shrink-0" />
-                Sisa {remaining} unit — kurangi quantity
+                Sisa {remaining} unit
             </p>
         );
     }

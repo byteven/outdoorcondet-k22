@@ -54,6 +54,10 @@ export function useCartRentalDates({
             return;
         }
 
+        if (!activeRental.returnDate) {
+            return;
+        }
+
         const pickupKey = toRentalQueryDate(activeRental.pickupDate);
         const returnKey = toRentalQueryDate(activeRental.returnDate);
 
@@ -79,6 +83,13 @@ export function useCartRentalDates({
         returnDate,
     }: RentalRangeParams) => {
         if (!pickupDate || !returnDate) {
+            syncRentalRangePersistence(
+                pickupDate,
+                returnDate,
+                saveDates,
+                clearDates,
+            );
+
             return;
         }
 

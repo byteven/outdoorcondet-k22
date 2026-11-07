@@ -146,7 +146,7 @@ class DashboardController extends Controller
         // 4. Jadwal Pengembalian Terdekat (hari ini atau yang akan datang)
         $today = Carbon::today()->toDateString();
         $upcomingReturns = Rental::query()
-            ->with(['customer.user:id,name,phone'])
+            ->with(['customer.user:id,name', 'customer:id,user_id,phone_number'])
             ->whereIn('status', $activeStatuses)
             ->where('end_date', '>=', $today)
             ->orderBy('end_date', 'asc')
@@ -156,7 +156,7 @@ class DashboardController extends Controller
                 'id' => $rental->id,
                 'rental_code' => $rental->rental_code,
                 'customer_name' => $rental->customer?->user?->name ?? 'Pelanggan',
-                'customer_phone' => $rental->customer?->phone_number ?? $rental->customer?->user?->phone,
+                'customer_phone' => $rental->customer?->phone_number ?? '-',
                 'end_date' => $rental->end_date->format('d M Y'),
                 'is_today' => $rental->end_date->isToday(),
             ]);

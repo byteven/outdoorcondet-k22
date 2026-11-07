@@ -10,7 +10,13 @@ use Illuminate\Support\Str;
 class PackageSeeder extends Seeder
 {
     /**
-     * Seed bundle packages with their items and duration prices.
+     * Sumber gambar bundle dari folder seed.
+     */
+    private const SOURCE_FOLDER = 'seed/products';
+    private const IMAGE_FOLDER = 'seed/products';
+
+    /**
+     * Seed bundle packages with their items, duration prices, and images.
      */
     public function run(): void
     {
@@ -18,7 +24,7 @@ class PackageSeeder extends Seeder
             ->get(['id', 'product_id', 'sku'])
             ->keyBy('sku');
 
-        foreach ($this->packages() as $row) {
+        foreach ($this->packages() as $index => $row) {
             $package = Package::query()->updateOrCreate(
                 ['slug' => Str::slug($row['name'])],
                 [
@@ -29,6 +35,9 @@ class PackageSeeder extends Seeder
                     'is_active' => true,
                 ],
             );
+
+            // Seed image
+            $this->seedImage($package, $index + 1);
 
             $package->items()->delete();
 
@@ -52,6 +61,22 @@ class PackageSeeder extends Seeder
                     ['price' => $price],
                 );
             }
+        }
+    }
+
+    /**
+     * Seed gambar untuk package dari storage/app/public/seed/products/bundle-{number}.webp
+     */
+    private function seedImage(\App\Models\Package $package, int $number): void
+    {
+        $filename = sprintf('bundle-%02d.webp', $number);
+        $sourcePath = storage_path('app/public/' . self::SOURCE_FOLDER . '/' . $filename);
+        $imagePath = self::IMAGE_FOLDER . '/' . $filename;
+
+        if (\Illuminate\Support\Facades\File::isFile($sourcePath)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->put($imagePath, \Illuminate\Support\Facades\File::get($sourcePath));
+            
+            $package->update(['image_path' => $imagePath]);
         }
     }
 

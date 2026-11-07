@@ -10,7 +10,7 @@ const RENTAL_DATES_CHANGED = "outdoorcondet:rental-dates-changed";
 
 export type RentalDates = {
     pickupDate: Date;
-    returnDate: Date;
+    returnDate?: Date;
 };
 
 export type RentalDateSelection = RentalDates & {
@@ -33,18 +33,24 @@ function readStoredDates(): RentalDates | null {
             returnDate?: string;
         };
 
-        if (!parsed.pickupDate || !parsed.returnDate) {
+        if (!parsed.pickupDate) {
             return null;
         }
 
         const pickupDate = new Date(parsed.pickupDate);
+
+        if (Number.isNaN(pickupDate.getTime())) {
+            return null;
+        }
+
+        if (!parsed.returnDate) {
+            return { pickupDate };
+        }
+
         const returnDate = new Date(parsed.returnDate);
 
-        if (
-            Number.isNaN(pickupDate.getTime()) ||
-            Number.isNaN(returnDate.getTime())
-        ) {
-            return null;
+        if (Number.isNaN(returnDate.getTime())) {
+            return { pickupDate };
         }
 
         return { pickupDate, returnDate };
@@ -62,7 +68,9 @@ function writeStoredDates(dates: RentalDates | null): void {
                 STORAGE_KEY,
                 JSON.stringify({
                     pickupDate: dates.pickupDate.toISOString(),
-                    returnDate: dates.returnDate.toISOString(),
+                    ...(dates.returnDate
+                        ? { returnDate: dates.returnDate.toISOString() }
+                        : {}),
                 }),
             );
         }
@@ -109,16 +117,20 @@ export function resolveRentalDates(
     pickupFromUrl?: string,
     returnFromUrl?: string,
 ): RentalDates | null {
-    const pickupDate =
-        stored?.pickupDate ?? parseRentalQueryDate(pickupFromUrl);
-    const returnDate =
-        stored?.returnDate ?? parseRentalQueryDate(returnFromUrl);
+    if (stored?.pickupDate) {
+        return stored.returnDate
+            ? { pickupDate: stored.pickupDate, returnDate: stored.returnDate }
+            : { pickupDate: stored.pickupDate };
+    }
 
-    if (!pickupDate || !returnDate) {
+    const pickupDate = parseRentalQueryDate(pickupFromUrl);
+    const returnDate = parseRentalQueryDate(returnFromUrl);
+
+    if (!pickupDate) {
         return null;
     }
 
-    return { pickupDate, returnDate };
+    return returnDate ? { pickupDate, returnDate } : { pickupDate };
 }
 
 export function useRentalDates() {
@@ -140,8 +152,10 @@ export function useRentalDates() {
         };
     }, []);
 
-    const saveDates = (pickupDate: Date, returnDate: Date): void => {
-        const rentalDates = { pickupDate, returnDate };
+    const saveDates = (pickupDate: Date, returnDate?: Date): void => {
+        const rentalDates = returnDate
+            ? { pickupDate, returnDate }
+            : { pickupDate };
         setDates(rentalDates);
         writeStoredDates(rentalDates);
     };
@@ -162,11 +176,13 @@ export type RentalDateFilters = {
 export function syncRentalRangePersistence(
     pickupDate: Date | undefined,
     returnDate: Date | undefined,
-    saveDates: (pickup: Date, returnDate: Date) => void,
+    saveDates: (pickup: Date, returnDate?: Date) => void,
     clearDates: () => void,
 ): void {
     if (pickupDate && returnDate) {
         saveDates(pickupDate, returnDate);
+    } else if (pickupDate) {
+        saveDates(pickupDate);
     } else {
         clearDates();
     }
@@ -196,7 +212,7 @@ export function useActiveRental(filters: RentalDateFilters) {
     );
 
     const selection = useMemo((): RentalDateSelection | null => {
-        if (!activeRental) {
+        if (!activeRental?.returnDate) {
             return null;
         }
 

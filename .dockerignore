@@ -12,6 +12,7 @@
 !.env.example
 *.pem
 docker-compose*.yml
+ecosystem.config.cjs
 node_modules
 vendor
 public/build

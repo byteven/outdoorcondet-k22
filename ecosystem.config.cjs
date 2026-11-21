@@ -1,0 +1,41 @@
+module.exports = {
+    apps: [
+        {
+            name: 'outdoorcondet-web',
+            script: 'php',
+            args: `artisan serve --host=0.0.0.0 --port=${process.env.PORT || 8000}`,
+            interpreter: 'none',
+            cwd: __dirname,
+            instances: 1,
+            autorestart: true,
+            watch: false,
+            max_memory_restart: '300M',
+            env: {
+                APP_ENV: 'production',
+                PHP_CLI_SERVER_WORKERS: '4',
+            },
+        },
+        {
+            name: 'outdoorcondet-scheduler',
+            script: 'php',
+            args: 'artisan schedule:work --no-interaction',
+            interpreter: 'none',
+            cwd: __dirname,
+            instances: 1,
+            autorestart: true,
+            watch: false,
+            max_memory_restart: '150M',
+        },
+        {
+            name: 'outdoorcondet-queue',
+            script: 'php',
+            args: 'artisan queue:work --sleep=3 --tries=3 --max-time=3600 --no-interaction',
+            interpreter: 'none',
+            cwd: __dirname,
+            instances: 1,
+            autorestart: true,
+            watch: false,
+            max_memory_restart: '200M',
+        },
+    ],
+};

@@ -66,6 +66,9 @@ test('email verification status is unchanged when the email address is unchanged
             'name' => 'Test User',
             'email' => $user->email,
             'phone_number' => '6281234567890',
+            'emergency_contact' => '6281234567890 (Orang Tua)',
+            'social_media' => 'https://instagram.com/testuser',
+            'address' => 'Jl. Condet Raya No. 22',
         ]);
 
     $response
@@ -74,6 +77,30 @@ test('email verification status is unchanged when the email address is unchanged
 
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
+
+test('emergency contact, social media and address are required', function (string $field) {
+    $user = User::factory()->create(['role' => UserRole::Customer]);
+    $customer = Customer::factory()->create(['user_id' => $user->id]);
+    $originalValue = $customer->{$field};
+
+    $payload = [
+        'name' => 'Test User',
+        'email' => $user->email,
+        'phone_number' => '6281234567890',
+        'emergency_contact' => '6281234567890 (Orang Tua)',
+        'social_media' => 'https://instagram.com/testuser',
+        'address' => 'Jl. Condet Raya No. 22',
+        $field => '',
+    ];
+
+    $this->actingAs($user)
+        ->from(route('profile.edit'))
+        ->patch(route('profile.update'), $payload)
+        ->assertSessionHasErrors($field)
+        ->assertRedirect(route('profile.edit'));
+
+    expect($customer->fresh()->{$field})->toBe($originalValue);
+})->with(['emergency_contact', 'social_media', 'address']);
 
 test('user can delete their account', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);

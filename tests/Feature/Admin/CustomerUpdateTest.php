@@ -95,6 +95,14 @@ test('updating a customer validates the input in its own error bag', function ()
         ->assertSessionHasErrorsIn('updateCustomer', ['name', 'email']);
 });
 
+test('updating a customer requires emergency contact, social media and address', function (string $field) {
+    $customer = Customer::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.customers.update', $customer), updatePayload([$field => '']))
+        ->assertSessionHasErrorsIn('updateCustomer', [$field]);
+})->with(['emergency_contact', 'social_media', 'address']);
+
 test('password cannot be changed through the customer update', function () {
     $customer = Customer::factory()->create();
     $originalHash = $customer->user->password;

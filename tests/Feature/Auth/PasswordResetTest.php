@@ -52,8 +52,8 @@ test('password can be reset with valid token', function () {
         $response = $this->post(route('password.update'), [
             'token' => $notification->token,
             'email' => $user->email,
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
         ]);
 
         $response
@@ -62,6 +62,29 @@ test('password can be reset with valid token', function () {
 
         return true;
     });
+});
+
+test('reset password email is written in Indonesian', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+
+    $this->post(route('password.email'), ['email' => $user->email])
+        ->assertSessionHas('status', 'Kami telah mengirim tautan atur ulang password ke email Anda.');
+
+    Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+        $mail = $notification->toMail($user);
+
+        expect($mail->subject)->toBe('Atur ulang password Anda')
+            ->and($mail->actionText)->toBe('Atur Ulang Password');
+
+        return true;
+    });
+});
+
+test('unknown email gets an Indonesian error', function () {
+    $this->post(route('password.email'), ['email' => 'tidak-ada@example.com'])
+        ->assertSessionHasErrors(['email' => 'Kami tidak menemukan pengguna dengan alamat email tersebut.']);
 });
 
 test('password cannot be reset with invalid token', function () {

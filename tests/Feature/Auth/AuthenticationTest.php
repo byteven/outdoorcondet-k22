@@ -17,7 +17,7 @@ test('users can authenticate using the login screen', function () {
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,
-        'password' => 'password',
+        'password' => 'Password123321@',
     ]);
 
     $this->assertAuthenticated();
@@ -29,7 +29,7 @@ test('admins are redirected to the admin dashboard after login', function () {
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,
-        'password' => 'password',
+        'password' => 'Password123321@',
     ]);
 
     $this->assertAuthenticated();
@@ -48,7 +48,7 @@ test('users with two factor enabled are redirected to two factor challenge', fun
 
     $response = $this->post(route('login'), [
         'email' => $user->email,
-        'password' => 'password',
+        'password' => 'Password123321@',
     ]);
 
     $response->assertRedirect(route('two-factor.login'));
@@ -107,7 +107,7 @@ test('inactive customers cannot authenticate', function () {
 
     $response = $this->post(route('login.store'), [
         'email' => $customer->user->email,
-        'password' => 'password',
+        'password' => 'Password123321@',
     ]);
 
     $response->assertSessionHasErrors('email');
@@ -119,7 +119,7 @@ test('active customers can authenticate', function () {
 
     $response = $this->post(route('login.store'), [
         'email' => $customer->user->email,
-        'password' => 'password',
+        'password' => 'Password123321@',
     ]);
 
     $this->assertAuthenticated();

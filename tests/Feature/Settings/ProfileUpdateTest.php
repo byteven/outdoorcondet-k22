@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Rental;
 use App\Models\User;
 use App\UserRole;
 
@@ -102,9 +103,9 @@ test('emergency contact, social media and address are required', function (strin
     expect($customer->fresh()->{$field})->toBe($originalValue);
 })->with(['emergency_contact', 'social_media', 'address']);
 
-test('user can delete their account', function () {
-    $user = User::factory()->create(['role' => UserRole::Customer]);
-    Customer::factory()->create(['user_id' => $user->id]);
+test('user without order history is fully deleted with their account', function () {
+    $user = User::factory()->create(['role' => UserRole::Customer, 'password' => 'password']);
+    $customer = Customer::factory()->create(['user_id' => $user->id]);
 
     $response = $this
         ->actingAs($user)
@@ -117,8 +118,43 @@ test('user can delete their account', function () {
         ->assertRedirect(route('home'));
 
     $this->assertGuest();
-    expect($user->fresh())->toBeNull();
+    expect($user->fresh())->toBeNull()
+        ->and(Customer::withTrashed()->find($customer->id))->toBeNull();
 });
+
+test('deleting an account keeps the order history', function () {
+    $user = User::factory()->create(['role' => UserRole::Customer, 'password' => 'password']);
+    $customer = Customer::factory()->create(['user_id' => $user->id]);
+    $rental = Rental::factory()->create(['customer_id' => $customer->id, 'status' => 'returned']);
+
+    $this->actingAs($user)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('home'));
+
+    $this->assertGuest();
+    expect($rental->fresh())->not->toBeNull()
+        ->and($user->fresh())->not->toBeNull()
+        ->and(Customer::withTrashed()->find($customer->id))
+        ->is_active->toBeFalse()
+        ->trashed()->toBeTrue();
+});
+
+test('account cannot be deleted while an order is still active', function (string $status) {
+    $user = User::factory()->create(['role' => UserRole::Customer, 'password' => 'password']);
+    $customer = Customer::factory()->create(['user_id' => $user->id]);
+    Rental::factory()->create(['customer_id' => $customer->id, 'status' => $status]);
+
+    $this->actingAs($user)
+        ->from(route('profile.edit'))
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHasErrors('password')
+        ->assertRedirect(route('profile.edit'));
+
+    $this->assertAuthenticatedAs($user);
+    expect($customer->fresh())->not->toBeNull()
+        ->is_active->toBeTrue();
+})->with(['pending_payment', 'waiting_confirmation', 'dp_paid', 'fully_paid']);
 
 test('correct password must be provided to delete account', function () {
     $user = User::factory()->create(['role' => UserRole::Customer]);

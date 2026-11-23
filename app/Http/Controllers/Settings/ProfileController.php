@@ -10,11 +10,24 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    /**
+     * Status pesanan yang menahan penghapusan akun.
+     *
+     * @var list<string>
+     */
+    private const ACTIVE_RENTAL_STATUSES = [
+        'pending_payment',
+        'waiting_confirmation',
+        'dp_paid',
+        'fully_paid',
+    ];
+
     /**
      * Show the customer's profile settings page (CU-02).
      * Khusus role customer, admin ditolak via middleware can:access-customer.
@@ -74,15 +87,37 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete the user's profile.
+     * Hapus akun customer.
+     *
+     * - Ditolak selama masih ada pesanan aktif (belum selesai/dibatalkan).
+     * - Jika punya riwayat pesanan: akun dinonaktifkan lalu di-soft-delete
+     *   (sama seperti hapus oleh admin) supaya riwayat transaksi tidak ikut
+     *   hilang lewat cascade delete.
+     * - Jika belum pernah memesan: akun dihapus penuh.
      */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
     {
         $user = $request->user();
+        $customer = $user->customer;
+
+        if ($customer?->rentals()->whereIn('status', self::ACTIVE_RENTAL_STATUSES)->exists()) {
+            throw ValidationException::withMessages([
+                'password' => 'Akun tidak bisa dihapus selama masih ada pesanan aktif. Selesaikan atau tunggu pesanan selesai terlebih dahulu.',
+            ]);
+        }
 
         Auth::logout();
 
-        $user->delete();
+        DB::transaction(function () use ($user, $customer): void {
+            if ($customer?->rentals()->exists()) {
+                $customer->update(['is_active' => false]);
+                $customer->delete();
+
+                return;
+            }
+
+            $user->delete();
+        });
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

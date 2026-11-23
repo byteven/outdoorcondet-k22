@@ -24,7 +24,7 @@ export default function DeleteUser() {
             <Heading
                 variant="small"
                 title="Hapus akun"
-                description="Hapus akunmu beserta seluruh datanya"
+                description="Hapus akunmu. Riwayat pesanan tetap tersimpan"
             />
             <div className="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4">
                 <div className="relative space-y-0.5 text-red-600">
@@ -49,9 +49,11 @@ export default function DeleteUser() {
                             Yakin ingin menghapus akunmu?
                         </DialogTitle>
                         <DialogDescription>
-                            Setelah akun dihapus, seluruh data dan sumber daya
-                            milikmu akan dihapus secara permanen. Masukkan kata
-                            sandi untuk mengonfirmasi penghapusan akun.
+                            Akunmu tidak bisa digunakan lagi setelah dihapus.
+                            Riwayat pesanan tetap tersimpan untuk pencatatan
+                            toko, dan akun tidak dapat dihapus selama masih ada
+                            pesanan aktif. Masukkan kata sandi untuk
+                            mengonfirmasi penghapusan akun.
                         </DialogDescription>
 
                         <Form
